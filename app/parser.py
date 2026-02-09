@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Optional
+
+
+_float = r"[-+]?\d+(?:\.\d+)?"
+
+
+@dataclass
+class Parsed:
+    satellite: str
+    tle_lat: Optional[float] = None
+    tle_lon: Optional[float] = None
+
+    temp_c: Optional[float] = None
+    temp_min_c: Optional[float] = None
+    temp_max_c: Optional[float] = None
+
+    vbus_mv: Optional[int] = None
+    ibus_ma: Optional[int] = None
+    solar_total_mw: Optional[int] = None
+
+    rssi_dbm: Optional[int] = None
+    snr_db: Optional[int] = None
+
+    uptime_sec: Optional[int] = None
+    reset_count: Optional[int] = None
+
+
+SAT_RE = re.compile(r"^🛰\s*(?P<sat>.+)\s*$", re.MULTILINE)
+TLE_LOC_RE = re.compile(r"TLE Location:\s*\[(?P<lat>%s)\s*,\s*(?P<lon>%s)\]" % (_float, _float))
+TEMP_RE = re.compile(r"🌡\s*(?P<t>%s)\s*ºC" % _float)
+TEMP_MIN_RE = re.compile(r"min\s*(?P<t>%s)\s*ºC" % _float)
+TEMP_MAX_RE = re.compile(r"max\s*(?P<t>%s)\s*ºC" % _float)
+
+# варианты: "🔋 7950mV Vbus 7950mV Ibus 55mA" или "Vbus 8426mV Ibus 138mA"
+VBUS_RE = re.compile(r"(?:🔋\s*)?(?:\d+\s*mV\s*)?Vbus\s*(?P<v>\d+)\s*mV", re.IGNORECASE)
+IBUS_RE = re.compile(r"Ibus\s*(?P<i>[-+]?\d+)\s*mA", re.IGNORECASE)
+
+# суммарная мощность: "☀️🧮 2049mW"
+SOLAR_TOTAL_RE = re.compile(r"☀️🧮\s*(?P<p>\d+)\s*mW")
+
+# "📞📶 RSSI: -83dBm SNR:0dB"
+RSSI_RE = re.compile(r"RSSI:\s*(?P<r>-?\d+)\s*dBm", re.IGNORECASE)
+SNR_RE = re.compile(r"SNR:\s*(?P<s>-?\d+)\s*dB", re.IGNORECASE)
+
+UPTIME_RE = re.compile(r"Uptime:\s*(?P<u>\d+)\s*sec", re.IGNORECASE)
+RESET_RE = re.compile(r"Reset:\s*(?P<rc>\d+)", re.IGNORECASE)
+
+
+def parse_tinygs_telegram(text: str) -> Optional[Parsed]:
+    m = SAT_RE.search(text)
+    if not m:
+        return None
+    sat = m.group("sat").strip()
+
+    out = Parsed(satellite=sat)
+
+    m = TLE_LOC_RE.search(text)
+    if m:
+        out.tle_lat = float(m.group("lat"))
+        out.tle_lon = float(m.group("lon"))
+
+    m = TEMP_RE.search(text)
+    if m:
+        out.temp_c = float(m.group("t"))
+
+    m = TEMP_MIN_RE.search(text)
+    if m:
+        out.temp_min_c = float(m.group("t"))
+
+    m = TEMP_MAX_RE.search(text)
+    if m:
+        out.temp_max_c = float(m.group("t"))
+
+    m = VBUS_RE.search(text)
+    if m:
+        out.vbus_mv = int(m.group("v"))
+
+    m = IBUS_RE.search(text)
+    if m:
+        out.ibus_ma = int(m.group("i"))
+
+    m = SOLAR_TOTAL_RE.search(text)
+    if m:
+        out.solar_total_mw = int(m.group("p"))
+
+    m = RSSI_RE.search(text)
+    if m:
+        out.rssi_dbm = int(m.group("r"))
+
+    m = SNR_RE.search(text)
+    if m:
+        out.snr_db = int(m.group("s"))
+
+    m = UPTIME_RE.search(text)
+    if m:
+        out.uptime_sec = int(m.group("u"))
+
+    m = RESET_RE.search(text)
+    if m:
+        out.reset_count = int(m.group("rc"))
+
+    return out
