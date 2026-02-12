@@ -6,3 +6,4 @@ telethon==1.42.0
 python-dateutil==2.9.0.post0
 pydantic-settings==2.10.1
 psycopg2-binary
+sgp4==2.23

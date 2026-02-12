@@ -64,6 +64,8 @@ async def collect_last_month(satellite: str = "Polytech_Universe-3", days: int =
                     temp_max_c=parsed.temp_max_c,
                     vbus_mv=parsed.vbus_mv,
                     ibus_ma=parsed.ibus_ma,
+                    battery_capacity_pct=parsed.battery_capacity_pct,
+                    solar_voltage_mv=parsed.solar_voltage_mv,
                     solar_total_mw=parsed.solar_total_mw,
                     rssi_dbm=parsed.rssi_dbm,
                     snr_db=parsed.snr_db,

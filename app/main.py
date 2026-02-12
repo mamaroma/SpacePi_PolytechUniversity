@@ -155,7 +155,9 @@ def get_series(
         {
             "ts_utc": r.ts_utc,
             "temp_c": r.temp_c,
+            "battery_capacity_pct": getattr(r, "battery_capacity_pct", None),
             "vbus_mv": r.vbus_mv,
+            "solar_voltage_mv": getattr(r, "solar_voltage_mv", None),
             "ibus_ma": r.ibus_ma,
             "solar_total_mw": r.solar_total_mw,
             "rssi_dbm": r.rssi_dbm,
