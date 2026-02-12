@@ -20,6 +20,8 @@ class Parsed:
 
     vbus_mv: Optional[int] = None
     ibus_ma: Optional[int] = None
+    battery_capacity_pct: Optional[float] = None
+    solar_voltage_mv: Optional[int] = None
     solar_total_mw: Optional[int] = None
 
     rssi_dbm: Optional[int] = None
@@ -41,6 +43,18 @@ IBUS_RE = re.compile(r"Ibus\s*(?P<i>[-+]?\d+)\s*mA", re.IGNORECASE)
 
 # суммарная мощность: "☀️🧮 2049mW"
 SOLAR_TOTAL_RE = re.compile(r"☀️🧮\s*(?P<p>\d+)\s*mW")
+
+# Battery capacity: e.g. "Battery Capacity 47%", "Batt 47%", "🔋 47%"
+BATTERY_CAP_RE = re.compile(
+    r"(?:Battery\s*Capacity|Battery\s*Cap|Batt(?:ery)?\s*(?:Capacity|Cap)?|🔋)\s*:?\s*(?P<pct>%s)\s*%%" % _float,
+    re.IGNORECASE,
+)
+
+# Solar voltage: e.g. "Solar Voltage 25000mV", "Vsolar 25000mV", "☀️ V 25000mV"
+SOLAR_VOLT_RE = re.compile(
+    r"(?:Solar\s*Voltage|Solar\s*V|Vsolar|Vsol|☀️\s*V)\s*:?\s*(?P<v>\d+)\s*mV",
+    re.IGNORECASE,
+)
 
 # "📞📶 RSSI: -83dBm SNR:0dB"
 RSSI_RE = re.compile(r"RSSI:\s*(?P<r>-?\d+)\s*dBm", re.IGNORECASE)
@@ -82,6 +96,14 @@ def parse_tinygs_telegram(text: str) -> Optional[Parsed]:
     m = IBUS_RE.search(text)
     if m:
         out.ibus_ma = int(m.group("i"))
+
+    m = BATTERY_CAP_RE.search(text)
+    if m:
+        out.battery_capacity_pct = float(m.group("pct"))
+
+    m = SOLAR_VOLT_RE.search(text)
+    if m:
+        out.solar_voltage_mv = int(m.group("v"))
 
     m = SOLAR_TOTAL_RE.search(text)
     if m:

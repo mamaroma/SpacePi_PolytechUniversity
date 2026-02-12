@@ -30,6 +30,13 @@ class TelemetryPacket(SQLModel, table=True):
     vbus_mv: Optional[int] = None
     ibus_ma: Optional[int] = None
 
+    # --- extra TinyGS-like fields (nullable) ---
+    # Battery capacity shown as a percentage (if present in the source message)
+    battery_capacity_pct: Optional[float] = None
+
+    # Solar panel voltage in mV (if present in the source message)
+    solar_voltage_mv: Optional[int] = None
+
     solar_total_mw: Optional[int] = None
 
     rssi_dbm: Optional[int] = None

@@ -32,6 +32,39 @@ function formatUtcNice(d) {
   return `${dd}.${mm}.${yy} ${hh}:${mi} UTC`;
 }
 
+function formatDayMonthUtc(tsMs) {
+  const d = new Date(tsMs);
+  return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}`;
+}
+
+// Aggregate raw packets to daily min/avg/max (UTC) for a given numeric key
+function dailyMinAvgMax(points, key) {
+  const byDay = new Map();
+
+  for (const p of points) {
+    const v = p[key];
+    if (v === null || v === undefined || !Number.isFinite(v)) continue;
+
+    const d = new Date(p.ts_ms);
+    const dayKey = `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+
+    let agg = byDay.get(dayKey);
+    if (!agg) {
+      agg = { dayKey, x: formatDayMonthUtc(p.ts_ms), min: v, max: v, sum: v, n: 1 };
+      byDay.set(dayKey, agg);
+    } else {
+      agg.min = Math.min(agg.min, v);
+      agg.max = Math.max(agg.max, v);
+      agg.sum += v;
+      agg.n += 1;
+    }
+  }
+
+  return [...byDay.values()]
+    .sort((a, b) => (a.dayKey < b.dayKey ? -1 : a.dayKey > b.dayKey ? 1 : 0))
+    .map((a) => ({ x: a.x, min: a.min, avg: a.sum / a.n, max: a.max, n: a.n }));
+}
+
 export default function App() {
   const [satellites, setSatellites] = useState([]);
   const [sat, setSat] = useState("Polytech_Universe-3");
@@ -176,6 +209,8 @@ export default function App() {
         temp_c: toNum(r.temp_c),
         vbus_mv: toNum(r.vbus_mv),
         ibus_ma: toNum(r.ibus_ma),
+        battery_capacity_pct: toNum(r.battery_capacity_pct),
+        solar_voltage_mv: toNum(r.solar_voltage_mv),
         solar_total_mw: toNum(r.solar_total_mw),
         rssi_dbm: toNum(r.rssi_dbm),
         snr_db: toNum(r.snr_db),
@@ -184,6 +219,15 @@ export default function App() {
       };
     });
   }, [rows]);
+
+  const seriesTemperature = useMemo(() => dailyMinAvgMax(chartData, "temp_c"), [chartData]);
+  const seriesBatteryCapacity = useMemo(
+    () => dailyMinAvgMax(chartData, "battery_capacity_pct"),
+    [chartData]
+  );
+  const seriesBatteryVoltage = useMemo(() => dailyMinAvgMax(chartData, "vbus_mv"), [chartData]);
+  const seriesSolarPower = useMemo(() => dailyMinAvgMax(chartData, "solar_total_mw"), [chartData]);
+  const seriesSolarVoltage = useMemo(() => dailyMinAvgMax(chartData, "solar_voltage_mv"), [chartData]);
 
   const latest = useMemo(() => {
     if (!rows.length) return null;
@@ -327,33 +371,63 @@ export default function App() {
       <div style={{ height: 12 }} />
 
       <div className="grid" style={{ marginBottom: 12 }}>
-        <ChartCard title="Temperature (°C)" data={chartData} lines={[{ key: "temp_c", name: "Temp °C" }]} />
-
         <ChartCard
-          title="Power (mV / mA / mW)"
-          data={chartData}
+          title="Temperature"
+          data={seriesTemperature}
+          xKey="x"
+          hideXAxis={false}
           lines={[
-            { key: "vbus_mv", name: "Vbus (mV)" },
-            { key: "ibus_ma", name: "Ibus (mA)" },
-            { key: "solar_total_mw", name: "Solar total (mW)" }
+            { key: "min", name: "Min", dot: true },
+            { key: "avg", name: "Avg", dot: true },
+            { key: "max", name: "Max", dot: true }
           ]}
         />
 
         <ChartCard
-          title="Link quality (dBm / dB)"
-          data={chartData}
+          title="Battery Capacity"
+          data={seriesBatteryCapacity}
+          xKey="x"
+          hideXAxis={false}
           lines={[
-            { key: "rssi_dbm", name: "RSSI (dBm)" },
-            { key: "snr_db", name: "SNR (dB)" }
+            { key: "min", name: "Min", dot: true },
+            { key: "avg", name: "Avg", dot: true },
+            { key: "max", name: "Max", dot: true }
           ]}
         />
 
         <ChartCard
-          title="Uptime / Resets"
-          data={chartData}
+          title="Battery Voltage"
+          data={seriesBatteryVoltage}
+          xKey="x"
+          hideXAxis={false}
           lines={[
-            { key: "uptime_sec", name: "Uptime (sec)" },
-            { key: "reset_count", name: "Reset count" }
+            { key: "min", name: "Min", dot: true },
+            { key: "avg", name: "Avg", dot: true },
+            { key: "max", name: "Max", dot: true }
+          ]}
+        />
+
+        <ChartCard
+          title="Solar Power"
+          data={seriesSolarPower}
+          xKey="x"
+          hideXAxis={false}
+          lines={[
+            { key: "min", name: "Min", dot: true },
+            { key: "avg", name: "Avg", dot: true },
+            { key: "max", name: "Max", dot: true }
+          ]}
+        />
+
+        <ChartCard
+          title="Solar Voltage"
+          data={seriesSolarVoltage}
+          xKey="x"
+          hideXAxis={false}
+          lines={[
+            { key: "min", name: "Min", dot: true },
+            { key: "avg", name: "Avg", dot: true },
+            { key: "max", name: "Max", dot: true }
           ]}
         />
       </div>

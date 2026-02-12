@@ -24,6 +24,7 @@ def _getenv(name: str, default=None, cast=None):
             return default
     return v
 
+
 def _norm_sat_env_key(sat: str) -> str:
     """
     Polytech_Universe-3 -> POLYTECH_UNIVERSE_3
