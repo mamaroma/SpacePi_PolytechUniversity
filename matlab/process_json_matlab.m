@@ -1,7 +1,6 @@
 function process_json_matlab(json_file, mat_filename)
     % Функция для обработки JSON-файла и формирования таблицы
-    % Аргумент:
-    %    json_file - имя входного JSON-файла
+    % Обрабатывает как основные параметры, так и вложенные данные
 
     % Загружаем JSON
     json_text = fileread(json_file);
@@ -10,7 +9,6 @@ function process_json_matlab(json_file, mat_filename)
     % Получаем дату из имени файла
     [~, filename, ~] = fileparts(json_file);
     column_name = replace(filename, '_', '-'); % Используем дату как заголовок столбца
-    
 
     % Если файл уже существует, загружаем таблицу
     if isfile(mat_filename)
@@ -32,7 +30,7 @@ function process_json_matlab(json_file, mat_filename)
     % Создаем структуру для хранения данных
     params = struct();
     
-    % Рекурсивная функция обработки payload
+    % Рекурсивная функция обработки payload (включая вложенные данные)
     function parse_payload(struct_data, prefix)
         fields_list = fieldnames(struct_data);
         
@@ -79,27 +77,41 @@ function process_json_matlab(json_file, mat_filename)
     % Создаем временную таблицу с новым столбцом
     new_data = table(param_values, 'VariableNames', {column_name}, 'RowNames', param_names);
 
-    % Объединяем с основной таблицей (T), добавляя новые строки при необходимости
+    % === ДИНАМИЧЕСКОЕ РАСШИРЕНИЕ ТАБЛИЦЫ ===
     if isempty(T)
+        % Если таблица пуста, создаем её с данными
         T = new_data;
     else
-        % Находим все уникальные строки (параметры)
-        all_rows = union(T.Properties.RowNames, new_data.Properties.RowNames);
+        % 1. Находим столбцы, которые есть в новой таблице, но отсутствуют в основной
+        new_columns = setdiff(new_data.Properties.VariableNames, T.Properties.VariableNames);
+        
+        % Добавляем эти столбцы в основную таблицу с нулями
+        for col = new_columns
+            T.(col{1}) = NaN(height(T), 1);
+        end
+        
+        % 2. Находим столбцы, которые есть в основной таблице, но отсутствуют в новой
+        old_columns = setdiff(T.Properties.VariableNames, new_data.Properties.VariableNames);
+        
+        % Добавляем эти столбцы в новую таблицу с нулями
+        for col = old_columns
+            new_data.(col{1}) = NaN(height(new_data), 1);
+        end
+        
+        % === Обновление столбцов ===
+        % Находим общие столбцы между T и new_data
+        common_columns = intersect(T.Properties.VariableNames, new_data.Properties.VariableNames);
 
-        % Создаем пустые таблицы, если строки отсутствуют
-        missing_T = table(NaN(length(setdiff(all_rows, T.Properties.RowNames)), width(T)), ...
-                          'VariableNames', T.Properties.VariableNames, ...
-                          'RowNames', setdiff(all_rows, T.Properties.RowNames));
-
-        missing_new_data = table(NaN(length(setdiff(all_rows, new_data.Properties.RowNames)), width(new_data)), ...
-                                 'VariableNames', new_data.Properties.VariableNames, ...
-                                 'RowNames', setdiff(all_rows, new_data.Properties.RowNames));
-
-        % Объединяем таблицы, чтобы у всех были одинаковые строки
-        T = [T; missing_T];
-        new_data = [new_data; missing_new_data];
+        % Обновляем существующие столбцы в T
+        for col = common_columns'
+            T.(col{1}) = new_data.(col{1});
+        end
+        
+        % Объединяем таблицы
         T = [T new_data];
     end
+
+
 
     % Сохраняем таблицу
     save(mat_filename, 'T');

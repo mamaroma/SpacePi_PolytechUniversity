@@ -14,11 +14,9 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (this.state.err) {
       return (
-        <div className="card" style={{ padding: 12 }}>
-          <b>UI crashed in this widget</b>
-          <div className="small" style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-            {this.state.err}
-          </div>
+        <div className="error-card">
+          <div className="err-title">⚠ Widget crashed</div>
+          <div className="err-detail">{this.state.err}</div>
         </div>
       );
     }
