@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 
-const API_BASE = "http://127.0.0.1:8000";
+import { API_BASE as _API_BASE } from "../api";
+const API_BASE = _API_BASE || "";
 
 // --------------------
 // Utils
@@ -212,7 +213,7 @@ function makeSpotLight({ intensity = 1.6, angle = Math.PI / 7, distance = 800 })
   return light;
 }
 
-export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
+export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orbitDataProp = null }) {
   const globeRef = useRef(null);
   const overlayRef = useRef(new THREE.Group());
   const lightsRef = useRef({ ambient: null, sun: null });
@@ -222,8 +223,12 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
     target: null
   });
 
-  const [orbit, setOrbit] = useState(null);
+  const [orbitLocal, setOrbitLocal] = useState(null);
   const [err, setErr] = useState("");
+  // Use parent-supplied data when available, fall back to local fetch
+  const orbit = orbitDataProp ?? orbitLocal;
+  // true once the THREE.js scene is ready — guards the orbit drawing effect
+  const [globeReady, setGlobeReady] = useState(false);
 
   const [countryLabels, setCountryLabels] = useState([]);
   const [showCountryLabels, setShowCountryLabels] = useState(false);
@@ -232,19 +237,18 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
   const current = useMemo(() => orbit?.current ?? null, [orbit]);
   const segments = useMemo(() => splitByDateline(track), [track]);
 
-  // ---- fetch orbit
+  // ---- fetch orbit (only when parent didn't provide data)
   useEffect(() => {
+    if (orbitDataProp !== null) return;  // parent handles fetching
     let alive = true;
     setErr("");
 
     fetchOrbitTrack({ sat, atIso, minutes, stepSec })
-      .then((data) => alive && setOrbit(data))
-      .catch((e) => alive && setErr(String(e?.message ?? e)));
+      .then((data) => { if (alive) setOrbitLocal(data); })
+      .catch((e) => { if (alive) setErr(String(e?.message ?? e)); });
 
-    return () => {
-      alive = false;
-    };
-  }, [sat, atIso, minutes, stepSec]);
+    return () => { alive = false; };
+  }, [sat, atIso, minutes, stepSec, orbitDataProp]);
 
   // ---- load countries
   useEffect(() => {
@@ -290,8 +294,9 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
       const camera = g.camera?.();
       if (!scene || !controls || !camera) return requestAnimationFrame(initWhenReady);
 
-      // overlay once
+      // overlay once — and signal that the scene is ready for orbit drawing
       if (!scene.children.includes(overlayRef.current)) scene.add(overlayRef.current);
+      setGlobeReady(true);
 
       // space background
       if (!scene.userData.__spaceBgLoaded) {
@@ -364,45 +369,39 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
       camera.position.y += 0.08;
       controls.update();
 
-      // keyboard controls
+      // keyboard controls — use THREE.Spherical directly because
+      // rotateLeft/rotateUp/dollyIn are private in bundled OrbitControls
       const onKeyDown = (e) => {
-        const rot = 0.085;
+        const rot  = 0.085;
         const zoom = 0.11;
 
+        const cam  = camera;
+        const ctrl = controls;
+        const sph  = new THREE.Spherical().setFromVector3(
+          cam.position.clone().sub(ctrl.target)
+        );
+
         switch (e.key) {
-          case "ArrowLeft":
-          case "a":
-          case "A":
-            controls.rotateLeft(rot);
-            break;
-          case "ArrowRight":
-          case "d":
-          case "D":
-            controls.rotateLeft(-rot);
-            break;
-          case "ArrowUp":
-          case "w":
-          case "W":
-            controls.rotateUp(rot);
-            break;
-          case "ArrowDown":
-          case "s":
-          case "S":
-            controls.rotateUp(-rot);
-            break;
-          case "+":
-          case "=":
-            controls.dollyIn(1 + zoom);
-            break;
-          case "-":
-          case "_":
-            controls.dollyOut(1 + zoom);
-            break;
+          case "ArrowLeft":  case "a": case "A":
+            sph.theta -= rot; break;
+          case "ArrowRight": case "d": case "D":
+            sph.theta += rot; break;
+          case "ArrowUp":    case "w": case "W":
+            sph.phi = Math.max(0.05, sph.phi - rot); break;
+          case "ArrowDown":  case "s": case "S":
+            sph.phi = Math.min(Math.PI - 0.05, sph.phi + rot); break;
+          case "+": case "=":
+            sph.radius = Math.max(ctrl.minDistance || 110, sph.radius * (1 - zoom)); break;
+          case "-": case "_":
+            sph.radius = Math.min(ctrl.maxDistance || 5000, sph.radius * (1 + zoom)); break;
           default:
             return;
         }
 
-        controls.update();
+        cam.position.copy(ctrl.target).add(
+          new THREE.Vector3().setFromSpherical(sph)
+        );
+        ctrl.update();
         e.preventDefault();
       };
       window.addEventListener("keydown", onKeyDown, { passive: false });
@@ -431,7 +430,10 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
   }, []);
 
   // ---- draw orbit overlays + simplified beam + annulus footprint
+  // globeReady is in deps so this re-runs once the scene is initialized,
+  // even if orbit data arrived first (race condition fix)
   useEffect(() => {
+    if (!globeReady) return;          // wait for THREE.js scene
     const g = globeRef.current;
     if (!g) return;
 
@@ -535,7 +537,7 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
 
       return () => cancelAnimationFrame(raf);
     }
-  }, [segments, current]);
+  }, [segments, current, globeReady]);
 
   // -------------------------
   // UI sizing (вынесено в константы, чтобы проще править)
@@ -549,29 +551,19 @@ export default function GlobeCard({ title, sat, atIso, minutes, stepSec }) {
   const INNER_MIN_H = 680;
 
   return (
-    <div className="card" style={{ height: CARD_HEIGHT, minHeight: CARD_MIN_H }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-        <h3 style={{ margin: "6px 0 10px" }}>{title}</h3>
-        <div className="small" style={{ textAlign: "right" }}>
-          {err ? `Orbit error: ${err}` : `${track.length} orbit pts`}
-          <br />
-          <span style={{ opacity: 0.75 }}>Controls: WASD / Arrows rotate • +/- zoom</span>
-          <br />
-          <span style={{ opacity: 0.75 }}>
-            Beam: simple • Footprint: annulus (blind spot center)
-          </span>
-        </div>
+    <div className="globe-card" style={{ height: CARD_HEIGHT, minHeight: CARD_MIN_H }}>
+      <div className="card-header">
+        <span className="card-title">🌍 Orbit Ground Track (TLE/SGP4) — 3D Globe</span>
+        <span className="card-meta">
+          {err
+            ? <span style={{ color: "var(--red)" }}>Orbit error: {err}</span>
+            : `${track.length} pts · WASD/Arrows rotate · +/- zoom`}
+        </span>
       </div>
 
       <div
-        style={{
-          width: "100%",
-          height: INNER_HEIGHT,
-          minHeight: INNER_MIN_H,
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "black"
-        }}
+        className="globe-inner"
+        style={{ height: INNER_HEIGHT, minHeight: INNER_MIN_H }}
       >
         <Globe
           ref={globeRef}

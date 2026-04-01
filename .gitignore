@@ -1,2 +1,51 @@
+# ─── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
 venv/
-.venv
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Environment / secrets ────────────────────────────────────
+.env
+*.env.local
+
+# ─── Database (runtime, use volumes in Docker) ────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Telethon session files ───────────────────────────────────
+*.session
+*.session-journal
+
+# ─── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Node / Frontend ──────────────────────────────────────────
+node_modules/
+ui/node_modules/
+ui/dist/
+ui/.vite/
+
+# ─── IDE / OS ─────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Docker volumes / generated ───────────────────────────────
+.docker/
+
+# ─── MATLAB generated ─────────────────────────────────────────
+matlab/telemetry_data.mat
+data/processed/*.mat

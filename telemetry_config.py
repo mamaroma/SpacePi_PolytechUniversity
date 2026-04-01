@@ -43,7 +43,7 @@ API_ID = _getenv("TG_API_ID", 21664726, int)
 API_HASH = _getenv("TG_API_HASH", "de070de393ff80313763716357177c1c")
 
 URLS_FILE = _getenv("URLS_FILE", str(PROJECT_ROOT / "data" / "urls.csv"))
-PROCESSED_DIR = _getenv("PROCESSED_DIR", str(PROJECT_ROOT / "processed_data"))
+PROCESSED_DIR = _getenv("PROCESSED_DIR", str(PROJECT_ROOT / "data" / "processed"))
 STATE_DIR = _getenv("STATE_DIR", str(PROJECT_ROOT / "data" / "state"))
 
 REQUEST_DELAY = (

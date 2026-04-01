@@ -3,9 +3,13 @@ import json
 import re
 import logging
 from datetime import datetime
+from pathlib import Path
 
 from telegram_handler import collect_links_with_flags, get_channel_info
 from utils import log_info
+
+EXPORTS_DIR = Path(__file__).resolve().parent / "data" / "exports"
+EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _configure_quiet_logging() -> None:
@@ -71,8 +75,8 @@ if __name__ == "__main__":
     today = datetime.now().strftime("%Y-%m-%d")
 
     name_term = sanitize_filename(SEARCH_TERM)
-    txt_file = f"{name_term}_{today}.txt"
-    json_file = f"{name_term}_{today}.json"
+    txt_file = EXPORTS_DIR / f"{name_term}_{today}.txt"
+    json_file = EXPORTS_DIR / f"{name_term}_{today}.json"
 
     # Sort newest->oldest by message_id
     records_sorted = sorted(records, key=lambda r: r.message_id, reverse=True)

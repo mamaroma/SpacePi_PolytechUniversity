@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlmodel import Session, select
 from telethon import TelegramClient
+from telethon.errors import AuthKeyError, AuthKeyUnregisteredError
 
 from telemetry_config import settings
 from .db import engine
 from .models import TelemetryPacket
 from .parser import parse_tinygs_telegram
+
+# Always resolve to project root so the path works regardless of CWD
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_SESSION_PATH = _PROJECT_ROOT / "telemetry_session"
 
 
 def utcnow() -> datetime:
@@ -19,9 +25,32 @@ async def collect_last_month(satellite: str = "Polytech_Universe-3", days: int =
     if not settings.tg_api_id or not settings.tg_api_hash:
         raise RuntimeError("Set TG_API_ID and TG_API_HASH in .env")
 
+    session_file = Path(str(_SESSION_PATH) + ".session")
+    if not session_file.exists():
+        raise RuntimeError(
+            f"Telethon session not found at {session_file}. "
+            "Run `python collect.py` in a terminal first to authenticate."
+        )
+
     since = utcnow() - timedelta(days=days)
 
-    async with TelegramClient("telemetry_session", settings.tg_api_id, settings.tg_api_hash) as client:
+    try:
+        client = TelegramClient(str(_SESSION_PATH), settings.tg_api_id, settings.tg_api_hash)
+        await client.connect()
+    except EOFError:
+        raise RuntimeError(
+            "Telethon session requires interactive login. "
+            "Run `python collect.py` in a terminal first to authenticate."
+        )
+
+    if not await client.is_user_authorized():
+        await client.disconnect()
+        raise RuntimeError(
+            "Telethon session is not authorized. "
+            "Run `python collect.py` in a terminal first to log in."
+        )
+
+    async with client:
         entity = await client.get_entity(settings.tg_channel)
 
         inserted = 0
