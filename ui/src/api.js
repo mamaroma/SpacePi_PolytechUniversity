@@ -53,14 +53,21 @@ export async function runCollect({ sat, days, token } = {}) {
   const qs = new URLSearchParams();
   if (sat) qs.set("sat", sat);
   if (days) qs.set("days", String(days));
-  qs.set("token", token ?? COLLECT_TOKEN);
+
+  // Only send token param when it is actually set — empty string causes 401
+  const tok = (token ?? COLLECT_TOKEN ?? "").trim();
+  if (tok) qs.set("token", tok);
 
   const r = await fetch(`${API_BASE}/api/collect/run?` + qs.toString(), {
-    method: "POST"
+    method: "POST",
   });
   if (!r.ok) {
-    const txt = await r.text().catch(() => "");
-    throw new Error(`Collect failed: HTTP ${r.status}: ${txt.slice(0, 200)}`);
+    let detail = "";
+    try { detail = (await r.json()).detail ?? ""; } catch { detail = await r.text().catch(() => ""); }
+    if (r.status === 401) {
+      throw new Error(`Token required — press 🔑 and enter your COLLECT_TOKEN`);
+    }
+    throw new Error(`Collect failed HTTP ${r.status}: ${String(detail).slice(0, 200)}`);
   }
   return await r.json();
 }

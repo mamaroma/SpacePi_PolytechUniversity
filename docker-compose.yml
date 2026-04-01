@@ -1,0 +1,66 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────
+#  SpacePi Ground Station — full-stack Docker Compose
+#
+#  Services:
+#    api  — FastAPI backend (port 8000 internal; also mapped for dev)
+#    ui   — React app built with Vite, served by nginx on port 5173
+#
+#  Usage:
+#    1. Copy .env.example → .env and fill in your values
+#    2. docker compose up --build -d
+#    3. Open http://localhost:5173
+#
+#  To run data collection manually:
+#    docker compose exec api python collect.py
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Python / FastAPI backend ─────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override DB path to use the named volume
+      DATABASE_URL: "sqlite:////data/telemetry.db"
+      # Allow requests from the nginx container and localhost
+      CORS_ALLOW_ORIGINS: "*"
+    volumes:
+      # Persist SQLite database
+      - telemetry_data:/data
+      # Persist Telethon session file (re-use existing session)
+      - ./telemetry_session.session:/app/telemetry_session.session
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/satellites"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ── React + nginx frontend ───────────────────────────────────
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      args:
+        # Empty = use relative /api/... URLs; nginx proxies them to api:8000
+        VITE_API_BASE: ""
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+# ── Named volumes ─────────────────────────────────────────────
+volumes:
+  telemetry_data:
+    driver: local

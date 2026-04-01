@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+ui/node_modules/
+node_modules/
+ui/dist/
+
+# Dev / IDE
+.idea/
+.cursor/
+*.session
+*.session-journal
+
+# Data files (mount these via volumes)
+telemetry.db
+app/telemetry.db
+*.mat
+data/
+processed_data/
+matlab/
+chromedriver/
+
+# Secrets
+.env
+
+# Logs
+*.log
+app.log
+
+# Git
+.git/
+.gitignore
