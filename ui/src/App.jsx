@@ -85,8 +85,8 @@ export default function App() {
 
   const [satellites, setSatellites] = useState([]);
   const [sat, setSat] = useState("Polytech_Universe-3");
-  const [rangeDays, setRangeDays] = useState(30);
-  const [{ from, to }, setRange] = useState(isoDaysAgo(30));
+  const [rangeDays, setRangeDays] = useState(365);
+  const [{ from, to }, setRange] = useState(isoDaysAgo(365));
   const [viewMode, setViewMode] = useState("globe");
   const [orbitMinutes, setOrbitMinutes] = useState(180);
   const [orbitStepSec, setOrbitStepSec] = useState(20);
@@ -284,7 +284,8 @@ export default function App() {
             <option value={7}>7 days</option>
             <option value={30}>30 days</option>
             <option value={90}>90 days</option>
-            <option value={365}>365 days</option>
+            <option value={180}>180 days</option>
+            <option value={365}>All time</option>
           </select>
         </div>
 
@@ -297,23 +298,13 @@ export default function App() {
           {loading ? "Loading…" : err ? "Error" : rows.length > 0 ? `${rows.length} pkts` : "No data"}
         </div>
 
-        {collectEnabled ? (
-          <button
-            className="btn btn-primary"
-            onClick={handleUpdateData}
-            disabled={updating}
-          >
-            {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
-          </button>
-        ) : (
-          <button
-            className="btn"
-            disabled
-            title="Collect is disabled in hosted demo mode"
-          >
-            Demo mode
-          </button>
-        )}
+        <button
+          className="btn btn-primary"
+          onClick={handleUpdateData}
+          disabled={updating || !collectEnabled}
+        >
+          {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
+        </button>
       </header>
 
       {/* ── Body ── */}
@@ -434,12 +425,6 @@ export default function App() {
                 {orbitLoading ? "loading…" : orbitErr ? `error: ${orbitErr}` : `${orbitData?.track?.length ?? 0} pts`}
               </span>
             </span>
-            {!collectEnabled && (
-              <span className="status-item">
-                <span className="lbl">Mode:</span>
-                <span className="val">hosted demo, DB read-only</span>
-              </span>
-            )}
           </div>
         </div>
 

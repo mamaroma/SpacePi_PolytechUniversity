@@ -7,6 +7,7 @@ import {
   Popup,
   Circle,
   CircleMarker,
+  AttributionControl,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -149,6 +150,12 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
         }
         .leaflet-control-zoom a:hover { color: #dce8ff !important; }
         .leaflet-container { background: #060b18 !important; }
+        .leaflet-control-attribution {
+          background: rgba(13,21,38,.75) !important;
+          color: #4a6080 !important;
+          font-size: 10px !important;
+        }
+        .leaflet-control-attribution a { color: #5a8ab5 !important; }
       `}</style>
 
       <div className="card-header">
@@ -182,10 +189,13 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
           zoom={zoom}
           style={{ width: "100%", height: "100%" }}
           zoomControl={true}
+          attributionControl={false}
         >
+          <AttributionControl position="bottomright" prefix={false} />
+
           {/* ── Dark base tiles ─────────────────────────────── */}
           <TileLayer
-            attribution='&copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
+            attribution='&copy; <a href="https://carto.com/" target="_blank">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
             maxZoom={19}
