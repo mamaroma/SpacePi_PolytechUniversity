@@ -73,6 +73,16 @@ function UtcClock() {
 
 // ─── Main App ──────────────────────────────────────────────────
 export default function App() {
+  const isProd = import.meta.env.PROD;
+  const collectEnabled =
+    import.meta.env.VITE_ENABLE_COLLECT != null
+      ? import.meta.env.VITE_ENABLE_COLLECT === "true"
+      : !isProd;
+  const autoCollectOnBoot =
+    import.meta.env.VITE_AUTO_COLLECT_ON_BOOT != null
+      ? import.meta.env.VITE_AUTO_COLLECT_ON_BOOT === "true"
+      : !isProd;
+
   const [satellites, setSatellites] = useState([]);
   const [sat, setSat] = useState("Polytech_Universe-3");
   const [rangeDays, setRangeDays] = useState(30);
@@ -153,7 +163,7 @@ export default function App() {
   // 2) kick off one background collect to refresh from Telegram
   // 3) reload telemetry + orbit once fresh packets are inserted
   useEffect(() => {
-    if (!sat || bootstrapDoneRef.current) return;
+    if (!sat || bootstrapDoneRef.current || !autoCollectOnBoot) return;
     bootstrapDoneRef.current = true;
 
     let alive = true;
@@ -179,9 +189,14 @@ export default function App() {
     })();
 
     return () => { alive = false; };
-  }, [sat, token, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadOrbit]);
+  }, [sat, token, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadOrbit, autoCollectOnBoot]);
 
   const handleUpdateData = useCallback(async () => {
+    if (!collectEnabled) {
+      setCollectMsg("Hosted demo mode: automatic Telegram collect is disabled here.");
+      setTimeout(() => setCollectMsg(""), 6000);
+      return;
+    }
     setUpdating(true);
     setCollectMsg("");
     setErr("");
@@ -202,7 +217,7 @@ export default function App() {
       setUpdating(false);
       setTimeout(() => setCollectMsg(""), 8000);
     }
-  }, [sat, rangeDays, viewMode, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadOrbit]);
+  }, [sat, rangeDays, viewMode, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadOrbit, collectEnabled]);
 
   const chartData = useMemo(() => rows.map((r) => {
     const ts = new Date(r.ts_utc);
@@ -282,20 +297,30 @@ export default function App() {
           {loading ? "Loading…" : err ? "Error" : rows.length > 0 ? `${rows.length} pkts` : "No data"}
         </div>
 
-        <button
-          className="btn btn-primary"
-          onClick={handleUpdateData}
-          disabled={updating}
-        >
-          {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
-        </button>
+        {collectEnabled ? (
+          <button
+            className="btn btn-primary"
+            onClick={handleUpdateData}
+            disabled={updating}
+          >
+            {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
+          </button>
+        ) : (
+          <button
+            className="btn"
+            disabled
+            title="Collect is disabled in hosted demo mode"
+          >
+            Demo mode
+          </button>
+        )}
       </header>
 
       {/* ── Body ── */}
       <div className="app-body">
 
         {/* Token row (show only when needed) */}
-        {showToken && (
+        {collectEnabled && showToken && (
           <div className="controls-card">
             <div className="ctrl-row">
               <span className="ctrl-label">Collect token</span>
@@ -382,13 +407,15 @@ export default function App() {
 
             <div className="ctrl-spacer" />
 
-            <button
-              className="btn btn-sm"
-              onClick={() => setShowToken((v) => !v)}
-              title="Configure collect token"
-            >
-              🔑
-            </button>
+            {collectEnabled && (
+              <button
+                className="btn btn-sm"
+                onClick={() => setShowToken((v) => !v)}
+                title="Configure collect token"
+              >
+                🔑
+              </button>
+            )}
           </div>
 
           {/* Status row */}
@@ -407,6 +434,12 @@ export default function App() {
                 {orbitLoading ? "loading…" : orbitErr ? `error: ${orbitErr}` : `${orbitData?.track?.length ?? 0} pts`}
               </span>
             </span>
+            {!collectEnabled && (
+              <span className="status-item">
+                <span className="lbl">Mode:</span>
+                <span className="val">hosted demo, DB read-only</span>
+              </span>
+            )}
           </div>
         </div>
 

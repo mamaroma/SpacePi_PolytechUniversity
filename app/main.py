@@ -34,6 +34,15 @@ def _startup():
     init_db()
 
 
+@app.get("/")
+def root() -> Dict[str, Any]:
+    return {
+        "service": "PolySpace API",
+        "status": "ok",
+        "docs": "/docs",
+    }
+
+
 # ✅ подключаем API ручку коллектора ОДИН раз
 app.include_router(collect_router)
 
