@@ -80,11 +80,14 @@ function makeDashedLine(segment, r, color = "#4CFF7A") {
 
 const POLYTECH_COORDS = { lat: 60.01, lng: 30.38 };
 
-function makePolytechSprite(R0) {
+function makePolytechMarker(R0) {
+  const group = new THREE.Group();
+
+  // logo sprite
   const spr = new THREE.Sprite(
     new THREE.SpriteMaterial({ transparent: true, depthWrite: false })
   );
-  const s = R0 * 0.06;
+  const s = R0 * 0.07;
   spr.scale.set(s, s, s);
 
   const img = new Image();
@@ -97,8 +100,23 @@ function makePolytechSprite(R0) {
     spr.material.needsUpdate = true;
   };
   img.src = "/spbpu-logo.png";
+  group.add(spr);
 
-  return spr;
+  // glow ring on the surface
+  const ringGeom = new THREE.RingGeometry(R0 * 0.018, R0 * 0.035, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x4caf50,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.renderOrder = 25;
+  group.add(ring);
+
+  return { group, ring };
 }
 
 function makeSatelliteSprite(r) {
@@ -480,10 +498,12 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#4CFF7A"));
 
     // SPbPU ground station marker
-    const polytechPos = llToXyz(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, R0 * 1.015);
-    const polytechSpr = makePolytechSprite(R0);
-    polytechSpr.position.copy(polytechPos);
-    grp.add(polytechSpr);
+    const groundPt = llToXyz(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, R0 * 1.012);
+    const { group: polytechGrp, ring: polytechRing } = makePolytechMarker(R0);
+    polytechGrp.position.copy(groundPt);
+    const outward = groundPt.clone().normalize();
+    polytechRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+    grp.add(polytechGrp);
 
     // satellite + simplified beam
     if (current && validLatLon(current.lat, current.lon)) {
