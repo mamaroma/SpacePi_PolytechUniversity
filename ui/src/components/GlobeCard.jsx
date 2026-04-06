@@ -1,9 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 
 import { API_BASE as _API_BASE } from "../api";
 const API_BASE = _API_BASE || "";
+
+const POLYTECH_HTML_DATA = [
+  { lat: 60.01, lng: 30.38, label: "SPbPU", id: "spbpu" },
+];
 
 // --------------------
 // Utils
@@ -76,47 +80,6 @@ function makeDashedLine(segment, r, color = "#4CFF7A") {
   const line = new THREE.Line(geom, mat);
   line.computeLineDistances();
   return line;
-}
-
-const POLYTECH_COORDS = { lat: 60.01, lng: 30.38 };
-
-function makePolytechMarker(R0) {
-  const group = new THREE.Group();
-
-  // logo sprite
-  const spr = new THREE.Sprite(
-    new THREE.SpriteMaterial({ transparent: true, depthWrite: false })
-  );
-  const s = R0 * 0.07;
-  spr.scale.set(s, s, s);
-
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.onload = () => {
-    const tex = new THREE.Texture(img);
-    tex.needsUpdate = true;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    spr.material.map = tex;
-    spr.material.needsUpdate = true;
-  };
-  img.src = "/spbpu-logo.png";
-  group.add(spr);
-
-  // glow ring on the surface
-  const ringGeom = new THREE.RingGeometry(R0 * 0.018, R0 * 0.035, 32);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: 0x4caf50,
-    transparent: true,
-    opacity: 0.6,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending,
-  });
-  const ring = new THREE.Mesh(ringGeom, ringMat);
-  ring.renderOrder = 25;
-  group.add(ring);
-
-  return { group, ring };
 }
 
 function makeSatelliteSprite(r) {
@@ -273,6 +236,36 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
   const [countryLabels, setCountryLabels] = useState([]);
   const [showCountryLabels, setShowCountryLabels] = useState(false);
+  const polytechHtmlElFn = useCallback((d) => {
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "position:relative;cursor:pointer;";
+
+    const icon = document.createElement("img");
+    icon.src = "/spbpu-logo.png";
+    icon.style.cssText = "width:32px;height:32px;border-radius:5px;filter:drop-shadow(0 0 6px rgba(76,175,80,.7));";
+    wrapper.appendChild(icon);
+
+    const popup = document.createElement("div");
+    popup.style.cssText =
+      "display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);" +
+      "background:#0d1526;border:1px solid #2d4066;border-radius:8px;padding:10px 14px;" +
+      "box-shadow:0 8px 24px rgba(0,0,0,.6);white-space:nowrap;font-family:'Space Mono',monospace;" +
+      "font-size:11px;color:#dce8ff;z-index:1000;pointer-events:auto;";
+    popup.innerHTML =
+      '<div style="font-weight:700;color:#00ff88;margin-bottom:5px">SPbPU Ground Station</div>' +
+      "<div>Technopolis Polytech</div>" +
+      "<div>Polytechnicheskaya st. 29AF</div>" +
+      "<div>Lat 60.01 &middot; Lon 30.38</div>";
+    wrapper.appendChild(popup);
+
+    wrapper.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = popup.style.display !== "none";
+      popup.style.display = isVisible ? "none" : "block";
+    });
+
+    return wrapper;
+  }, []);
 
   const track = useMemo(() => orbit?.track ?? [], [orbit]);
   const current = useMemo(() => orbit?.current ?? null, [orbit]);
@@ -497,17 +490,6 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     const trackR = R0 * 1.01;
     for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#4CFF7A"));
 
-    // SPbPU ground station marker — use globe's own coordinate converter
-    const { group: polytechGrp, ring: polytechRing } = makePolytechMarker(R0);
-    const pc = g.getCoords(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, 0.012);
-    if (pc) {
-      const pos = new THREE.Vector3(pc.x, pc.y, pc.z);
-      polytechGrp.position.copy(pos);
-      const outward = pos.clone().normalize();
-      polytechRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
-    }
-    grp.add(polytechGrp);
-
     // satellite + simplified beam
     if (current && validLatLon(current.lat, current.lon)) {
       const lat = Number(current.lat);
@@ -634,6 +616,12 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
           labelSize={0.9}
           labelDotRadius={0.15}
           labelAltitude={0.01}
+          // SPbPU interactive marker
+          htmlElementsData={POLYTECH_HTML_DATA}
+          htmlLat={(d) => d.lat}
+          htmlLng={(d) => d.lng}
+          htmlAltitude={0.012}
+          htmlElement={polytechHtmlElFn}
         />
       </div>
     </div>
