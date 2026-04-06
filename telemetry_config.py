@@ -80,6 +80,18 @@ AUTO_COLLECT_ENABLED = _getenv("AUTO_COLLECT_ENABLED", "false")
 AUTO_COLLECT_INTERVAL_MINUTES = _getenv("AUTO_COLLECT_INTERVAL_MINUTES", 30, int)
 
 # ----------------------------
+# Satellite fleet registry
+# ----------------------------
+SATELLITE_FLEET = [
+    {"name": "Polytech_Universe-1", "active": False, "color": "#888888"},
+    {"name": "Polytech_Universe-2", "active": False, "color": "#666666"},
+    {"name": "Polytech_Universe-3", "active": True,  "color": "#00ff88"},
+    {"name": "Polytech_Universe-4", "active": True,  "color": "#ff4d6a"},
+    {"name": "Polytech_Universe-5", "active": True,  "color": "#00d4ff"},
+    {"name": "Polytech_Universe-6", "active": False, "color": "#ffa63a"},
+]
+
+# ----------------------------
 # Settings object
 # ----------------------------
 @dataclass(frozen=True)
@@ -99,6 +111,7 @@ class Settings:
     collect_token: str
     auto_collect_enabled: bool
     auto_collect_interval_minutes: int
+    satellite_fleet: list
 
     def get_tle_for_satellite(self, sat: str) -> Tuple[str, str]:
         """
@@ -130,4 +143,5 @@ settings = Settings(
     collect_token=str(COLLECT_TOKEN),
     auto_collect_enabled=str(AUTO_COLLECT_ENABLED).strip().lower() in {"1", "true", "yes", "on"},
     auto_collect_interval_minutes=max(1, int(AUTO_COLLECT_INTERVAL_MINUTES)),
+    satellite_fleet=SATELLITE_FLEET,
 )

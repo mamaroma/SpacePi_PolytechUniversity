@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
-  fetchSatellites,
+  fetchFleet,
   fetchTelemetry,
   isoDaysAgo,
   fetchOrbitTrack,
@@ -85,8 +85,14 @@ export default function App() {
       ? import.meta.env.VITE_AUTO_COLLECT_ON_BOOT === "true"
       : !isProd;
 
-  const [satellites, setSatellites] = useState([]);
-  const [sat, setSat] = useState("Polytech_Universe-3");
+  // Fleet = [{name, active, color}, ...]
+  const [fleet, setFleet] = useState([]);
+  // Which satellites are checked for MAP display (Set of names)
+  const [mapSats, setMapSats] = useState(new Set(["Polytech_Universe-3"]));
+  // Single satellite for charts / table / metrics
+  const [dataSat, setDataSat] = useState("Polytech_Universe-3");
+  const [mapDropdownOpen, setMapDropdownOpen] = useState(false);
+
   const [rangeDays, setRangeDays] = useState(365);
   const [{ from, to }, setRange] = useState(isoDaysAgo(365));
   const [viewMode, setViewMode] = useState("globe");
@@ -95,7 +101,8 @@ export default function App() {
   const [at, setAt] = useState(new Date());
 
   const [rows, setRows] = useState([]);
-  const [orbitData, setOrbitData] = useState(null);
+  // orbitDataMap: { satName: orbitData } for all checked map satellites
+  const [orbitDataMap, setOrbitDataMap] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [orbitLoading, setOrbitLoading] = useState(false);
@@ -104,23 +111,60 @@ export default function App() {
   const [updating, setUpdating] = useState(false);
   const [collectMsg, setCollectMsg] = useState("");
 
-  // collect token
   const [token, setToken] = useState("");
   const [showToken, setShowToken] = useState(false);
   const bootstrapDoneRef = useRef(false);
 
-  // connection status for header
   const connStatus = err ? "err" : loading ? "loading" : rows.length > 0 ? "live" : "idle";
 
+  // For backward compat — the "sat" used for data loading is dataSat
+  const sat = dataSat;
+
+  // Load fleet + DB satellites on mount
   useEffect(() => {
-    fetchSatellites()
+    fetchFleet()
       .then((list) => {
-        setSatellites(list);
-        if (list.length && !list.includes(sat)) setSat(list[0]);
+        setFleet(list);
+        const activeNames = new Set(list.filter(s => s.active).map(s => s.name));
+        setMapSats(activeNames);
+        if (list.length && !list.find(s => s.name === dataSat)) {
+          const first = list.find(s => s.active) || list[0];
+          setDataSat(first.name);
+        }
       })
-      .catch(() => setSatellites(["Polytech_Universe-3"]));
+      .catch(() => {
+        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#00ff88" }]);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const toggleMapSat = useCallback((name) => {
+    setMapSats(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const fleetColorMap = useMemo(() => {
+    const m = {};
+    for (const s of fleet) m[s.name] = s.color || "#00ff88";
+    return m;
+  }, [fleet]);
+
+  // Close satellite dropdown on outside click
+  const mapDropdownRef = useRef(null);
+  useEffect(() => {
+    if (!mapDropdownOpen) return;
+    const handler = (e) => {
+      if (mapDropdownRef.current && !mapDropdownRef.current.contains(e.target)) {
+        setMapDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [mapDropdownOpen]);
 
   useEffect(() => { setRange(isoDaysAgo(rangeDays)); }, [rangeDays]);
 
@@ -142,7 +186,7 @@ export default function App() {
     setOrbitErr("");
     try {
       const data = await fetchOrbitTrack({ sat: satName, at: atDate, minutes, step_sec: stepSec });
-      setOrbitData(data);
+      setOrbitDataMap(prev => ({ ...prev, [satName]: data }));
       if (!Array.isArray(data?.track) || data.track.length === 0) {
         setOrbitErr("No orbit points returned by backend");
       }
@@ -155,34 +199,21 @@ export default function App() {
 
   useEffect(() => { loadTelemetry(sat, from, to); }, [sat, from, to, loadTelemetry]);
 
-  // Always load orbit regardless of view mode — both Globe and Map need it
+  // Load orbit for all checked map satellites
   useEffect(() => {
-    loadOrbit(sat, at, orbitMinutes, orbitStepSec);
-  }, [sat, at, orbitMinutes, orbitStepSec, loadOrbit]);
+    for (const satName of mapSats) {
+      loadOrbit(satName, at, orbitMinutes, orbitStepSec);
+    }
+  }, [mapSats, at, orbitMinutes, orbitStepSec, loadOrbit]);
 
-  // Browser should only read from the API/DB.
-  // Telegram collection runs server-side to avoid noisy frontend errors.
   useEffect(() => {
     if (!sat || bootstrapDoneRef.current || !autoCollectOnBoot) return;
     bootstrapDoneRef.current = true;
-
-    let alive = true;
-    (async () => {
-      try {
-        const newTo = new Date();
-        const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
-        setRange({ from: newFrom, to: newTo });
-        await loadTelemetry(sat, newFrom, newTo);
-        await loadOrbit(sat, at, orbitMinutes, orbitStepSec);
-      } catch (e) {
-        if (alive) setErr(String(e?.message ?? e));
-      } finally {
-        if (alive) setTimeout(() => setCollectMsg(""), 5000);
-      }
-    })();
-
-    return () => { alive = false; };
-  }, [sat, token, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadOrbit, autoCollectOnBoot]);
+    const newTo = new Date();
+    const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
+    setRange({ from: newFrom, to: newTo });
+    loadTelemetry(sat, newFrom, newTo).catch(() => {});
+  }, [sat, rangeDays, loadTelemetry, autoCollectOnBoot]);
 
   useEffect(() => {
     if (!sat || autoRefreshSec <= 0) return undefined;
@@ -191,33 +222,38 @@ export default function App() {
       const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
       setRange({ from: newFrom, to: newTo });
       loadTelemetry(sat, newFrom, newTo);
-      loadOrbit(sat, newTo, orbitMinutes, orbitStepSec);
+      for (const s of mapSats) loadOrbit(s, newTo, orbitMinutes, orbitStepSec);
     }, autoRefreshSec * 1000);
     return () => clearInterval(id);
-  }, [sat, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadOrbit]);
+  }, [sat, mapSats, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadOrbit]);
 
   const handleUpdateData = useCallback(async () => {
     setUpdating(true);
     setCollectMsg("");
     setErr("");
     try {
-      const res = await runCollect({ sat, token });
-      setCollectMsg(`✓ Inserted ${res?.inserted ?? 0} packets`);
+      const activeSats = fleet.filter(s => s.active).map(s => s.name);
+      const toCollect = activeSats.length ? activeSats : [sat];
+      let totalInserted = 0;
+      for (const s of toCollect) {
+        const res = await runCollect({ sat: s, token });
+        totalInserted += res?.inserted ?? 0;
+      }
+      setCollectMsg(`✓ Inserted ${totalInserted} packets across ${toCollect.length} satellite(s)`);
       const newTo = new Date();
       const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
       setRange({ from: newFrom, to: newTo });
       await loadTelemetry(sat, newFrom, newTo);
-      await loadOrbit(sat, at, orbitMinutes, orbitStepSec);
+      for (const s of mapSats) loadOrbit(s, at, orbitMinutes, orbitStepSec);
     } catch (e) {
       const msg = String(e?.message ?? e);
       setErr(msg);
-      // Auto-open token input if auth failed
       if (msg.toLowerCase().includes("token")) setShowToken(true);
     } finally {
       setUpdating(false);
       setTimeout(() => setCollectMsg(""), 8000);
     }
-  }, [sat, rangeDays, viewMode, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadOrbit, collectEnabled]);
+  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadOrbit]);
 
   const chartData = useMemo(() => rows.map((r) => {
     const ts = new Date(r.ts_utc);
@@ -267,14 +303,58 @@ export default function App() {
 
         <div className="header-sep" />
 
-        <div className="ctrl-group">
-          <span className="ctrl-label">Satellite</span>
-          <select
-            value={sat}
-            onChange={(e) => setSat(e.target.value)}
-            style={{ minWidth: 160 }}
+        {/* Map satellites — checkbox dropdown */}
+        <div className="ctrl-group" style={{ position: "relative" }} ref={mapDropdownRef}>
+          <span className="ctrl-label">Map satellites</span>
+          <button
+            className="btn btn-sm"
+            onClick={() => setMapDropdownOpen(v => !v)}
+            style={{ minWidth: 130, textAlign: "left" }}
           >
-            {satellites.map((s) => <option key={s} value={s}>{s}</option>)}
+            {mapSats.size} of {fleet.length} ▾
+          </button>
+          {mapDropdownOpen && (
+            <div className="sat-dropdown">
+              {fleet.map(s => (
+                <label key={s.name} className="sat-dropdown-item">
+                  <input
+                    type="checkbox"
+                    checked={mapSats.has(s.name)}
+                    onChange={() => toggleMapSat(s.name)}
+                    style={{ accentColor: s.color }}
+                  />
+                  <span
+                    className="sat-dot"
+                    style={{ background: s.color }}
+                  />
+                  <span style={{ opacity: s.active ? 1 : 0.5 }}>
+                    {s.name.replace("Polytech_Universe-", "PU-")}
+                  </span>
+                  {!s.active && <span className="sat-badge-dead">inactive</span>}
+                </label>
+              ))}
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map(s => s.name)))}>All</button>
+                <button className="btn btn-sm" onClick={() => setMapSats(new Set())}>None</button>
+                <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter(s => s.active).map(s => s.name)))}>Active</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Data satellite — single select for charts/table */}
+        <div className="ctrl-group">
+          <span className="ctrl-label">Data</span>
+          <select
+            value={dataSat}
+            onChange={(e) => setDataSat(e.target.value)}
+            style={{ minWidth: 140 }}
+          >
+            {fleet.map(s => (
+              <option key={s.name} value={s.name}>
+                {s.name.replace("Polytech_Universe-", "PU-")}{s.active ? "" : " (inactive)"}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -421,10 +501,10 @@ export default function App() {
               </span>
             </span>
             <span className="status-item">
-              <span className={`status-dot ${orbitLoading ? "loading" : orbitErr ? "err" : (orbitData?.track?.length ?? 0) > 0 ? "live" : "idle"}`} />
+              <span className={`status-dot ${orbitLoading ? "loading" : orbitErr ? "err" : Object.keys(orbitDataMap).length > 0 ? "live" : "idle"}`} />
               <span className="lbl">Orbit:</span>
               <span className="val">
-                {orbitLoading ? "loading…" : orbitErr ? `error: ${orbitErr}` : `${orbitData?.track?.length ?? 0} pts`}
+                {orbitLoading ? "loading…" : orbitErr ? `error: ${orbitErr}` : `${mapSats.size} sat(s), ${Object.values(orbitDataMap).reduce((s, d) => s + (d?.track?.length ?? 0), 0)} pts`}
               </span>
             </span>
           </div>
@@ -518,14 +598,20 @@ export default function App() {
               atIso={at.toISOString()}
               minutes={orbitMinutes}
               stepSec={orbitStepSec}
-              orbitData={orbitData}
+              orbitData={orbitDataMap[sat] ?? null}
+              multiOrbitData={orbitDataMap}
+              mapSats={mapSats}
+              fleetColorMap={fleetColorMap}
             />
           </ErrorBoundary>
         ) : (
           <MapCard
             receivedPoints={chartData}
-            orbitTrack={orbitData?.track ?? []}
-            orbitCurrent={orbitData?.current ?? null}
+            orbitTrack={orbitDataMap[sat]?.track ?? []}
+            orbitCurrent={orbitDataMap[sat]?.current ?? null}
+            multiOrbitData={orbitDataMap}
+            mapSats={mapSats}
+            fleetColorMap={fleetColorMap}
           />
         )}
 

@@ -27,6 +27,10 @@ export async function fetchSatellites() {
   return fetchJson(`${API_BASE}/api/satellites`);
 }
 
+export async function fetchFleet() {
+  return fetchJson(`${API_BASE}/api/satellites/fleet`);
+}
+
 export async function fetchTelemetry({ sat, from, to, limit = 200000 }) {
   const qs = new URLSearchParams({
     sat,
