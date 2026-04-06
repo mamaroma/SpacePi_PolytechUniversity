@@ -78,6 +78,29 @@ function makeDashedLine(segment, r, color = "#4CFF7A") {
   return line;
 }
 
+const POLYTECH_COORDS = { lat: 60.01, lng: 30.38 };
+
+function makePolytechSprite(R0) {
+  const spr = new THREE.Sprite(
+    new THREE.SpriteMaterial({ transparent: true, depthWrite: false })
+  );
+  const s = R0 * 0.06;
+  spr.scale.set(s, s, s);
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const tex = new THREE.Texture(img);
+    tex.needsUpdate = true;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    spr.material.map = tex;
+    spr.material.needsUpdate = true;
+  };
+  img.src = "/spbpu-logo.png";
+
+  return spr;
+}
+
 function makeSatelliteSprite(r) {
   const size = 128;
   const canvas = document.createElement("canvas");
@@ -455,6 +478,12 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     // orbit track
     const trackR = R0 * 1.01;
     for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#4CFF7A"));
+
+    // SPbPU ground station marker
+    const polytechPos = llToXyz(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, R0 * 1.015);
+    const polytechSpr = makePolytechSprite(R0);
+    polytechSpr.position.copy(polytechPos);
+    grp.add(polytechSpr);
 
     // satellite + simplified beam
     if (current && validLatLon(current.lat, current.lon)) {
