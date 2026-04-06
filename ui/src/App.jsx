@@ -181,30 +181,35 @@ export default function App() {
     }
   }, []);
 
-  const loadOrbit = useCallback(async (satName, atDate, minutes, stepSec) => {
-    setOrbitLoading(true);
-    setOrbitErr("");
+  // Per-satellite orbit errors: { satName: "error msg" | null }
+  const [orbitErrMap, setOrbitErrMap] = useState({});
+
+  const loadSingleOrbit = useCallback(async (satName, atDate, minutes, stepSec) => {
     try {
       const data = await fetchOrbitTrack({ sat: satName, at: atDate, minutes, step_sec: stepSec });
       setOrbitDataMap(prev => ({ ...prev, [satName]: data }));
-      if (!Array.isArray(data?.track) || data.track.length === 0) {
-        setOrbitErr("No orbit points returned by backend");
-      }
+      setOrbitErrMap(prev => ({ ...prev, [satName]: null }));
     } catch (e) {
-      setOrbitErr(String(e?.message ?? e));
-    } finally {
-      setOrbitLoading(false);
+      setOrbitErrMap(prev => ({ ...prev, [satName]: String(e?.message ?? e) }));
     }
   }, []);
+
+  const loadAllOrbits = useCallback(async (sats, atDate, minutes, stepSec) => {
+    setOrbitLoading(true);
+    setOrbitErr("");
+    await Promise.allSettled(
+      [...sats].map(s => loadSingleOrbit(s, atDate, minutes, stepSec))
+    );
+    setOrbitLoading(false);
+  }, [loadSingleOrbit]);
 
   useEffect(() => { loadTelemetry(sat, from, to); }, [sat, from, to, loadTelemetry]);
 
   // Load orbit for all checked map satellites
   useEffect(() => {
-    for (const satName of mapSats) {
-      loadOrbit(satName, at, orbitMinutes, orbitStepSec);
-    }
-  }, [mapSats, at, orbitMinutes, orbitStepSec, loadOrbit]);
+    if (mapSats.size === 0) return;
+    loadAllOrbits(mapSats, at, orbitMinutes, orbitStepSec);
+  }, [mapSats, at, orbitMinutes, orbitStepSec, loadAllOrbits]);
 
   useEffect(() => {
     if (!sat || bootstrapDoneRef.current || !autoCollectOnBoot) return;
@@ -222,10 +227,10 @@ export default function App() {
       const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
       setRange({ from: newFrom, to: newTo });
       loadTelemetry(sat, newFrom, newTo);
-      for (const s of mapSats) loadOrbit(s, newTo, orbitMinutes, orbitStepSec);
+      loadAllOrbits(mapSats, newTo, orbitMinutes, orbitStepSec);
     }, autoRefreshSec * 1000);
     return () => clearInterval(id);
-  }, [sat, mapSats, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadOrbit]);
+  }, [sat, mapSats, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadAllOrbits]);
 
   const handleUpdateData = useCallback(async () => {
     setUpdating(true);
@@ -244,7 +249,7 @@ export default function App() {
       const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
       setRange({ from: newFrom, to: newTo });
       await loadTelemetry(sat, newFrom, newTo);
-      for (const s of mapSats) loadOrbit(s, at, orbitMinutes, orbitStepSec);
+      await loadAllOrbits(mapSats, at, orbitMinutes, orbitStepSec);
     } catch (e) {
       const msg = String(e?.message ?? e);
       setErr(msg);
@@ -253,7 +258,7 @@ export default function App() {
       setUpdating(false);
       setTimeout(() => setCollectMsg(""), 8000);
     }
-  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadOrbit]);
+  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadAllOrbits]);
 
   const chartData = useMemo(() => rows.map((r) => {
     const ts = new Date(r.ts_utc);
@@ -501,10 +506,12 @@ export default function App() {
               </span>
             </span>
             <span className="status-item">
-              <span className={`status-dot ${orbitLoading ? "loading" : orbitErr ? "err" : Object.keys(orbitDataMap).length > 0 ? "live" : "idle"}`} />
+              <span className={`status-dot ${orbitLoading ? "loading" : Object.values(orbitDataMap).some(d => d?.track?.length) ? "live" : "idle"}`} />
               <span className="lbl">Orbit:</span>
               <span className="val">
-                {orbitLoading ? "loading…" : orbitErr ? `error: ${orbitErr}` : `${mapSats.size} sat(s), ${Object.values(orbitDataMap).reduce((s, d) => s + (d?.track?.length ?? 0), 0)} pts`}
+                {orbitLoading
+                  ? "loading…"
+                  : `${Object.values(orbitDataMap).filter(d => d?.track?.length).length}/${mapSats.size} sat(s), ${Object.values(orbitDataMap).reduce((s, d) => s + (d?.track?.length ?? 0), 0)} pts`}
               </span>
             </span>
           </div>

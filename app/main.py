@@ -293,10 +293,15 @@ def orbit_track(
                 "track": fallback["track"],
                 "source": "telemetry_fallback",
             }
-        raise HTTPException(
-            status_code=400,
-            detail=f"No TLE configured for '{sat}'. Set env: TLE_<SAT>_1 and TLE_<SAT>_2 (normalized).",
-        )
+        return {
+            "sat": sat,
+            "at": base.isoformat(),
+            "minutes": minutes,
+            "step_sec": step_sec,
+            "current": None,
+            "track": [],
+            "source": "no_tle",
+        }
 
     satrec = Satrec.twoline2rv(tle1, tle2)
 
