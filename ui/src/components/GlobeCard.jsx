@@ -476,7 +476,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const footprintOuter = R0 * 0.24;
       const blindInner = R0 * 0.09;
 
-      // beam cone
+      // beam cone: wide end on Earth, narrow end at the satellite
       const height = Math.max(0.001, rSat - rSurface);
       const cone = makeBeamCone({ height, baseRadius: footprintOuter, color: "#4CFF7A" });
 
@@ -484,9 +484,9 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const midPos = satPos.clone().add(groundPos).multiplyScalar(0.5);
       cone.position.copy(midPos);
 
-      const dirDown = satPos.clone().normalize().multiplyScalar(-1);
+      const dirUp = satPos.clone().normalize();
       const upY = new THREE.Vector3(0, 1, 0);
-      cone.quaternion.setFromUnitVectors(upY, dirDown);
+      cone.quaternion.setFromUnitVectors(upY, dirUp);
 
       grp.add(cone);
 

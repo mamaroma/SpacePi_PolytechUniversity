@@ -78,6 +78,8 @@ export default function App() {
     import.meta.env.VITE_ENABLE_COLLECT != null
       ? import.meta.env.VITE_ENABLE_COLLECT === "true"
       : !isProd;
+  const autoRefreshSec =
+    Number(import.meta.env.VITE_AUTO_REFRESH_SECONDS ?? "60") || 60;
   const autoCollectOnBoot =
     import.meta.env.VITE_AUTO_COLLECT_ON_BOOT != null
       ? import.meta.env.VITE_AUTO_COLLECT_ON_BOOT === "true"
@@ -158,31 +160,22 @@ export default function App() {
     loadOrbit(sat, at, orbitMinutes, orbitStepSec);
   }, [sat, at, orbitMinutes, orbitStepSec, loadOrbit]);
 
-  // Bootstrap the dashboard on first load:
-  // 1) render cached/current DB data immediately via the effects above
-  // 2) kick off one background collect to refresh from Telegram
-  // 3) reload telemetry + orbit once fresh packets are inserted
+  // Browser should only read from the API/DB.
+  // Telegram collection runs server-side to avoid noisy frontend errors.
   useEffect(() => {
     if (!sat || bootstrapDoneRef.current || !autoCollectOnBoot) return;
     bootstrapDoneRef.current = true;
 
     let alive = true;
     (async () => {
-      setCollectMsg("Refreshing latest telemetry…");
       try {
-        await runCollect({ sat, token });
-        if (!alive) return;
         const newTo = new Date();
         const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
         setRange({ from: newFrom, to: newTo });
         await loadTelemetry(sat, newFrom, newTo);
         await loadOrbit(sat, at, orbitMinutes, orbitStepSec);
-        if (alive) setCollectMsg("✓ Latest telemetry loaded");
       } catch (e) {
-        if (!alive) return;
-        const msg = String(e?.message ?? e);
-        // Don't hard-fail page bootstrap on collect errors; existing DB/orbit data may still render.
-        setCollectMsg(msg.toLowerCase().includes("token") ? "Manual collect requires token" : "");
+        if (alive) setErr(String(e?.message ?? e));
       } finally {
         if (alive) setTimeout(() => setCollectMsg(""), 5000);
       }
@@ -191,12 +184,19 @@ export default function App() {
     return () => { alive = false; };
   }, [sat, token, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadOrbit, autoCollectOnBoot]);
 
+  useEffect(() => {
+    if (!sat || autoRefreshSec <= 0) return undefined;
+    const id = setInterval(() => {
+      const newTo = new Date();
+      const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
+      setRange({ from: newFrom, to: newTo });
+      loadTelemetry(sat, newFrom, newTo);
+      loadOrbit(sat, newTo, orbitMinutes, orbitStepSec);
+    }, autoRefreshSec * 1000);
+    return () => clearInterval(id);
+  }, [sat, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadOrbit]);
+
   const handleUpdateData = useCallback(async () => {
-    if (!collectEnabled) {
-      setCollectMsg("Hosted demo mode: automatic Telegram collect is disabled here.");
-      setTimeout(() => setCollectMsg(""), 6000);
-      return;
-    }
     setUpdating(true);
     setCollectMsg("");
     setErr("");
@@ -298,13 +298,15 @@ export default function App() {
           {loading ? "Loading…" : err ? "Error" : rows.length > 0 ? `${rows.length} pkts` : "No data"}
         </div>
 
-        <button
-          className="btn btn-primary"
-          onClick={handleUpdateData}
-          disabled={updating || !collectEnabled}
-        >
-          {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
-        </button>
+        {collectEnabled && (
+          <button
+            className="btn btn-primary"
+            onClick={handleUpdateData}
+            disabled={updating}
+          >
+            {updating ? <><span className="spinner" /> Updating…</> : "⬆ Collect"}
+          </button>
+        )}
       </header>
 
       {/* ── Body ── */}
@@ -625,7 +627,7 @@ export default function App() {
                 {!tableRows.length && (
                   <tr>
                     <td colSpan={11} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>
-                      No data — press "⬆ Collect" to fetch from Telegram
+                      No data in the selected time range yet
                     </td>
                   </tr>
                 )}

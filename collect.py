@@ -9,19 +9,28 @@ Subsequent runs (and the FastAPI /api/collect/run endpoint) reuse the
 saved session file without requiring interactive input.
 """
 import asyncio
-from pathlib import Path
 
-from telethon import TelegramClient
+from telethon.sessions import StringSession
 
-from app.collector import collect_last_month, _SESSION_PATH
+from app.collector import (
+    collect_last_month,
+    get_session_file_path,
+    has_telethon_session,
+    make_telegram_client,
+)
 from app.db import init_db
 from telemetry_config import settings
 
 
 async def _ensure_auth() -> None:
     """Connects and prompts for phone/code if the session isn't authorized yet."""
-    client = TelegramClient(str(_SESSION_PATH), settings.tg_api_id, settings.tg_api_hash)
+    client = make_telegram_client()
     await client.start()   # interactive: asks phone + code if needed
+    session_string = (settings.telethon_session_string or "").strip()
+    if session_string:
+        print("✓ TELETHON_SESSION_STRING session refreshed in memory.")
+        print("Update TELETHON_SESSION_STRING on Render if you want the hosted collector to use the new login.")
+        print(StringSession.save(client.session))
     await client.disconnect()
     print("✓ Telethon session authenticated and saved.")
 
@@ -29,14 +38,15 @@ async def _ensure_auth() -> None:
 if __name__ == "__main__":
     init_db()
 
-    session_file = Path(str(_SESSION_PATH) + ".session")
-    if not session_file.exists():
+    session_file = get_session_file_path()
+    print(f"Using Telethon session file: {session_file}")
+    if not has_telethon_session():
         print("Session file not found — starting interactive login…")
         asyncio.run(_ensure_auth())
     else:
         # Quick check: re-auth if session is stale
         async def _check():
-            client = TelegramClient(str(_SESSION_PATH), settings.tg_api_id, settings.tg_api_hash)
+            client = make_telegram_client()
             await client.connect()
             ok = await client.is_user_authorized()
             await client.disconnect()

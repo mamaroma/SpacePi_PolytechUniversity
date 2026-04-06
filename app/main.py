@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -12,9 +14,11 @@ import math
 
 from telemetry_config import settings
 from .db import init_db, get_session
+from .collector import collect_last_month
 from .models import TelemetryPacket
 from .collect_api import router as collect_router
 
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telemetry Aggregator (TinyGS Telegram)")
 
@@ -29,9 +33,46 @@ app.add_middleware(
 )
 
 
+async def _auto_collect_loop():
+    interval_sec = max(60, settings.auto_collect_interval_minutes * 60)
+    while True:
+        try:
+            inserted = await collect_last_month(
+                settings.default_satellite,
+                days=settings.default_days,
+            )
+            logger.info(
+                "Auto-collect finished: inserted=%s sat=%s",
+                inserted,
+                settings.default_satellite,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("Auto-collect skipped: %s", exc)
+        await asyncio.sleep(interval_sec)
+
+
 @app.on_event("startup")
-def _startup():
+async def _startup():
     init_db()
+    if settings.auto_collect_enabled:
+        app.state.auto_collect_task = asyncio.create_task(_auto_collect_loop())
+        logger.info(
+            "Auto-collect enabled: every %s minute(s)",
+            settings.auto_collect_interval_minutes,
+        )
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    task = getattr(app.state, "auto_collect_task", None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.get("/")
@@ -103,6 +144,49 @@ def ecef_to_geodetic(r_ecef_km: List[float]) -> (float, float):
 
 def normalize_lon_deg(lon: float) -> float:
     return (lon + 180.0) % 360.0 - 180.0
+
+
+def _telemetry_track_fallback(
+    session: Session,
+    sat: str,
+    base: datetime,
+    limit: int = 300,
+) -> Dict[str, Any] | None:
+    rows = session.exec(
+        select(TelemetryPacket)
+        .where(
+            TelemetryPacket.satellite == sat,
+            TelemetryPacket.tle_lat.is_not(None),
+            TelemetryPacket.tle_lon.is_not(None),
+        )
+        .order_by(TelemetryPacket.ts_utc.desc())
+        .limit(limit)
+    ).all()
+
+    if not rows:
+        return None
+
+    rows = list(reversed(rows))
+    track = [
+        {
+            "ts_utc": r.ts_utc.isoformat(),
+            "lat": float(r.tle_lat),
+            "lon": float(r.tle_lon),
+        }
+        for r in rows
+        if r.tle_lat is not None and r.tle_lon is not None
+    ]
+    if not track:
+        return None
+
+    current = min(
+        track,
+        key=lambda p: abs(
+            datetime.fromisoformat(p["ts_utc"]).replace(tzinfo=timezone.utc)
+            - base
+        ).total_seconds(),
+    )
+    return {"current": current, "track": track}
 
 
 # ----------------------------
@@ -187,18 +271,30 @@ def orbit_track(
     at: Optional[datetime] = Query(None, description="UTC datetime ISO, e.g. 2026-02-08T12:00:00Z"),
     minutes: int = Query(180, ge=10, le=1440, description="Track window in minutes"),
     step_sec: int = Query(20, ge=5, le=600, description="Sampling step in seconds"),
+    session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
+    base = at or datetime.now(timezone.utc)
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=timezone.utc)
+
     tle1, tle2 = settings.get_tle_for_satellite(sat)
 
     if not tle1 or not tle2:
+        fallback = _telemetry_track_fallback(session, sat, base)
+        if fallback:
+            return {
+                "sat": sat,
+                "at": base.isoformat(),
+                "minutes": minutes,
+                "step_sec": step_sec,
+                "current": fallback["current"],
+                "track": fallback["track"],
+                "source": "telemetry_fallback",
+            }
         raise HTTPException(
             status_code=400,
             detail=f"No TLE configured for '{sat}'. Set env: TLE_<SAT>_1 and TLE_<SAT>_2 (normalized).",
         )
-
-    base = at or datetime.now(timezone.utc)
-    if base.tzinfo is None:
-        base = base.replace(tzinfo=timezone.utc)
 
     satrec = Satrec.twoline2rv(tle1, tle2)
 
@@ -232,6 +328,19 @@ def orbit_track(
                     current = p
 
         t += timedelta(seconds=step_sec)
+
+    if not track:
+        fallback = _telemetry_track_fallback(session, sat, base)
+        if fallback:
+            return {
+                "sat": sat,
+                "at": base.isoformat(),
+                "minutes": minutes,
+                "step_sec": step_sec,
+                "current": fallback["current"],
+                "track": fallback["track"],
+                "source": "telemetry_fallback",
+            }
 
     return {
         "sat": sat,
