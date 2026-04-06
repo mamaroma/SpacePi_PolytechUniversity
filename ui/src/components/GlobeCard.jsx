@@ -497,12 +497,15 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     const trackR = R0 * 1.01;
     for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#4CFF7A"));
 
-    // SPbPU ground station marker
-    const groundPt = llToXyz(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, R0 * 1.012);
+    // SPbPU ground station marker — use globe's own coordinate converter
     const { group: polytechGrp, ring: polytechRing } = makePolytechMarker(R0);
-    polytechGrp.position.copy(groundPt);
-    const outward = groundPt.clone().normalize();
-    polytechRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+    const pc = g.getCoords(POLYTECH_COORDS.lat, POLYTECH_COORDS.lng, 0.012);
+    if (pc) {
+      const pos = new THREE.Vector3(pc.x, pc.y, pc.z);
+      polytechGrp.position.copy(pos);
+      const outward = pos.clone().normalize();
+      polytechRing.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+    }
     grp.add(polytechGrp);
 
     // satellite + simplified beam
