@@ -37,12 +37,12 @@ const POLYTECH_COORDS = {
   lon: 30.38,
 };
 
-const POLYTECH_ICON = L.divIcon({
-  html: `<div class="polytech-div-icon">Pi</div>`,
-  className: "",
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  popupAnchor: [0, -18],
+const POLYTECH_ICON = L.icon({
+  iconUrl: "/spbpu-logo.png",
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  popupAnchor: [0, -20],
+  className: "polytech-logo-icon",
 });
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -143,21 +143,9 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
           animation: sat-glow 2s ease-in-out infinite;
           user-select: none;
         }
-        .polytech-div-icon {
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          background: rgba(0, 255, 136, 0.14);
-          border: 1px solid rgba(0, 255, 136, 0.8);
-          color: #00ff88;
-          font-family: "Space Mono", monospace;
-          font-size: 14px;
-          font-weight: 700;
-          box-shadow: 0 0 12px rgba(0, 255, 136, 0.35);
-          user-select: none;
+        .polytech-logo-icon {
+          filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.5));
+          border-radius: 6px;
         }
         @keyframes sat-glow {
           0%,100% { filter: drop-shadow(0 0 5px #00ff88); }
@@ -357,7 +345,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
         <span><span style={{ color: "#ff4d6a", fontWeight: 700 }}>━</span> Past orbit</span>
         <span><span style={{ color: "#00d4ff" }}>╌</span> Future orbit</span>
         <span><span style={{ color: "#00d4ff" }}>●</span> TinyGS received</span>
-        <span><span style={{ color: "#00ff88", fontWeight: 700 }}>Pi</span> SPbPU</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><img src="/spbpu-logo.png" alt="SPbPU" style={{ width: 14, height: 14, borderRadius: 2 }} /> SPbPU</span>
         <span>🛰 Current position</span>
         {showCoverage && (
           <span><span style={{ color: "#00ff88" }}>◯</span> Coverage ≈ 2 200 km</span>
