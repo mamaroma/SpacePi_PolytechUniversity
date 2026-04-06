@@ -177,8 +177,12 @@ Copy `.env.example` → `.env` and set:
 | `TG_API_HASH` | Telegram app hash | — |
 | `TG_CHANNEL` | Telegram channel to parse | `t.me/tinyGS_Telemetry` |
 | `DATABASE_URL` | SQLAlchemy URL | `sqlite:///./telemetry.db` |
+| `TELETHON_SESSION_NAME` | File-based Telethon session path | `./telemetry_session` |
+| `TELETHON_SESSION_STRING` | Telethon StringSession for hosted deploys | *(empty)* |
 | `COLLECT_TOKEN` | Token for `/api/collect/run` | *(empty = no auth)* |
 | `CORS_ALLOW_ORIGINS` | Comma-separated origins | `*` |
+| `AUTO_COLLECT_ENABLED` | Enable server-side scheduled collect loop | `false` |
+| `AUTO_COLLECT_INTERVAL_MINUTES` | Scheduled collect interval | `30` |
 | `TLE_POLYTECH_UNIVERSE_3_1` | TLE line 1 for Polytech Universe-3 | — |
 | `TLE_POLYTECH_UNIVERSE_3_2` | TLE line 2 for Polytech Universe-3 | — |
 
@@ -204,6 +208,27 @@ Add more satellites with `TLE_<NORMALIZED_NAME>_1 / _2`
 
 - **Default:** SQLite at `telemetry.db` (auto-created on first run)
 - **PostgreSQL:** set `DATABASE_URL=postgresql+psycopg2://user:pass@host/db` and run `python scripts/init_postgres.py`
+
+---
+
+## Render Auto-Collect
+
+For hosted automatic collection without browser errors:
+
+1. Set `DATABASE_URL` to the **internal** Render PostgreSQL URL.
+2. Set `AUTO_COLLECT_ENABLED=true`.
+3. Set `AUTO_COLLECT_INTERVAL_MINUTES=30` (or another interval).
+4. Set `TELETHON_SESSION_STRING` to a valid Telethon string session.
+
+Generate the string session locally after logging in:
+
+```bash
+python collect.py
+python scripts/print_session_string.py
+```
+
+Paste the printed value into the Render environment variable `TELETHON_SESSION_STRING`.
+The frontend should only read from the API/DB; the backend performs Telegram collection on a schedule.
 
 ---
 

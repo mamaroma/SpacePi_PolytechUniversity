@@ -72,9 +72,12 @@ DEFAULT_SATELLITE = _getenv("DEFAULT_SATELLITE", "Polytech_Universe-3")
 DEFAULT_DAYS = _getenv("DEFAULT_DAYS", 30, int)
 
 TELETHON_SESSION_NAME = _getenv("TELETHON_SESSION_NAME", str(PROJECT_ROOT / "user_session"))
+TELETHON_SESSION_STRING = _getenv("TELETHON_SESSION_STRING", "")
 
 # ✅ ВАЖНО: объявляем ДО settings = Settings(...)
 COLLECT_TOKEN = _getenv("COLLECT_TOKEN", "")
+AUTO_COLLECT_ENABLED = _getenv("AUTO_COLLECT_ENABLED", "false")
+AUTO_COLLECT_INTERVAL_MINUTES = _getenv("AUTO_COLLECT_INTERVAL_MINUTES", 30, int)
 
 # ----------------------------
 # Settings object
@@ -85,6 +88,7 @@ class Settings:
     tg_api_hash: str
     tg_channel: str
     telethon_session_name: str
+    telethon_session_string: str
 
     database_url: str
     cors_allow_origins: str
@@ -93,6 +97,8 @@ class Settings:
     default_days: int
 
     collect_token: str
+    auto_collect_enabled: bool
+    auto_collect_interval_minutes: int
 
     def get_tle_for_satellite(self, sat: str) -> Tuple[str, str]:
         """
@@ -113,6 +119,7 @@ settings = Settings(
     tg_api_hash=str(API_HASH),
     tg_channel=str(TG_CHANNEL),
     telethon_session_name=str(TELETHON_SESSION_NAME),
+    telethon_session_string=str(TELETHON_SESSION_STRING),
 
     database_url=str(DATABASE_URL),
     cors_allow_origins=str(CORS_ALLOW_ORIGINS),
@@ -121,4 +128,6 @@ settings = Settings(
     default_days=int(DEFAULT_DAYS),
 
     collect_token=str(COLLECT_TOKEN),
+    auto_collect_enabled=str(AUTO_COLLECT_ENABLED).strip().lower() in {"1", "true", "yes", "on"},
+    auto_collect_interval_minutes=max(1, int(AUTO_COLLECT_INTERVAL_MINUTES)),
 )

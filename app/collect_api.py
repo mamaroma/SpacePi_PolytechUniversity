@@ -43,7 +43,10 @@ async def run_collect(
         hint = ""
         msg = str(exc).lower()
         if "auth" in msg or "session" in msg or "phone" in msg:
-            hint = " (Telethon session not authenticated — run `python collect.py` locally first to log in)"
+            hint = (
+                " (Telethon session missing/expired — for hosted auto-collect set "
+                "TELETHON_SESSION_STRING or mount TELETHON_SESSION_NAME on persistent storage)"
+            )
         elif "connect" in msg or "refused" in msg or "timeout" in msg:
             hint = " (cannot reach Telegram — check network / API credentials)"
         elif "database" in msg or "psycopg" in msg or "sqlalchemy" in msg:

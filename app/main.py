@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -12,9 +14,11 @@ import math
 
 from telemetry_config import settings
 from .db import init_db, get_session
+from .collector import collect_last_month
 from .models import TelemetryPacket
 from .collect_api import router as collect_router
 
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telemetry Aggregator (TinyGS Telegram)")
 
@@ -29,9 +33,46 @@ app.add_middleware(
 )
 
 
+async def _auto_collect_loop():
+    interval_sec = max(60, settings.auto_collect_interval_minutes * 60)
+    while True:
+        try:
+            inserted = await collect_last_month(
+                settings.default_satellite,
+                days=settings.default_days,
+            )
+            logger.info(
+                "Auto-collect finished: inserted=%s sat=%s",
+                inserted,
+                settings.default_satellite,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("Auto-collect skipped: %s", exc)
+        await asyncio.sleep(interval_sec)
+
+
 @app.on_event("startup")
-def _startup():
+async def _startup():
     init_db()
+    if settings.auto_collect_enabled:
+        app.state.auto_collect_task = asyncio.create_task(_auto_collect_loop())
+        logger.info(
+            "Auto-collect enabled: every %s minute(s)",
+            settings.auto_collect_interval_minutes,
+        )
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    task = getattr(app.state, "auto_collect_task", None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.get("/")
