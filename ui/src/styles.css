@@ -616,3 +616,48 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
 }
+
+/* ─── Satellite multi-select dropdown ──────────────────────── */
+.sat-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 900;
+  margin-top: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-hi);
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 200px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.5);
+}
+.sat-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+  user-select: none;
+  white-space: nowrap;
+}
+.sat-dropdown-item:hover {
+  background: var(--surface-3);
+}
+.sat-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sat-badge-dead {
+  font-size: 9px;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+}

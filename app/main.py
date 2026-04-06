@@ -35,21 +35,18 @@ app.add_middleware(
 
 async def _auto_collect_loop():
     interval_sec = max(60, settings.auto_collect_interval_minutes * 60)
+    active_sats = [s["name"] for s in settings.satellite_fleet if s.get("active")]
+    if not active_sats:
+        active_sats = [settings.default_satellite]
     while True:
-        try:
-            inserted = await collect_last_month(
-                settings.default_satellite,
-                days=settings.default_days,
-            )
-            logger.info(
-                "Auto-collect finished: inserted=%s sat=%s",
-                inserted,
-                settings.default_satellite,
-            )
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.warning("Auto-collect skipped: %s", exc)
+        for sat_name in active_sats:
+            try:
+                inserted = await collect_last_month(sat_name, days=settings.default_days)
+                logger.info("Auto-collect finished: inserted=%s sat=%s", inserted, sat_name)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("Auto-collect skipped for %s: %s", sat_name, exc)
         await asyncio.sleep(interval_sec)
 
 
@@ -82,6 +79,11 @@ def root() -> Dict[str, Any]:
         "status": "ok",
         "docs": "/docs",
     }
+
+
+@app.get("/api/satellites/fleet")
+def get_fleet() -> List[Dict[str, Any]]:
+    return settings.satellite_fleet
 
 
 # ✅ подключаем API ручку коллектора ОДИН раз

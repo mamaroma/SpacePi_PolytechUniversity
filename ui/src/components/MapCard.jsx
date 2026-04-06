@@ -73,7 +73,7 @@ function splitDateline(pts) {
 const COVERAGE_M = 2_200_000;
 
 // ─── Component ────────────────────────────────────────────────
-export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
+export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {} }) {
   const [showCoverage, setShowCoverage] = useState(true);
 
   // Received TinyGS points (sampled for perf)
@@ -323,15 +323,57 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
             </>
           )}
 
+          {/* ── Other satellites from fleet ─────────────────────── */}
+          {Object.entries(multiOrbitData).map(([satName, oData]) => {
+            if (!mapSats.has(satName)) return null;
+            const cur = oData?.current;
+            if (!cur || !validLL(cur.lat, cur.lon)) return null;
+            const color = fleetColorMap[satName] || "#aaa";
+            const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
+            const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
+            const trackSegs = splitDateline(trackLL);
+            const shortName = satName.replace("Polytech_Universe-", "PU-");
+            const icon = L.divIcon({
+              html: `<div style="font-size:20px;filter:drop-shadow(0 0 4px ${color});line-height:1;">🛰</div>`,
+              className: "",
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+              popupAnchor: [0, -16],
+            });
+            return (
+              <React.Fragment key={satName}>
+                {trackSegs.map((seg, i) => (
+                  <Polyline
+                    key={`multi-trk-${satName}-${i}`}
+                    positions={seg}
+                    pathOptions={{ color, weight: 1.8, opacity: 0.7 }}
+                  />
+                ))}
+                <Marker position={[Number(cur.lat), Number(cur.lon)]} icon={icon}>
+                  <Popup>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
+                      <div style={{ fontWeight: 700, color, marginBottom: 5 }}>
+                        🛰 {shortName}
+                      </div>
+                      <div>{new Date(cur.ts_utc).toLocaleString()}</div>
+                      <div>Lat {Number(cur.lat).toFixed(3)}</div>
+                      <div>Lon {Number(cur.lon).toFixed(3)}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
+
           {/* No data placeholder */}
-          {!current && !(orbitTrack?.length) && (
+          {!current && !(orbitTrack?.length) && Object.keys(multiOrbitData).length === 0 && (
             <div style={{
               position: "absolute", inset: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               zIndex: 500, pointerEvents: "none",
               color: "var(--text-muted)", fontSize: 13,
             }}>
-              Switch to 2D Map then click ⬆ Collect or wait for orbit data
+              Click ⬆ Collect or wait for orbit data
             </div>
           )}
         </MapContainer>
@@ -340,13 +382,16 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent }) {
       {/* Legend */}
       <div style={{
         display: "flex", gap: 18, marginTop: 8,
-        fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap",
+        fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center",
       }}>
-        <span><span style={{ color: "#ff4d6a", fontWeight: 700 }}>━</span> Past orbit</span>
-        <span><span style={{ color: "#00d4ff" }}>╌</span> Future orbit</span>
+        {[...mapSats].map(s => (
+          <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: fleetColorMap[s] || "#aaa", display: "inline-block" }} />
+            {s.replace("Polytech_Universe-", "PU-")}
+          </span>
+        ))}
         <span><span style={{ color: "#00d4ff" }}>●</span> TinyGS received</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><img src="/spbpu-logo.png" alt="SPbPU" style={{ width: 14, height: 14, borderRadius: 2 }} /> SPbPU</span>
-        <span>🛰 Current position</span>
         {showCoverage && (
           <span><span style={{ color: "#00ff88" }}>◯</span> Coverage ≈ 2 200 km</span>
         )}
