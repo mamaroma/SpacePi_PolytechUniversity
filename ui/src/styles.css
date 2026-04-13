@@ -661,3 +661,29 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   border-radius: 4px;
   margin-left: auto;
 }
+
+/* ─── Page navigation tabs ─────────────────────────────────── */
+.header-nav {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.nav-tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-tab:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-tab.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0,212,255,0.25);
+}
