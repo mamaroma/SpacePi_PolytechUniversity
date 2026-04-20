@@ -47,6 +47,7 @@ const DEMO_EMI_DATA = [
 const FREQ_BANDS = [...new Set(DEMO_EMI_DATA.map(d => d.freq_mhz))].sort((a, b) => a - b);
 
 export default function EmiPage() {
+  const [tab, setTab] = useState("real");
   const [selectedBands, setSelectedBands] = useState(new Set(FREQ_BANDS));
   const [minPower, setMinPower] = useState(-100);
 
@@ -76,147 +77,224 @@ export default function EmiPage() {
 
   return (
     <div className="app-body">
-      <div className="controls-card">
-        <div className="ctrl-row" style={{ flexWrap: "wrap" }}>
-          <span className="ctrl-label" style={{ marginRight: 8 }}>Frequency bands</span>
-          {FREQ_BANDS.map(f => (
-            <label key={f} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", marginRight: 12, userSelect: "none" }}>
-              <input type="checkbox" checked={selectedBands.has(f)} onChange={() => toggleBand(f)} style={{ accentColor: "var(--accent)" }} />
-              {f >= 1000 ? `${(f / 1000).toFixed(1)} GHz` : `${f} MHz`}
-            </label>
-          ))}
-          <div className="ctrl-divider" />
-          <span className="ctrl-label">Min power</span>
-          <select value={minPower} onChange={e => setMinPower(Number(e.target.value))} style={{ width: 90 }}>
-            <option value={-100}>All</option>
-            <option value={-90}>&ge; -90 dBm</option>
-            <option value={-70}>&ge; -70 dBm</option>
-            <option value={-50}>&ge; -50 dBm</option>
-            <option value={-30}>&ge; -30 dBm</option>
-          </select>
-          <div className="ctrl-spacer" />
-          <span className="card-meta">{filtered.length} readings (demo data)</span>
-        </div>
+
+      {/* Tab switcher */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button
+          className={tab === "real" ? "btn btn-primary" : "btn"}
+          onClick={() => setTab("real")}
+        >
+          🛰️ Реальные данные со спутника
+        </button>
+        <button
+          className={tab === "demo" ? "btn btn-primary" : "btn"}
+          onClick={() => setTab("demo")}
+        >
+          📡 Демо-карта
+        </button>
       </div>
 
-      {/* Summary metrics */}
-      <div className="metrics-row">
-        <div className="metric-card col-cyan">
-          <div className="metric-icon">📡</div>
-          <div className="metric-body">
-            <div className="metric-label">Readings</div>
-            <div className="metric-value">{filtered.length}</div>
+      {/* ── REAL DATA TAB ──────────────────────────────────────────────── */}
+      {tab === "real" && (
+        <>
+          {/* Stats from satellite_complete_analysis */}
+          <div className="metrics-row">
+            <div className="metric-card col-cyan">
+              <div className="metric-icon">🛰️</div>
+              <div className="metric-body">
+                <div className="metric-label">Позиций спутника</div>
+                <div className="metric-value">480</div>
+              </div>
+            </div>
+            <div className="metric-card col-yellow">
+              <div className="metric-icon">📊</div>
+              <div className="metric-body">
+                <div className="metric-label">Спектров записано</div>
+                <div className="metric-value">619</div>
+              </div>
+            </div>
+            <div className="metric-card col-green">
+              <div className="metric-icon">📍</div>
+              <div className="metric-body">
+                <div className="metric-label">Точек на карте</div>
+                <div className="metric-value">480</div>
+              </div>
+            </div>
+            <div className="metric-card col-red">
+              <div className="metric-icon">🌍</div>
+              <div className="metric-body">
+                <div className="metric-label">Зон покрытия</div>
+                <div className="metric-value">3</div>
+                <div className="metric-sub">282.38 млн км²</div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="metric-card col-yellow">
-          <div className="metric-icon">📊</div>
-          <div className="metric-body">
-            <div className="metric-label">Avg Power</div>
-            <div className="metric-value">{stats.avg} <span className="metric-unit">dBm</span></div>
-          </div>
-        </div>
-        <div className="metric-card col-red">
-          <div className="metric-icon">⚠</div>
-          <div className="metric-body">
-            <div className="metric-label">Max Power</div>
-            <div className="metric-value">{stats.max} <span className="metric-unit">dBm</span></div>
-          </div>
-        </div>
-        <div className="metric-card col-red">
-          <div className="metric-icon">🔴</div>
-          <div className="metric-body">
-            <div className="metric-label">Critical</div>
-            <div className="metric-value">{stats.critical}</div>
-            <div className="metric-sub">&ge; -30 dBm</div>
-          </div>
-        </div>
-      </div>
 
-      <div className="globe-card">
-        <div className="card-header">
-          <span className="card-title">EMI Heatmap — Electromagnetic Interference</span>
-          <span className="card-meta">{filtered.length} readings</span>
-        </div>
-        <div className="globe-inner" style={{ height: 600 }}>
-          <style>{`
-            .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0d1526 !important; color: #dce8ff !important; border: 1px solid #2d4066 !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
-            .leaflet-popup-content { margin: 10px 14px !important; }
-            .leaflet-control-zoom a { background: #0d1526 !important; color: #7090b8 !important; border-color: #1e2d4a !important; }
-            .leaflet-container { background: #060b18 !important; }
-            .leaflet-control-attribution { background: rgba(13,21,38,.75) !important; color: #4a6080 !important; font-size: 10px !important; }
-            .leaflet-control-attribution a { color: #5a8ab5 !important; }
-          `}</style>
-          <MapContainer center={[50, 20]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false}>
-            <AttributionControl position="bottomright" prefix={false} />
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
-              maxZoom={19}
-            />
-            {filtered.map(d => {
-              const color = intensityColor(d.power_dbm);
-              const r = Math.max(6, 18 + d.power_dbm * 0.15);
-              return (
-                <CircleMarker
-                  key={d.id}
-                  center={[d.lat, d.lon]}
-                  radius={r}
-                  pathOptions={{ color, fillColor: color, fillOpacity: 0.4, weight: 1.5, opacity: 0.8 }}
-                >
-                  <Popup>
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                      <div style={{ fontWeight: 700, color, marginBottom: 5 }}>{intensityLabel(d.power_dbm)} EMI</div>
-                      <div>Power: {d.power_dbm} dBm</div>
-                      <div>Freq: {d.freq_mhz >= 1000 ? `${(d.freq_mhz / 1000).toFixed(1)} GHz` : `${d.freq_mhz} MHz`}</div>
-                      <div>Source: {d.source}</div>
-                      <div>Lat {d.lat.toFixed(3)} · Lon {d.lon.toFixed(3)}</div>
-                      <div style={{ color: "#7090b8", marginTop: 4 }}>{new Date(d.ts).toLocaleString()}</div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              );
-            })}
-          </MapContainer>
-        </div>
+          <div className="globe-card">
+            <div className="card-header">
+              <span className="card-title">Комплексный анализ спутниковых данных — ЭМ излучение</span>
+              <span className="card-meta">480 измерений · тепловая карта + зоны покрытия</span>
+            </div>
+            <div style={{ width: "100%", height: 680, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+              <iframe
+                src="/satellite_analysis.html"
+                title="Satellite EMI Analysis"
+                style={{ width: "100%", height: "100%", border: "none" }}
+                loading="lazy"
+              />
+            </div>
+            <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
+              <span><span style={{ color: "#3388ff" }}>●</span> Низкое ЭМ излучение</span>
+              <span><span style={{ color: "#00aa00" }}>●</span> Среднее ЭМ излучение</span>
+              <span><span style={{ color: "#ff0000" }}>●</span> Высокое ЭМ излучение</span>
+              <span style={{ marginLeft: "auto" }}>Источник: спутник Polytech Universe · данные СПбПУ</span>
+            </div>
+          </div>
+        </>
+      )}
 
-        {/* Legend */}
-        <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
-          <span><span style={{ color: "#ff4d6a" }}>●</span> Critical (&ge; -30 dBm)</span>
-          <span><span style={{ color: "#ffa63a" }}>●</span> High (-50…-30)</span>
-          <span><span style={{ color: "#ffd700" }}>●</span> Moderate (-70…-50)</span>
-          <span><span style={{ color: "#00ff88" }}>●</span> Low (-90…-70)</span>
-          <span><span style={{ color: "#00d4ff" }}>●</span> Minimal (&lt; -90)</span>
-        </div>
-      </div>
-
-      {/* EMI table */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">EMI Readings</span>
-          <span className="card-meta">{filtered.length} readings</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Time</th><th>Lat</th><th>Lon</th><th>Freq</th><th>Power (dBm)</th><th>Level</th><th>Source</th></tr>
-            </thead>
-            <tbody>
-              {filtered.map(d => (
-                <tr key={d.id}>
-                  <td>{new Date(d.ts).toLocaleString()}</td>
-                  <td>{d.lat.toFixed(3)}</td>
-                  <td>{d.lon.toFixed(3)}</td>
-                  <td>{d.freq_mhz >= 1000 ? `${(d.freq_mhz / 1000).toFixed(1)} GHz` : `${d.freq_mhz} MHz`}</td>
-                  <td style={{ color: intensityColor(d.power_dbm), fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>{d.power_dbm}</td>
-                  <td style={{ color: intensityColor(d.power_dbm) }}>{intensityLabel(d.power_dbm)}</td>
-                  <td>{d.source}</td>
-                </tr>
+      {/* ── DEMO TAB ───────────────────────────────────────────────────── */}
+      {tab === "demo" && (
+        <>
+          <div className="controls-card">
+            <div className="ctrl-row" style={{ flexWrap: "wrap" }}>
+              <span className="ctrl-label" style={{ marginRight: 8 }}>Frequency bands</span>
+              {FREQ_BANDS.map(f => (
+                <label key={f} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", marginRight: 12, userSelect: "none" }}>
+                  <input type="checkbox" checked={selectedBands.has(f)} onChange={() => toggleBand(f)} style={{ accentColor: "var(--accent)" }} />
+                  {f >= 1000 ? `${(f / 1000).toFixed(1)} GHz` : `${f} MHz`}
+                </label>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              <div className="ctrl-divider" />
+              <span className="ctrl-label">Min power</span>
+              <select value={minPower} onChange={e => setMinPower(Number(e.target.value))} style={{ width: 90 }}>
+                <option value={-100}>All</option>
+                <option value={-90}>&ge; -90 dBm</option>
+                <option value={-70}>&ge; -70 dBm</option>
+                <option value={-50}>&ge; -50 dBm</option>
+                <option value={-30}>&ge; -30 dBm</option>
+              </select>
+              <div className="ctrl-spacer" />
+              <span className="card-meta">{filtered.length} readings (demo data)</span>
+            </div>
+          </div>
+
+          <div className="metrics-row">
+            <div className="metric-card col-cyan">
+              <div className="metric-icon">📡</div>
+              <div className="metric-body">
+                <div className="metric-label">Readings</div>
+                <div className="metric-value">{filtered.length}</div>
+              </div>
+            </div>
+            <div className="metric-card col-yellow">
+              <div className="metric-icon">📊</div>
+              <div className="metric-body">
+                <div className="metric-label">Avg Power</div>
+                <div className="metric-value">{stats.avg} <span className="metric-unit">dBm</span></div>
+              </div>
+            </div>
+            <div className="metric-card col-red">
+              <div className="metric-icon">⚠</div>
+              <div className="metric-body">
+                <div className="metric-label">Max Power</div>
+                <div className="metric-value">{stats.max} <span className="metric-unit">dBm</span></div>
+              </div>
+            </div>
+            <div className="metric-card col-red">
+              <div className="metric-icon">🔴</div>
+              <div className="metric-body">
+                <div className="metric-label">Critical</div>
+                <div className="metric-value">{stats.critical}</div>
+                <div className="metric-sub">&ge; -30 dBm</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="globe-card">
+            <div className="card-header">
+              <span className="card-title">EMI Heatmap — Electromagnetic Interference</span>
+              <span className="card-meta">{filtered.length} readings</span>
+            </div>
+            <div className="globe-inner" style={{ height: 600 }}>
+              <style>{`
+                .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0d1526 !important; color: #dce8ff !important; border: 1px solid #2d4066 !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
+                .leaflet-popup-content { margin: 10px 14px !important; }
+                .leaflet-control-zoom a { background: #0d1526 !important; color: #7090b8 !important; border-color: #1e2d4a !important; }
+                .leaflet-container { background: #060b18 !important; }
+                .leaflet-control-attribution { background: rgba(13,21,38,.75) !important; color: #4a6080 !important; font-size: 10px !important; }
+                .leaflet-control-attribution a { color: #5a8ab5 !important; }
+              `}</style>
+              <MapContainer center={[50, 20]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false}>
+                <AttributionControl position="bottomright" prefix={false} />
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  subdomains="abcd"
+                  maxZoom={19}
+                />
+                {filtered.map(d => {
+                  const color = intensityColor(d.power_dbm);
+                  const r = Math.max(6, 18 + d.power_dbm * 0.15);
+                  return (
+                    <CircleMarker
+                      key={d.id}
+                      center={[d.lat, d.lon]}
+                      radius={r}
+                      pathOptions={{ color, fillColor: color, fillOpacity: 0.4, weight: 1.5, opacity: 0.8 }}
+                    >
+                      <Popup>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
+                          <div style={{ fontWeight: 700, color, marginBottom: 5 }}>{intensityLabel(d.power_dbm)} EMI</div>
+                          <div>Power: {d.power_dbm} dBm</div>
+                          <div>Freq: {d.freq_mhz >= 1000 ? `${(d.freq_mhz / 1000).toFixed(1)} GHz` : `${d.freq_mhz} MHz`}</div>
+                          <div>Source: {d.source}</div>
+                          <div>Lat {d.lat.toFixed(3)} · Lon {d.lon.toFixed(3)}</div>
+                          <div style={{ color: "#7090b8", marginTop: 4 }}>{new Date(d.ts).toLocaleString()}</div>
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  );
+                })}
+              </MapContainer>
+            </div>
+            <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
+              <span><span style={{ color: "#ff4d6a" }}>●</span> Critical (&ge; -30 dBm)</span>
+              <span><span style={{ color: "#ffa63a" }}>●</span> High (-50…-30)</span>
+              <span><span style={{ color: "#ffd700" }}>●</span> Moderate (-70…-50)</span>
+              <span><span style={{ color: "#00ff88" }}>●</span> Low (-90…-70)</span>
+              <span><span style={{ color: "#00d4ff" }}>●</span> Minimal (&lt; -90)</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">EMI Readings</span>
+              <span className="card-meta">{filtered.length} readings</span>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Time</th><th>Lat</th><th>Lon</th><th>Freq</th><th>Power (dBm)</th><th>Level</th><th>Source</th></tr>
+                </thead>
+                <tbody>
+                  {filtered.map(d => (
+                    <tr key={d.id}>
+                      <td>{new Date(d.ts).toLocaleString()}</td>
+                      <td>{d.lat.toFixed(3)}</td>
+                      <td>{d.lon.toFixed(3)}</td>
+                      <td>{d.freq_mhz >= 1000 ? `${(d.freq_mhz / 1000).toFixed(1)} GHz` : `${d.freq_mhz} MHz`}</td>
+                      <td style={{ color: intensityColor(d.power_dbm), fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>{d.power_dbm}</td>
+                      <td style={{ color: intensityColor(d.power_dbm) }}>{intensityLabel(d.power_dbm)}</td>
+                      <td>{d.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
