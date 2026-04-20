@@ -11,13 +11,15 @@ import DocsPage from "./pages/DocsPage";
 import CreatorsPage from "./pages/CreatorsPage";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
+import ChallengePage from "./pages/ChallengePage";
 
 const MENU_ITEMS = [
   { to: "/",           label: "Главная",       icon: "🏠" },
   { to: "/telemetry",  label: "Телеметрия",    icon: "🛰" },
   { to: "/ais",        label: "AIS",           icon: "🚢" },
   { to: "/emi",        label: "ЭМИ",           icon: "⚡" },
-  { to: "/sdr",        label: "ИСШ",           icon: "📡" },
+  { to: "/sdr",        label: "SDR",           icon: "📡" },
+  { to: "/challenge",  label: "Challenge",     icon: "🏆" },
   { to: "/docs",       label: "Документация",  icon: "📚" },
   { to: "/creators",   label: "Создатели",     icon: "👨‍🚀" },
 ];
@@ -189,6 +191,7 @@ function AppInner() {
         <Route path="/sdr" element={<SdrPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/creators" element={<CreatorsPage />} />
+        <Route path="/challenge" element={<ChallengePage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
