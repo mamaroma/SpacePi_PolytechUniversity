@@ -1,8 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { Routes, Route, NavLink, Navigate } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
+import NewsPage from "./pages/NewsPage";
+import NewsDetailPage from "./pages/NewsDetailPage";
 import SatellitesPage from "./pages/SatellitesPage";
 import ShipsPage from "./pages/ShipsPage";
 import EmiPage from "./pages/EmiPage";
+import SdrPage from "./pages/SdrPage";
+import DocsPage from "./pages/DocsPage";
+import CreatorsPage from "./pages/CreatorsPage";
+
+const MENU_ITEMS = [
+  { to: "/",           label: "Главная",       icon: "🏠" },
+  { to: "/telemetry",  label: "Телеметрия",    icon: "🛰" },
+  { to: "/ais",        label: "AIS",           icon: "🚢" },
+  { to: "/emi",        label: "ЭМИ",           icon: "⚡" },
+  { to: "/sdr",        label: "ИСШ",           icon: "📡" },
+  { to: "/docs",       label: "Документация",  icon: "📚" },
+  { to: "/creators",   label: "Создатели",     icon: "👨‍🚀" },
+];
 
 function UtcClock() {
   const [t, setT] = useState(new Date());
@@ -15,7 +30,31 @@ function UtcClock() {
   return <span className="mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>{s}</span>;
 }
 
+function useCurrentLabel(pathname) {
+  for (const item of MENU_ITEMS) {
+    if (item.to === "/" && pathname === "/") return item;
+    if (item.to !== "/" && pathname.startsWith(item.to)) return item;
+  }
+  return MENU_ITEMS[0];
+}
+
 export default function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const location = useLocation();
+  const current = useCurrentLabel(location.pathname);
+
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
   return (
     <>
       <header className="header">
@@ -27,27 +66,49 @@ export default function App() {
 
         <div className="header-sep" />
 
-        <nav className="header-nav">
-          <NavLink to="/satellites" className={({ isActive }) => `nav-tab ${isActive ? "active" : ""}`}>
-            🛰 Satellites
-          </NavLink>
-          <NavLink to="/ships" className={({ isActive }) => `nav-tab ${isActive ? "active" : ""}`}>
-            🚢 Ships (AIS)
-          </NavLink>
-          <NavLink to="/emi" className={({ isActive }) => `nav-tab ${isActive ? "active" : ""}`}>
-            ⚡ EMI
-          </NavLink>
-        </nav>
+        <div className="menu-container" ref={menuRef}>
+          <button
+            className={`menu-trigger ${menuOpen ? "open" : ""}`}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span className="menu-hamburger">
+              <span /><span /><span />
+            </span>
+            <span className="menu-current-label">{current.icon} {current.label}</span>
+            <span className="menu-chevron">▾</span>
+          </button>
+
+          {menuOpen && (
+            <nav className="menu-dropdown">
+              {MENU_ITEMS.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/"}
+                  className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+                >
+                  <span className="menu-item-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </nav>
+          )}
+        </div>
 
         <div className="header-spacer" />
         <UtcClock />
       </header>
 
       <Routes>
-        <Route path="/satellites" element={<SatellitesPage />} />
-        <Route path="/ships" element={<ShipsPage />} />
+        <Route path="/" element={<NewsPage />} />
+        <Route path="/news/:id" element={<NewsDetailPage />} />
+        <Route path="/telemetry" element={<SatellitesPage />} />
+        <Route path="/ais" element={<ShipsPage />} />
         <Route path="/emi" element={<EmiPage />} />
-        <Route path="*" element={<Navigate to="/satellites" replace />} />
+        <Route path="/sdr" element={<SdrPage />} />
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/creators" element={<CreatorsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       <footer className="footer">

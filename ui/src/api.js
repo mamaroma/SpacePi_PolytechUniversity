@@ -23,6 +23,8 @@ async function fetchJson(url, opts) {
   return await r.json();
 }
 
+/* ── Satellites / Telemetry ────────────────────────── */
+
 export async function fetchSatellites() {
   return fetchJson(`${API_BASE}/api/satellites`);
 }
@@ -58,7 +60,6 @@ export async function runCollect({ sat, days, token } = {}) {
   if (sat) qs.set("sat", sat);
   if (days) qs.set("days", String(days));
 
-  // Only send token param when it is actually set — empty string causes 401
   const tok = (token ?? COLLECT_TOKEN ?? "").trim();
   if (tok) qs.set("token", tok);
 
@@ -74,4 +75,38 @@ export async function runCollect({ sat, days, token } = {}) {
     throw new Error(`Collect failed HTTP ${r.status}: ${String(detail).slice(0, 200)}`);
   }
   return await r.json();
+}
+
+/* ── News ──────────────────────────────────────────── */
+
+export async function fetchNews() {
+  return fetchJson(`${API_BASE}/api/news`);
+}
+
+export async function fetchNewsById(id) {
+  return fetchJson(`${API_BASE}/api/news/${id}`);
+}
+
+export async function createNews({ title, description, content, image }) {
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("description", description);
+  formData.append("content", content || description);
+  if (image) formData.append("image", image);
+
+  const r = await fetch(`${API_BASE}/api/news`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+export async function deleteNews(id) {
+  const r = await fetch(`${API_BASE}/api/news/${id}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
 }

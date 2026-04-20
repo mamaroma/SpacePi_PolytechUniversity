@@ -13,21 +13,28 @@ import GlobeCard from "../components/GlobeCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import MetricCard from "../components/MetricCard";
 
+/* ── Dead satellites with last-known positions ──────── */
+const DEAD_SATELLITES = {
+  "Polytech_Universe-1": {
+    current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
+    track: [],
+    lastContact: "Январь 2024",
+    dead: true,
+  },
+  "Polytech_Universe-2": {
+    current: { lat: -15.7, lon: -42.3, ts_utc: "2023-10-05T08:00:00Z" },
+    track: [],
+    lastContact: "Октябрь 2023",
+    dead: true,
+  },
+};
+
 function toNum(x) {
   if (x === null || x === undefined) return null;
   const n = Number(x);
   return Number.isFinite(n) ? n : null;
 }
 function pad2(n) { return String(n).padStart(2, "0"); }
-
-function fmtUtc(d) {
-  return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} `
-       + `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
-}
-function fmtDayMonth(tsMs) {
-  const d = new Date(tsMs);
-  return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}`;
-}
 
 function dailyMinAvgMax(points, key) {
   const byDay = new Map();
@@ -36,8 +43,9 @@ function dailyMinAvgMax(points, key) {
     if (v === null || v === undefined || !Number.isFinite(v)) continue;
     const d = new Date(p.ts_ms);
     const dk = `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
+    const x = `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}`;
     let a = byDay.get(dk);
-    if (!a) { a = { dk, x: fmtDayMonth(p.ts_ms), min: v, max: v, sum: v, n: 1 }; byDay.set(dk, a); }
+    if (!a) { a = { dk, x, min: v, max: v, sum: v, n: 1 }; byDay.set(dk, a); }
     else { a.min = Math.min(a.min, v); a.max = Math.max(a.max, v); a.sum += v; a.n += 1; }
   }
   return [...byDay.values()]
@@ -54,6 +62,115 @@ function uptimeStr(sec) {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+function MiniSparkline({ data, dataKey, color, height = 40, width = "100%" }) {
+  if (!data || data.length < 2) return <div style={{ height, color: "var(--text-muted)", fontSize: 10 }}>Нет данных</div>;
+  const vals = data.map(d => d[dataKey]).filter(v => v != null && Number.isFinite(v));
+  if (vals.length < 2) return <div style={{ height, color: "var(--text-muted)", fontSize: 10 }}>Нет данных</div>;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1;
+  const w = 200;
+  const points = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${height - ((v - min) / range) * (height - 4) - 2}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${height}`} style={{ width, height, display: "block" }} preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
+  const short = satName.replace("Polytech_Universe-", "PU-");
+  const latest = rows.length ? rows[rows.length - 1] : null;
+
+  const seriesTemp = useMemo(() => dailyMinAvgMax(chartData, "temp_c"), [chartData]);
+  const seriesBat = useMemo(() => dailyMinAvgMax(chartData, "battery_capacity_pct"), [chartData]);
+  const seriesSolar = useMemo(() => dailyMinAvgMax(chartData, "solar_total_mw"), [chartData]);
+
+  return (
+    <div className="sat-panel">
+      <div className="sat-panel-header">
+        <div>
+          <div className="sat-panel-name">🛰 {short}</div>
+          <div className={`sat-panel-status ${isDead ? "dead" : "live"}`}>
+            {isDead ? `⚫ OFFLINE · ${deadInfo?.lastContact || "—"}` : "🟢 ACTIVE"}
+          </div>
+        </div>
+        <button className="sat-panel-close" onClick={onClose}>×</button>
+      </div>
+
+      {isDead ? (
+        <div className="sat-panel-dead-info">
+          <p>Спутник прекратил передачу данных.</p>
+          <p>Последний выход на связь: <strong>{deadInfo?.lastContact}</strong></p>
+          <p style={{ color: "var(--text-muted)", marginTop: 8, fontSize: 11 }}>
+            Аппарат находится на орбите, но не отвечает на запросы.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="sat-panel-metrics">
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">🌡 Темп.</span>
+              <span className="sat-mini-value c-red">{latest?.temp_c != null ? `${Number(latest.temp_c).toFixed(1)}°C` : "—"}</span>
+            </div>
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">🔋 Батарея</span>
+              <span className="sat-mini-value c-green">{latest?.battery_capacity_pct != null ? `${latest.battery_capacity_pct}%` : "—"}</span>
+            </div>
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">☀ Солнце</span>
+              <span className="sat-mini-value c-yellow">{latest?.solar_total_mw != null ? `${latest.solar_total_mw} mW` : "—"}</span>
+            </div>
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">📡 RSSI</span>
+              <span className="sat-mini-value c-cyan">{latest?.rssi_dbm != null ? `${latest.rssi_dbm} dBm` : "—"}</span>
+            </div>
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">⏱ Uptime</span>
+              <span className="sat-mini-value c-purple">{uptimeStr(latest?.uptime_sec)}</span>
+            </div>
+            <div className="sat-mini-metric">
+              <span className="sat-mini-label">🔄 Resets</span>
+              <span className="sat-mini-value c-dim">{latest?.reset_count ?? "—"}</span>
+            </div>
+          </div>
+
+          {latest && (
+            <div className="sat-panel-last-packet">
+              <div className="sat-mini-label">Последний пакет</div>
+              <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+                {new Date(latest.ts_utc).toLocaleString()}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                Vbus {latest.vbus_mv ?? "—"} mV · Ibus {latest.ibus_ma ?? "—"} mA
+              </div>
+            </div>
+          )}
+
+          <div className="sat-panel-charts">
+            <div className="sat-mini-chart">
+              <div className="sat-mini-label">Температура</div>
+              <MiniSparkline data={seriesTemp} dataKey="avg" color="#ff4d6a" />
+            </div>
+            <div className="sat-mini-chart">
+              <div className="sat-mini-label">Батарея %</div>
+              <MiniSparkline data={seriesBat} dataKey="avg" color="#00ff88" />
+            </div>
+            <div className="sat-mini-chart">
+              <div className="sat-mini-label">Солнечная мощность</div>
+              <MiniSparkline data={seriesSolar} dataKey="avg" color="#ffa63a" />
+            </div>
+          </div>
+
+          <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>
+            {rows.length} пакетов загружено
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function SatellitesPage() {
@@ -73,6 +190,7 @@ export default function SatellitesPage() {
   const [mapSats, setMapSats] = useState(new Set(["Polytech_Universe-3"]));
   const [dataSat, setDataSat] = useState("Polytech_Universe-3");
   const [mapDropdownOpen, setMapDropdownOpen] = useState(false);
+  const [selectedSat, setSelectedSat] = useState(null);
 
   const [rangeDays, setRangeDays] = useState(365);
   const [{ from, to }, setRange] = useState(isoDaysAgo(365));
@@ -87,7 +205,6 @@ export default function SatellitesPage() {
   const [loading, setLoading] = useState(false);
   const [orbitLoading, setOrbitLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [orbitErr, setOrbitErr] = useState("");
   const [updating, setUpdating] = useState(false);
   const [collectMsg, setCollectMsg] = useState("");
 
@@ -112,7 +229,6 @@ export default function SatellitesPage() {
       .catch(() => {
         setFleet([{ name: "Polytech_Universe-3", active: true, color: "#00ff88" }]);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleMapSat = useCallback((name) => {
@@ -160,6 +276,10 @@ export default function SatellitesPage() {
   const [orbitErrMap, setOrbitErrMap] = useState({});
 
   const loadSingleOrbit = useCallback(async (satName, atDate, minutes, stepSec) => {
+    if (DEAD_SATELLITES[satName]) {
+      setOrbitDataMap(prev => ({ ...prev, [satName]: DEAD_SATELLITES[satName] }));
+      return;
+    }
     try {
       const data = await fetchOrbitTrack({ sat: satName, at: atDate, minutes, step_sec: stepSec });
       setOrbitDataMap(prev => ({ ...prev, [satName]: data }));
@@ -171,7 +291,6 @@ export default function SatellitesPage() {
 
   const loadAllOrbits = useCallback(async (sats, atDate, minutes, stepSec) => {
     setOrbitLoading(true);
-    setOrbitErr("");
     await Promise.allSettled(
       [...sats].map(s => loadSingleOrbit(s, atDate, minutes, stepSec))
     );
@@ -234,14 +353,17 @@ export default function SatellitesPage() {
     }
   }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadAllOrbits]);
 
+  const handleSatelliteClick = useCallback((satName) => {
+    setSelectedSat(satName);
+    if (!DEAD_SATELLITES[satName]) {
+      setDataSat(satName);
+    }
+  }, []);
+
   const chartData = useMemo(() => rows.map((r) => {
     const ts = new Date(r.ts_utc);
     return {
-      t: ts.toLocaleString(),
       ts_ms: ts.getTime(),
-      ts_utc: r.ts_utc,
-      lat: toNum(r.tle_lat),
-      lon: toNum(r.tle_lon),
       temp_c: toNum(r.temp_c),
       vbus_mv: toNum(r.vbus_mv),
       ibus_ma: toNum(r.ibus_ma),
@@ -255,30 +377,23 @@ export default function SatellitesPage() {
     };
   }), [rows]);
 
-  const seriesTemp     = useMemo(() => dailyMinAvgMax(chartData, "temp_c"), [chartData]);
-  const seriesBatCap   = useMemo(() => dailyMinAvgMax(chartData, "battery_capacity_pct"), [chartData]);
-  const seriesBatV     = useMemo(() => dailyMinAvgMax(chartData, "vbus_mv"), [chartData]);
-  const seriesSolarPow = useMemo(() => dailyMinAvgMax(chartData, "solar_total_mw"), [chartData]);
-  const seriesSolarV   = useMemo(() => dailyMinAvgMax(chartData, "solar_voltage_mv"), [chartData]);
-
-  const latest = useMemo(() => (rows.length ? rows[rows.length - 1] : null), [rows]);
-
   const datetimeLocalValue = useMemo(() => {
     const local = new Date(at.getTime() - at.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
   }, [at]);
 
-  const tableRows = useMemo(() => [...rows].slice(-80).reverse(), [rows]);
+  const isDead = selectedSat ? !!DEAD_SATELLITES[selectedSat] : false;
+  const deadInfo = selectedSat ? DEAD_SATELLITES[selectedSat] : null;
 
   return (
-    <div className="app-body">
-      {/* Satellite controls bar */}
+    <div className="app-body telemetry-page">
+      {/* Compact controls bar */}
       <div className="controls-card">
         <div className="ctrl-row">
           <div className="ctrl-group" style={{ position: "relative" }} ref={mapDropdownRef}>
-            <span className="ctrl-label">Map satellites</span>
-            <button className="btn btn-sm" onClick={() => setMapDropdownOpen(v => !v)} style={{ minWidth: 130, textAlign: "left" }}>
-              {mapSats.size} of {fleet.length} ▾
+            <span className="ctrl-label">Спутники</span>
+            <button className="btn btn-sm" onClick={() => setMapDropdownOpen(v => !v)} style={{ minWidth: 120, textAlign: "left" }}>
+              {mapSats.size} из {fleet.length} ▾
             </button>
             {mapDropdownOpen && (
               <div className="sat-dropdown">
@@ -287,63 +402,43 @@ export default function SatellitesPage() {
                     <input type="checkbox" checked={mapSats.has(s.name)} onChange={() => toggleMapSat(s.name)} style={{ accentColor: s.color }} />
                     <span className="sat-dot" style={{ background: s.color }} />
                     <span style={{ opacity: s.active ? 1 : 0.5 }}>{s.name.replace("Polytech_Universe-", "PU-")}</span>
-                    {!s.active && <span className="sat-badge-dead">inactive</span>}
+                    {!s.active && <span className="sat-badge-dead">offline</span>}
                   </label>
                 ))}
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map(s => s.name)))}>All</button>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set())}>None</button>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter(s => s.active).map(s => s.name)))}>Active</button>
+                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map(s => s.name)))}>Все</button>
+                  <button className="btn btn-sm" onClick={() => setMapSats(new Set())}>Нет</button>
+                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter(s => s.active).map(s => s.name)))}>Активные</button>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="ctrl-group">
-            <span className="ctrl-label">Data</span>
-            <select value={dataSat} onChange={(e) => setDataSat(e.target.value)} style={{ minWidth: 140 }}>
-              {fleet.map(s => (
-                <option key={s.name} value={s.name}>{s.name.replace("Polytech_Universe-", "PU-")}{s.active ? "" : " (inactive)"}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="ctrl-group">
-            <span className="ctrl-label">Range</span>
-            <select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={180}>180 days</option>
-              <option value={365}>All time</option>
-            </select>
-          </div>
-
           <div className="ctrl-divider" />
 
           <div className="ctrl-group">
-            <span className="ctrl-label">View</span>
+            <span className="ctrl-label">Вид</span>
             <div className="row">
-              <button className={`btn btn-tab ${viewMode === "globe" ? "active" : ""}`} onClick={() => setViewMode("globe")}>3D Globe</button>
-              <button className={`btn btn-tab ${viewMode === "map" ? "active" : ""}`} onClick={() => setViewMode("map")}>2D Map</button>
+              <button className={`btn btn-tab ${viewMode === "globe" ? "active" : ""}`} onClick={() => setViewMode("globe")}>3D</button>
+              <button className={`btn btn-tab ${viewMode === "map" ? "active" : ""}`} onClick={() => setViewMode("map")}>2D</button>
             </div>
           </div>
 
           <div className="ctrl-divider" />
 
           <div className="ctrl-group">
-            <span className="ctrl-label">Date/Time</span>
+            <span className="ctrl-label">Время</span>
             <input type="datetime-local" value={datetimeLocalValue} onChange={(e) => setAt(new Date(e.target.value))} />
-            <button className="btn btn-sm" onClick={() => setAt(new Date())}>Now</button>
+            <button className="btn btn-sm" onClick={() => setAt(new Date())}>Сейчас</button>
           </div>
 
           <div className="ctrl-group">
-            <span className="ctrl-label">Orbit</span>
+            <span className="ctrl-label">Орбита</span>
             <select value={orbitMinutes} onChange={(e) => setOrbitMinutes(Number(e.target.value))}>
-              <option value={60}>60 min</option>
-              <option value={120}>120 min</option>
-              <option value={180}>180 min</option>
-              <option value={360}>360 min</option>
+              <option value={60}>60 мин</option>
+              <option value={120}>120 мин</option>
+              <option value={180}>180 мин</option>
+              <option value={360}>360 мин</option>
             </select>
           </div>
 
@@ -351,17 +446,17 @@ export default function SatellitesPage() {
 
           <div className="header-info">
             <span className={`status-dot ${connStatus}`} />
-            {loading ? "Loading…" : err ? "Error" : rows.length > 0 ? `${rows.length} pkts` : "No data"}
+            {loading ? "Загрузка…" : err ? "Ошибка" : rows.length > 0 ? `${rows.length} пакетов` : "Нет данных"}
           </div>
 
           {collectEnabled && (
-            <button className="btn btn-primary" onClick={handleUpdateData} disabled={updating}>
-              {updating ? <><span className="spinner" /> Updating…</> : "Collect"}
+            <button className="btn btn-primary btn-sm" onClick={handleUpdateData} disabled={updating}>
+              {updating ? <><span className="spinner" /> Обновление…</> : "Collect"}
             </button>
           )}
 
           {collectEnabled && (
-            <button className="btn btn-sm" onClick={() => setShowToken((v) => !v)} title="Configure collect token">🔑</button>
+            <button className="btn btn-sm" onClick={() => setShowToken((v) => !v)} title="Token">🔑</button>
           )}
         </div>
 
@@ -370,102 +465,56 @@ export default function SatellitesPage() {
             <span className="ctrl-label">Token</span>
             <div className="token-row">
               <input type="password" className="token-input" placeholder="COLLECT_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} />
-              <button className="btn btn-sm" onClick={() => setShowToken(false)}>Hide</button>
+              <button className="btn btn-sm" onClick={() => setShowToken(false)}>Скрыть</button>
             </div>
           </div>
         )}
 
-        <div className="status-row">
-          <span className="status-item">
-            <span className={`status-dot ${loading ? "loading" : err ? "err" : "live"}`} />
-            <span className="lbl">Telemetry:</span>
-            <span className="val">{loading ? "loading…" : err ? `error: ${err}` : `${rows.length} packets`}</span>
-          </span>
-          <span className="status-item">
-            <span className={`status-dot ${orbitLoading ? "loading" : Object.values(orbitDataMap).some(d => d?.track?.length) ? "live" : "idle"}`} />
-            <span className="lbl">Orbit:</span>
-            <span className="val">
-              {orbitLoading ? "loading…" : `${Object.values(orbitDataMap).filter(d => d?.track?.length).length}/${mapSats.size} sat(s)`}
-            </span>
-          </span>
-          {collectMsg && <span style={{ fontSize: 12, color: "var(--green)" }}>{collectMsg}</span>}
-        </div>
+        {collectMsg && (
+          <div style={{ fontSize: 12, color: "var(--green)", paddingTop: 6 }}>{collectMsg}</div>
+        )}
       </div>
 
-      {/* Metric Cards */}
-      <div className="metrics-row">
-        <MetricCard icon="🌡" label="Temperature" value={latest?.temp_c} unit="°C" color="col-red" decimals={1} sub={latest ? new Date(latest.ts_utc).toLocaleString() : "No data"} />
-        <MetricCard icon="🔋" label="Battery" value={latest?.battery_capacity_pct} unit="%" color="col-green" decimals={0} sub={latest?.vbus_mv != null ? `${latest.vbus_mv} mV` : "—"} />
-        <MetricCard icon="☀" label="Solar Power" value={latest?.solar_total_mw} unit="mW" color="col-yellow" decimals={0} sub={latest?.solar_voltage_mv != null ? `${latest.solar_voltage_mv} mV` : "—"} />
-        <MetricCard icon="📡" label="RSSI" value={latest?.rssi_dbm} unit="dBm" color="col-cyan" decimals={1} rssi={latest?.rssi_dbm} sub={latest?.snr_db != null ? `SNR ${latest.snr_db} dB` : "—"} />
-        <MetricCard icon="⏱" label="Uptime" value={latest?.uptime_sec != null ? Math.floor(latest.uptime_sec / 3600) : null} unit="h" color="col-purple" decimals={0} sub={latest?.reset_count != null ? `Resets: ${latest.reset_count}` : "—"} />
-      </div>
+      {/* Map/Globe with floating info panel */}
+      <div className="telemetry-view-container">
+        {viewMode === "globe" ? (
+          <ErrorBoundary>
+            <GlobeCard
+              sat={sat}
+              atIso={at.toISOString()}
+              minutes={orbitMinutes}
+              stepSec={orbitStepSec}
+              orbitData={orbitDataMap[sat] ?? null}
+              multiOrbitData={orbitDataMap}
+              mapSats={mapSats}
+              fleetColorMap={fleetColorMap}
+              deadSatellites={DEAD_SATELLITES}
+              onSatelliteClick={handleSatelliteClick}
+            />
+          </ErrorBoundary>
+        ) : (
+          <MapCard
+            receivedPoints={chartData}
+            orbitTrack={orbitDataMap[sat]?.track ?? []}
+            orbitCurrent={orbitDataMap[sat]?.current ?? null}
+            multiOrbitData={orbitDataMap}
+            mapSats={mapSats}
+            fleetColorMap={fleetColorMap}
+            deadSatellites={DEAD_SATELLITES}
+            onSatelliteClick={handleSatelliteClick}
+          />
+        )}
 
-      {/* Latest packet banner */}
-      {latest && (
-        <div className="latest-banner">
-          <div className="lp-item"><div className="lp-label">Last packet</div><div className="lp-val c-dim">{new Date(latest.ts_utc).toLocaleString()}</div></div>
-          <div className="lp-item"><div className="lp-label">Uptime</div><div className="lp-val c-cyan">{uptimeStr(latest.uptime_sec)}</div></div>
-          <div className="lp-item"><div className="lp-label">Position</div><div className="lp-val c-dim">{latest.tle_lat != null ? `${Number(latest.tle_lat).toFixed(2)}° / ${Number(latest.tle_lon).toFixed(2)}°` : "—"}</div></div>
-          <div className="lp-item"><div className="lp-label">Vbus / Ibus</div><div className="lp-val c-yellow">{latest.vbus_mv ?? "—"} mV / {latest.ibus_ma ?? "—"} mA</div></div>
-          <div className="lp-item"><div className="lp-label">Resets</div><div className="lp-val c-purple">{latest.reset_count ?? "—"}</div></div>
-        </div>
-      )}
-
-      {/* Globe / Map */}
-      {viewMode === "globe" ? (
-        <ErrorBoundary>
-          <GlobeCard sat={sat} atIso={at.toISOString()} minutes={orbitMinutes} stepSec={orbitStepSec} orbitData={orbitDataMap[sat] ?? null} multiOrbitData={orbitDataMap} mapSats={mapSats} fleetColorMap={fleetColorMap} />
-        </ErrorBoundary>
-      ) : (
-        <MapCard receivedPoints={chartData} orbitTrack={orbitDataMap[sat]?.track ?? []} orbitCurrent={orbitDataMap[sat]?.current ?? null} multiOrbitData={orbitDataMap} mapSats={mapSats} fleetColorMap={fleetColorMap} />
-      )}
-
-      {/* Charts */}
-      <div className="charts-grid">
-        <ChartCard title="Temperature (°C)" data={seriesTemp} xKey="x" lines={[{ key: "min", name: "Min", color: "#00b3ff" }, { key: "avg", name: "Avg", color: "#00ff88" }, { key: "max", name: "Max", color: "#ff4d6a" }]} />
-        <ChartCard title="Battery Capacity (%)" data={seriesBatCap} xKey="x" lines={[{ key: "min", name: "Min", color: "#00b3ff" }, { key: "avg", name: "Avg", color: "#00ff88" }, { key: "max", name: "Max", color: "#ffa63a" }]} />
-        <ChartCard title="Battery Voltage (mV)" data={seriesBatV} xKey="x" lines={[{ key: "min", name: "Min", color: "#00b3ff" }, { key: "avg", name: "Avg", color: "#00ff88" }, { key: "max", name: "Max", color: "#ff4d6a" }]} />
-        <ChartCard title="Solar Power (mW)" data={seriesSolarPow} xKey="x" lines={[{ key: "min", name: "Min", color: "#00b3ff" }, { key: "avg", name: "Avg", color: "#ffa63a" }, { key: "max", name: "Max", color: "#ff4d6a" }]} />
-        <ChartCard title="Solar Voltage (mV)" data={seriesSolarV} xKey="x" lines={[{ key: "min", name: "Min", color: "#00b3ff" }, { key: "avg", name: "Avg", color: "#ffa63a" }, { key: "max", name: "Max", color: "#ff4d6a" }]} />
-      </div>
-
-      {/* Telemetry Table */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">Latest Packets</span>
-          <span className="card-meta">{tableRows.length} / {rows.length} shown</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Time UTC</th><th>Lat</th><th>Lon</th><th>Temp (°C)</th><th>Vbus (mV)</th>
-                <th>Ibus (mA)</th><th>Solar (mW)</th><th>RSSI (dBm)</th><th>SNR (dB)</th><th>Uptime</th><th>Resets</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((r) => (
-                <tr key={r.id}>
-                  <td>{new Date(r.ts_utc).toLocaleString()}</td>
-                  <td className={r.tle_lat == null ? "td-null" : ""}>{r.tle_lat ?? "—"}</td>
-                  <td className={r.tle_lon == null ? "td-null" : ""}>{r.tle_lon ?? "—"}</td>
-                  <td style={{ color: r.temp_c != null ? (r.temp_c > 40 ? "var(--red)" : r.temp_c < 0 ? "var(--accent)" : "var(--text)") : undefined }} className={r.temp_c == null ? "td-null" : ""}>{r.temp_c ?? "—"}</td>
-                  <td className={r.vbus_mv == null ? "td-null" : ""}>{r.vbus_mv ?? "—"}</td>
-                  <td className={r.ibus_ma == null ? "td-null" : ""}>{r.ibus_ma ?? "—"}</td>
-                  <td className={r.solar_total_mw == null ? "td-null" : ""}>{r.solar_total_mw ?? "—"}</td>
-                  <td style={r.rssi_dbm != null ? { color: Number(r.rssi_dbm) > -70 ? "var(--green)" : Number(r.rssi_dbm) > -90 ? "var(--yellow)" : "var(--red)", fontFamily: "'Space Mono', monospace" } : { color: "var(--text-muted)" }}>{r.rssi_dbm ?? "—"}</td>
-                  <td className={r.snr_db == null ? "td-null" : ""}>{r.snr_db ?? "—"}</td>
-                  <td className={r.uptime_sec == null ? "td-null" : ""}>{uptimeStr(r.uptime_sec)}</td>
-                  <td className={r.reset_count == null ? "td-null" : ""}>{r.reset_count ?? "—"}</td>
-                </tr>
-              ))}
-              {!tableRows.length && (
-                <tr><td colSpan={11} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>No data in the selected time range yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {selectedSat && (
+          <SatInfoPanel
+            satName={selectedSat}
+            rows={rows}
+            chartData={chartData}
+            isDead={isDead}
+            deadInfo={deadInfo}
+            onClose={() => setSelectedSat(null)}
+          />
+        )}
       </div>
     </div>
   );

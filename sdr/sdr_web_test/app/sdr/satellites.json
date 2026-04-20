@@ -1,0 +1,34 @@
+{
+  "satellites": {
+    "POLYTECH-UNIVERSE 3 (R*)": {
+      "name": "POLYTECH-UNIVERSE 3 (R*)",
+      "frequency": 436550000,
+      "bandwidth": 62.5,
+      "spreading_factor": "SF8",
+      "coding_rate": "4/6",
+      "sync_word": "0x12",
+      "preamble_length": 8,
+      "crc_enabled": true
+    },
+    "POLYTECH UNIVERSE-4": {
+      "name": "POLYTECH UNIVERSE-4",
+      "frequency": 436550000,
+      "bandwidth": 62.5,
+      "spreading_factor": "SF8",
+      "coding_rate": "4/6",
+      "sync_word": "0x12",
+      "preamble_length": 8,
+      "crc_enabled": true
+    },
+    "POLYTECH UNIVERSE-5": {
+      "name": "POLYTECH UNIVERSE-5",
+      "frequency": 436550000,
+      "bandwidth": 62.5,
+      "spreading_factor": "SF8",
+      "coding_rate": "4/6",
+      "sync_word": "0x12",
+      "preamble_length": 8,
+      "crc_enabled": true
+    }
+  }
+}
