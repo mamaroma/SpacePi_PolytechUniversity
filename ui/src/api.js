@@ -87,12 +87,12 @@ export async function fetchNewsById(id) {
   return fetchJson(`${API_BASE}/api/news/${id}`);
 }
 
-export async function createNews({ title, description, content, image }, authHeader = {}) {
+export async function createNews({ title, description, content, images = [] }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
   formData.append("content", content || description);
-  if (image) formData.append("image", image);
+  images.forEach((img) => formData.append("images", img));
 
   const r = await fetch(`${API_BASE}/api/news`, {
     method: "POST",

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { fetchNews, createNews, deleteNews } from "../api";
 import { useAuth } from "../AuthContext";
+import NewsCarousel from "../components/NewsCarousel";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -22,8 +23,8 @@ export default function NewsPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [images, setImages] = useState([]);
+  const [previews, setPreviews] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,16 +39,20 @@ export default function NewsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    setImage(file || null);
-    if (file) {
+  const handleImagesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    setImages(files);
+    setPreviews([]);
+    files.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target.result);
+      reader.onload = (ev) => setPreviews((prev) => [...prev, ev.target.result]);
       reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
-    }
+    });
+  };
+
+  const removeImage = (i) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== i));
+    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
   };
 
   const handleSubmit = async (e) => {
@@ -55,12 +60,9 @@ export default function NewsPage() {
     if (!title.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
-      await createNews({ title: title.trim(), description: description.trim(), content: content.trim(), image }, authHeader);
-      setTitle("");
-      setDescription("");
-      setContent("");
-      setImage(null);
-      setImagePreview(null);
+      await createNews({ title: title.trim(), description: description.trim(), content: content.trim(), images }, authHeader);
+      setTitle(""); setDescription(""); setContent("");
+      setImages([]); setPreviews([]);
       setShowForm(false);
       await load();
     } catch (err) {
@@ -72,10 +74,7 @@ export default function NewsPage() {
 
   const handleDelete = async (id) => {
     if (!confirm("Удалить эту новость?")) return;
-    try {
-      await deleteNews(id, authHeader);
-      await load();
-    } catch {}
+    try { await deleteNews(id, authHeader); await load(); } catch {}
   };
 
   return (
@@ -99,56 +98,52 @@ export default function NewsPage() {
               <label className="form-label">
                 Заголовок *
                 <input
-                  type="text"
-                  className="form-input"
-                  value={title}
+                  type="text" className="form-input" value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Заголовок новости"
-                  required
+                  placeholder="Заголовок новости" required
                 />
               </label>
               <label className="form-label">
                 Краткое описание *
                 <textarea
-                  className="form-textarea"
-                  rows={2}
-                  value={description}
+                  className="form-textarea" rows={2} value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Краткое описание для карточки"
-                  required
+                  placeholder="Краткое описание для карточки" required
                 />
               </label>
               <label className="form-label">
                 Полный текст
                 <textarea
-                  className="form-textarea"
-                  rows={5}
-                  value={content}
+                  className="form-textarea" rows={5} value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Полный текст новости (отображается на странице новости)"
                 />
               </label>
             </div>
+
             <div className="news-form-image-col">
-              <label className="form-label">Изображение</label>
-              <label className="image-upload-area">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="image-preview" />
-                ) : (
-                  <div className="image-upload-placeholder">
-                    <span style={{ fontSize: 28 }}>📷</span>
-                    <span>Нажмите для выбора</span>
-                  </div>
-                )}
-                <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
+              <label className="form-label">Фотографии</label>
+              <label className="image-upload-area image-upload-area--multi">
+                <div className="image-upload-placeholder">
+                  <span style={{ fontSize: 28 }}>📷</span>
+                  <span>{images.length > 0 ? `Добавить ещё` : "Нажмите для выбора"}</span>
+                  {images.length > 0 && <span className="image-upload-count">{images.length} фото</span>}
+                </div>
+                <input type="file" accept="image/*" multiple onChange={handleImagesChange} style={{ display: "none" }} />
               </label>
-              {image && (
-                <button type="button" className="btn btn-sm" onClick={() => { setImage(null); setImagePreview(null); }} style={{ marginTop: 8 }}>
-                  Убрать фото
-                </button>
+              {previews.length > 0 && (
+                <div className="image-previews-grid">
+                  {previews.map((src, i) => (
+                    <div key={i} className="image-preview-thumb">
+                      <img src={src} alt={`Preview ${i + 1}`} />
+                      <button type="button" className="image-preview-remove" onClick={() => removeImage(i)}>×</button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
+
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button type="submit" className="btn btn-success" disabled={submitting || !title.trim() || !description.trim()}>
               {submitting ? "Публикация..." : "Опубликовать"}
@@ -170,14 +165,8 @@ export default function NewsPage() {
         <div className="news-grid">
           {news.map((item) => (
             <article key={item.id} className="news-card card">
-              {item.image_url && (
-                <div className="news-card-image">
-                  <img
-                    src={item.image_url}
-                    alt={item.title}
-                    onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }}
-                  />
-                </div>
+              {item.images?.length > 0 && (
+                <NewsCarousel images={item.images} compact />
               )}
               <div className="news-card-body">
                 <div className="news-card-meta">

@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from .auth import require_editor
-from .db import get_session, engine
+from .db import get_session
 from .models import NewsItem
 from .storage import upload_image, is_s3_configured
 
@@ -37,25 +38,52 @@ _DEFAULT_NEWS = [
 ]
 
 
+def _get_images(item: NewsItem) -> list[str]:
+    """Return the list of image URLs for a news item (supports legacy single image_url)."""
+    if item.images_json:
+        try:
+            return json.loads(item.images_json)
+        except Exception:
+            pass
+    if item.image_url:
+        return [item.image_url]
+    return []
+
+
 def _seed_default_news(session: Session):
-    """Insert default news items if the table is empty."""
-    count = session.exec(select(NewsItem)).first()
-    if count is None:
+    if session.exec(select(NewsItem)).first() is None:
         for item in _DEFAULT_NEWS:
             session.add(item)
         session.commit()
 
 
 def _item_to_dict(item: NewsItem) -> dict:
+    images = _get_images(item)
     return {
         "id": item.id,
         "title": item.title,
         "description": item.description,
         "content": item.content,
-        "image_url": item.image_url,
+        "image_url": images[0] if images else None,
+        "images": images,
         "created_at": item.created_at.isoformat() if item.created_at else None,
         "views": item.views,
     }
+
+
+async def _upload_file(image: UploadFile, news_id: str, idx: int) -> Optional[str]:
+    ext = os.path.splitext(image.filename)[1] or ".jpg"
+    image_filename = f"{news_id}_{idx}{ext}"
+    data = await image.read()
+
+    if is_s3_configured():
+        url = upload_image(data, f"news/images/{image_filename}", image.filename)
+        if url:
+            return url
+
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    (IMAGES_DIR / image_filename).write_bytes(data)
+    return f"/api/news/images/{image_filename}"
 
 
 @router.get("")
@@ -67,7 +95,6 @@ def list_news(session: Session = Depends(get_session)):
 
 @router.get("/images/{filename}")
 def get_image(filename: str):
-    """Serve images that were uploaded before S3 migration (local fallback)."""
     path = IMAGES_DIR / filename
     if not path.exists():
         raise HTTPException(404, "Image not found")
@@ -98,33 +125,26 @@ async def create_news(
     title: str = Form(...),
     description: str = Form(...),
     content: str = Form(""),
-    image: Optional[UploadFile] = File(None),
+    images: List[UploadFile] = File(default=[]),
     _=Depends(require_editor),
     session: Session = Depends(get_session),
 ):
     news_id = uuid.uuid4().hex[:8]
-    image_url = None
 
-    if image and image.filename:
-        ext = os.path.splitext(image.filename)[1] or ".jpg"
-        image_filename = f"{news_id}{ext}"
-        image_data = await image.read()
-
-        if is_s3_configured():
-            s3_key = f"news/images/{image_filename}"
-            image_url = upload_image(image_data, s3_key, image.filename)
-
-        if not image_url:
-            IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-            (IMAGES_DIR / image_filename).write_bytes(image_data)
-            image_url = f"/api/news/images/{image_filename}"
+    valid_images = [img for img in images if img and img.filename]
+    urls: list[str] = []
+    for idx, img in enumerate(valid_images):
+        url = await _upload_file(img, news_id, idx)
+        if url:
+            urls.append(url)
 
     item = NewsItem(
         id=news_id,
         title=title,
         description=description,
         content=content or description,
-        image_url=image_url,
+        image_url=urls[0] if urls else None,
+        images_json=json.dumps(urls) if urls else None,
         created_at=datetime.now(timezone.utc),
     )
     session.add(item)

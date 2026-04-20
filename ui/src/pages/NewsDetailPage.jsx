@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchNewsById, trackNewsView } from "../api";
+import NewsCarousel from "../components/NewsCarousel";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -49,6 +50,8 @@ export default function NewsDetailPage() {
     );
   }
 
+  const images = item.images?.length ? item.images : (item.image_url ? [item.image_url] : []);
+
   return (
     <div className="app-body">
       <Link to="/" className="btn btn-sm" style={{ marginBottom: 16, display: "inline-flex" }}>
@@ -56,14 +59,8 @@ export default function NewsDetailPage() {
       </Link>
 
       <article className="news-detail card">
-        {item.image_url && (
-          <div className="news-detail-image">
-            <img
-              src={item.image_url}
-              alt={item.title}
-              onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }}
-            />
-          </div>
+        {images.length > 0 && (
+          <NewsCarousel images={images} compact={false} />
         )}
         <div className="news-detail-body">
           <div className="news-detail-meta">
