@@ -188,11 +188,10 @@ function makeBeamCone({ height, baseRadius, color = "#4CFF7A" }) {
     transparent: true,
     opacity: 0.14,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    depthTest: true,
     side: THREE.DoubleSide
   });
   const cone = new THREE.Mesh(geom, mat);
-  cone.renderOrder = 20;
   return cone;
 }
 
@@ -203,11 +202,10 @@ function makeFootprintAnnulus({ radiusOuter, radiusInner, color = "#4CFF7A" }) {
     transparent: true,
     opacity: 0.55,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    depthTest: true,
     side: THREE.DoubleSide
   });
   const mesh = new THREE.Mesh(geom, mat);
-  mesh.renderOrder = 25;
   return { mesh, mat };
 }
 
@@ -684,7 +682,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
           htmlElementsData={POLYTECH_HTML_DATA}
           htmlLat={(d) => d.lat}
           htmlLng={(d) => d.lng}
-          htmlAltitude={0.012}
+          htmlAltitude={0}
           htmlElement={polytechHtmlElFn}
         />
       </div>

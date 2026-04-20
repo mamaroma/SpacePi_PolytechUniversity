@@ -187,7 +187,7 @@ export default function SatellitesPage() {
       : !isProd;
 
   const [fleet, setFleet] = useState([]);
-  const [mapSats, setMapSats] = useState(new Set(["Polytech_Universe-3"]));
+  const [mapSats, setMapSats] = useState(new Set());
   const [dataSat, setDataSat] = useState("Polytech_Universe-3");
   const [mapDropdownOpen, setMapDropdownOpen] = useState(false);
   const [selectedSat, setSelectedSat] = useState(null);
@@ -219,8 +219,7 @@ export default function SatellitesPage() {
     fetchFleet()
       .then((list) => {
         setFleet(list);
-        const activeNames = new Set(list.filter(s => s.active).map(s => s.name));
-        setMapSats(activeNames);
+        // User selects satellites manually — no auto-selection
         if (list.length && !list.find(s => s.name === dataSat)) {
           const first = list.find(s => s.active) || list[0];
           setDataSat(first.name);
