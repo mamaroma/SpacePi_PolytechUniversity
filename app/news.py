@@ -48,7 +48,10 @@ def _ensure_dirs():
 def _load_news() -> list:
     _ensure_dirs()
     try:
-        return json.loads(NEWS_FILE.read_text())
+        items = json.loads(NEWS_FILE.read_text())
+        for item in items:
+            item.setdefault("views", 0)
+        return items
     except (json.JSONDecodeError, FileNotFoundError):
         return list(_DEFAULT_NEWS)
 
@@ -70,6 +73,17 @@ def get_image(filename: str):
     if not path.exists():
         raise HTTPException(404, "Image not found")
     return FileResponse(path)
+
+
+@router.post("/{news_id}/view")
+def increment_view(news_id: str):
+    news = _load_news()
+    for item in news:
+        if item["id"] == news_id:
+            item["views"] = item.get("views", 0) + 1
+            _save_news(news)
+            return {"views": item["views"]}
+    raise HTTPException(404, "News not found")
 
 
 @router.get("/{news_id}")

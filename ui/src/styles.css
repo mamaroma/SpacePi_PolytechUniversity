@@ -810,11 +810,33 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 
 .news-card-body { flex: 1; display: flex; flex-direction: column; }
 
+.news-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
 .news-card-date {
   font-size: 11px;
   color: var(--text-muted);
   font-family: 'Space Mono', monospace;
-  margin-bottom: 6px;
+}
+
+.news-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+}
+
+.news-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .news-card-title {

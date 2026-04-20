@@ -180,7 +180,18 @@ export default function NewsPage() {
                 </div>
               )}
               <div className="news-card-body">
-                <div className="news-card-date">{formatDate(item.created_at)}</div>
+                <div className="news-card-meta">
+                  <span className="news-card-date">{formatDate(item.created_at)}</span>
+                  {item.views > 0 && (
+                    <span className="news-views">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      {item.views}
+                    </span>
+                  )}
+                </div>
                 <h2 className="news-card-title">{item.title}</h2>
                 <p className="news-card-desc">{item.description}</p>
                 <div className="news-card-actions">

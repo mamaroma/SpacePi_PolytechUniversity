@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchNewsById } from "../api";
+import { fetchNewsById, trackNewsView } from "../api";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -20,7 +20,10 @@ export default function NewsDetailPage() {
     setLoading(true);
     setError("");
     fetchNewsById(id)
-      .then(setItem)
+      .then((data) => {
+        setItem(data);
+        trackNewsView(id);
+      })
       .catch((e) => setError(e?.message || "Новость не найдена"))
       .finally(() => setLoading(false));
   }, [id]);
@@ -63,7 +66,18 @@ export default function NewsDetailPage() {
           </div>
         )}
         <div className="news-detail-body">
-          <div className="news-card-date">{formatDate(item.created_at)}</div>
+          <div className="news-detail-meta">
+            <span className="news-card-date">{formatDate(item.created_at)}</span>
+            {item.views > 0 && (
+              <span className="news-views">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                {item.views}
+              </span>
+            )}
+          </div>
           <h1 className="news-detail-title">{item.title}</h1>
           <div className="news-detail-content">
             {(item.content || item.description).split("\n").map((para, i) => (

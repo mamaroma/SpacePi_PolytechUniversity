@@ -114,3 +114,11 @@ export async function deleteNews(id, authHeader = {}) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
+
+export async function trackNewsView(id) {
+  try {
+    return await fetchJson(`${API_BASE}/api/news/${id}/view`, { method: "POST" });
+  } catch {
+    // non-critical — ignore errors silently
+  }
+}
