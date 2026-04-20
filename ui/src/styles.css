@@ -55,7 +55,7 @@ body {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 200;
+  z-index: 9999;
   backdrop-filter: blur(12px);
 }
 
@@ -717,7 +717,7 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 1000;
+  z-index: 10000;
   min-width: 220px;
   background: var(--surface-2);
   border: 1px solid var(--border-hi);

@@ -141,7 +141,7 @@ function AppInner() {
               <div style={{
                 position: "absolute", right: 0, top: "calc(100% + 6px)", background: "var(--surface)",
                 border: "1px solid var(--border)", borderRadius: 10, padding: 8,
-                minWidth: 180, zIndex: 1000, boxShadow: "0 8px 24px rgba(0,0,0,.4)"
+                minWidth: 180, zIndex: 10000, boxShadow: "0 8px 24px rgba(0,0,0,.4)"
               }}>
                 <div style={{ padding: "6px 12px 10px", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Роль</div>
