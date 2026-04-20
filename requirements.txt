@@ -12,6 +12,8 @@ python-multipart
 passlib[bcrypt]
 bcrypt==4.2.1
 python-jose[cryptography]
+# Yandex Cloud Object Storage (S3-compatible)
+boto3
 # SDR dependencies
 numpy
 scipy

@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from .auth import require_editor
+from .storage import upload_image, is_s3_configured
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -94,8 +95,16 @@ async def create_news(
     if image and image.filename:
         ext = os.path.splitext(image.filename)[1] or ".jpg"
         image_filename = f"{news_id}{ext}"
-        (IMAGES_DIR / image_filename).write_bytes(await image.read())
-        image_url = f"/api/news/images/{image_filename}"
+        image_data = await image.read()
+
+        if is_s3_configured():
+            s3_key = f"news/images/{image_filename}"
+            image_url = upload_image(image_data, s3_key, image.filename)
+
+        if not image_url:
+            _ensure_dirs()
+            (IMAGES_DIR / image_filename).write_bytes(image_data)
+            image_url = f"/api/news/images/{image_filename}"
 
     item = {
         "id": news_id,
