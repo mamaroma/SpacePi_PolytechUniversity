@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { fetchNews, createNews, deleteNews } from "../api";
+import { useAuth } from "../AuthContext";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -12,6 +13,7 @@ function formatDate(iso) {
 }
 
 export default function NewsPage() {
+  const { isEditor, authHeader } = useAuth();
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -53,7 +55,7 @@ export default function NewsPage() {
     if (!title.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
-      await createNews({ title: title.trim(), description: description.trim(), content: content.trim(), image });
+      await createNews({ title: title.trim(), description: description.trim(), content: content.trim(), image }, authHeader);
       setTitle("");
       setDescription("");
       setContent("");
@@ -71,7 +73,7 @@ export default function NewsPage() {
   const handleDelete = async (id) => {
     if (!confirm("Удалить эту новость?")) return;
     try {
-      await deleteNews(id);
+      await deleteNews(id, authHeader);
       await load();
     } catch {}
   };
@@ -83,9 +85,11 @@ export default function NewsPage() {
           <h1 className="page-title">Новости PolySpace</h1>
           <p className="page-subtitle">Последние события и обновления наземной станции</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? "Отмена" : "+ Добавить новость"}
-        </button>
+        {isEditor && (
+          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Отмена" : "+ Добавить новость"}
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -181,7 +185,9 @@ export default function NewsPage() {
                 <p className="news-card-desc">{item.description}</p>
                 <div className="news-card-actions">
                   <Link to={`/news/${item.id}`} className="btn btn-sm btn-primary">Читать далее</Link>
-                  <button className="btn btn-sm" onClick={() => handleDelete(item.id)} title="Удалить">🗑</button>
+                  {isEditor && (
+                    <button className="btn btn-sm" onClick={() => handleDelete(item.id)} title="Удалить">🗑</button>
+                  )}
                 </div>
               </div>
             </article>

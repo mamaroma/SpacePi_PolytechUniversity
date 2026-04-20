@@ -7,8 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
+from .auth import require_editor
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -84,6 +85,7 @@ async def create_news(
     description: str = Form(...),
     content: str = Form(""),
     image: Optional[UploadFile] = File(None),
+    _=Depends(require_editor),
 ):
     _ensure_dirs()
     news_id = uuid.uuid4().hex[:8]
@@ -111,7 +113,7 @@ async def create_news(
 
 
 @router.delete("/{news_id}")
-def delete_news(news_id: str):
+def delete_news(news_id: str, _=Depends(require_editor)):
     news = _load_news()
     updated = [n for n in news if n["id"] != news_id]
     if len(updated) == len(news):

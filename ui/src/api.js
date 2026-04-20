@@ -87,7 +87,7 @@ export async function fetchNewsById(id) {
   return fetchJson(`${API_BASE}/api/news/${id}`);
 }
 
-export async function createNews({ title, description, content, image }) {
+export async function createNews({ title, description, content, image }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
@@ -96,6 +96,7 @@ export async function createNews({ title, description, content, image }) {
 
   const r = await fetch(`${API_BASE}/api/news`, {
     method: "POST",
+    headers: { ...authHeader },
     body: formData,
   });
   if (!r.ok) {
@@ -105,8 +106,11 @@ export async function createNews({ title, description, content, image }) {
   return r.json();
 }
 
-export async function deleteNews(id) {
-  const r = await fetch(`${API_BASE}/api/news/${id}`, { method: "DELETE" });
+export async function deleteNews(id, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/news/${id}`, {
+    method: "DELETE",
+    headers: { ...authHeader },
+  });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }

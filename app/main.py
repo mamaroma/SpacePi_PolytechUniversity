@@ -19,6 +19,8 @@ from .collector import collect_last_month
 from .models import TelemetryPacket
 from .collect_api import router as collect_router
 from .news import router as news_router
+from .auth import router as auth_router
+from .user_models import User  # noqa: F401 — registers User table with SQLModel metadata
 from .sdr_bridge import attach_sdr, sdr_startup, sdr_shutdown
 
 logger = logging.getLogger(__name__)
@@ -97,6 +99,7 @@ def get_fleet() -> List[Dict[str, Any]]:
 
 app.include_router(collect_router)
 app.include_router(news_router)
+app.include_router(auth_router)
 
 # Mount SDR sub-service under /sdr
 attach_sdr(app)

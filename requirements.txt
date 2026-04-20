@@ -8,6 +8,9 @@ pydantic-settings==2.10.1
 psycopg2-binary
 sgp4==2.23
 python-multipart
+# Auth
+passlib[bcrypt]
+python-jose[cryptography]
 # SDR dependencies
 numpy
 scipy
