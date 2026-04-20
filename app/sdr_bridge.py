@@ -3,31 +3,45 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Absolute path to the SDR package root (sdr/sdr_web_test)
-_SDR_ROOT = Path(__file__).parent.parent / "sdr" / "sdr_web_test"
+# Absolute path to the project root (parent of app/)
+_PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+_SDR_ROOT = _PROJECT_ROOT / "sdr" / "sdr_web_test"
 _SDR_FRONTEND = _SDR_ROOT / "frontend"
+
+# Ensure the project root is on sys.path so `sdr.*` imports resolve
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 
 def attach_sdr(app) -> None:
-    """
-    Mount all SDR routes, WebSocket, and static files onto *app* under the
-    ``/sdr`` prefix.  Call this once at module level so FastAPI picks up the
-    routes before the first request arrives.
-    """
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
 
-    # Import SDR internals (absolute imports via sys.path manipulation are not
-    # needed because we import by dotted path relative to the workspace root).
     try:
         from sdr.sdr_web_test.app.sdr.routes import router as sdr_router
         from sdr.sdr_web_test.app.sdr.websocket import websocket_endpoint
     except Exception as exc:
-        logger.error("Could not import SDR modules: %s", exc)
+        logger.error("Could not import SDR modules: %s", exc, exc_info=True)
+
+        # Mount a stub so /sdr/api/info returns 503 instead of 404
+        from fastapi import APIRouter
+        from fastapi.responses import JSONResponse
+        stub = APIRouter(prefix="/sdr/api")
+
+        @stub.get("/info")
+        @stub.get("/{path:path}")
+        async def _sdr_unavailable(path: str = ""):
+            return JSONResponse(
+                {"detail": f"SDR unavailable: {exc}"},
+                status_code=503,
+            )
+
+        app.include_router(stub)
         return
 
     # API routes — original prefix is /api, we include them under /sdr so

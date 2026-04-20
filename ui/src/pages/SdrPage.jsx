@@ -6,27 +6,41 @@ const PROBE_URL = "/sdr/api/info";
 const CONNECT_TIMEOUT_MS = 6000;
 
 export default function SdrPage() {
-  const [status, setStatus] = useState("connecting"); // "connecting" | "online" | "offline"
+  const [status, setStatus] = useState("connecting");
   const [retryKey, setRetryKey] = useState(0);
+  const [errorDetail, setErrorDetail] = useState("");
   const timeoutRef = useRef(null);
+
+  const [errorDetail, setErrorDetail] = useState("");
 
   useEffect(() => {
     setStatus("connecting");
+    setErrorDetail("");
     const controller = new AbortController();
 
     timeoutRef.current = setTimeout(() => {
       controller.abort();
       setStatus("offline");
+      setErrorDetail("Timeout — сервис не отвечает");
     }, CONNECT_TIMEOUT_MS);
 
     fetch(PROBE_URL, { signal: controller.signal })
-      .then((r) => {
+      .then(async (r) => {
         clearTimeout(timeoutRef.current);
-        setStatus(r.ok ? "online" : "offline");
+        if (r.ok) {
+          setStatus("online");
+        } else {
+          const body = await r.json().catch(() => ({}));
+          setErrorDetail(body.detail || `HTTP ${r.status}`);
+          setStatus("offline");
+        }
       })
       .catch((err) => {
         clearTimeout(timeoutRef.current);
-        if (err.name !== "AbortError") setStatus("offline");
+        if (err.name !== "AbortError") {
+          setErrorDetail(err.message);
+          setStatus("offline");
+        }
       });
 
     return () => {
@@ -92,6 +106,16 @@ export default function SdrPage() {
               Убедитесь, что основной API-сервис запущен. SDR встроен в основное приложение
               и не требует отдельного запуска.
             </p>
+            {errorDetail && (
+              <div style={{
+                background: "var(--surface-2)", border: "1px solid var(--border)",
+                borderRadius: 8, padding: "8px 16px", fontFamily: "monospace",
+                fontSize: 11, color: "var(--red, #f87171)", margin: "0 auto",
+                maxWidth: 480, textAlign: "left", wordBreak: "break-all"
+              }}>
+                {errorDetail}
+              </div>
+            )}
             <p style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 8, maxWidth: 480, margin: "8px auto 0" }}>
               Если SDR-приёмник не подключён — сервис автоматически воспроизводит
               файл-заглушку{" "}
