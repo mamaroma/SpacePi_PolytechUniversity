@@ -240,7 +240,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
     const icon = document.createElement("img");
     icon.src = "/spbpu-logo.png";
-    icon.style.cssText = "width:32px;height:32px;border-radius:5px;filter:drop-shadow(0 0 6px rgba(76,175,80,.7));";
+    icon.style.cssText = "width:26px;height:26px;border-radius:5px;display:block;";
     wrapper.appendChild(icon);
 
     const popup = document.createElement("div");
@@ -682,8 +682,12 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
           htmlElementsData={POLYTECH_HTML_DATA}
           htmlLat={(d) => d.lat}
           htmlLng={(d) => d.lng}
-          htmlAltitude={0}
+          htmlAltitude={0.005}
           htmlElement={polytechHtmlElFn}
+          htmlElementVisibilityModifier={(el, isVisible) => {
+            el.style.opacity = isVisible ? "1" : "0";
+            el.style.pointerEvents = isVisible ? "auto" : "none";
+          }}
         />
       </div>
     </div>
