@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
+import { API_BASE } from "../api";
 
-// SDR is now integrated into the main backend — same origin, /sdr path.
-const SDR_PATH = "/sdr";
-const PROBE_URL = "/sdr/api/info";
-const CONNECT_TIMEOUT_MS = 6000;
+// SDR is mounted on the main backend at /sdr. In dev (Vite proxy) or when
+// frontend and backend share origin, API_BASE is empty. In production on
+// Render, frontend is a Static Site and backend is a separate Web Service,
+// so we prepend API_BASE to reach the SDR routes.
+const SDR_PATH = `${API_BASE}/sdr`;
+const PROBE_URL = `${API_BASE}/sdr/api/info`;
+const CONNECT_TIMEOUT_MS = 10000;
 
 export default function SdrPage() {
   const [status, setStatus] = useState("connecting");
