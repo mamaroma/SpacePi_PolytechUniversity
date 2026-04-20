@@ -1,0 +1,5 @@
+__pycache__/
+config.py
+/dataprocessing/static/AIS_2024_07_07.csv
+/dataprocessing/static/aisdk-2024-07-07.csv
+.idea/

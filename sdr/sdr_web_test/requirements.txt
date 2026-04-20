@@ -1,0 +1,27 @@
+# SDR Streaming Application Requirements
+
+# Web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Data processing
+numpy==1.24.3
+scipy==1.11.4
+pydantic==2.5.0
+
+# ZeroMQ for signal input
+pyzmq==25.1.1
+
+# HTTP requests for automation
+requests==2.31.0
+
+# Async support
+asyncio-mqtt==0.13.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Optional: Satellite tracking (uncomment if needed)
+# pyephem==4.1.5
+# skyfield==1.46

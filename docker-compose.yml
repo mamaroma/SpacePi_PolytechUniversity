@@ -1,20 +1,3 @@
-version: "3.9"
-
-# ─────────────────────────────────────────────────────────────
-#  SpacePi Ground Station — full-stack Docker Compose
-#
-#  Services:
-#    api  — FastAPI backend (port 8000 internal; also mapped for dev)
-#    ui   — React app built with Vite, served by nginx on port 5173
-#
-#  Usage:
-#    1. Copy .env.example → .env and fill in your values
-#    2. docker compose up --build -d
-#    3. Open http://localhost:5173
-#
-#  To run data collection manually:
-#    docker compose exec api python collect.py
-# ─────────────────────────────────────────────────────────────
 
 services:
 

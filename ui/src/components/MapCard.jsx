@@ -73,7 +73,7 @@ function splitDateline(pts) {
 const COVERAGE_M = 2_200_000;
 
 // ─── Component ────────────────────────────────────────────────
-export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {} }) {
+export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {}, deadSatellites = {}, onSatelliteClick }) {
   const [showCoverage, setShowCoverage] = useState(true);
 
   // Received TinyGS points (sampled for perf)
@@ -303,20 +303,22 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
               )}
 
               {/* 🛰 Satellite marker */}
-              <Marker position={[current.lat, current.lon]} icon={SAT_ICON}>
+              <Marker
+                position={[current.lat, current.lon]}
+                icon={SAT_ICON}
+                eventHandlers={{ click: () => onSatelliteClick?.("Polytech_Universe-3") }}
+              >
                 <Popup>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
                     <div style={{ fontWeight: 700, color: "#00ff88", marginBottom: 5 }}>
-                      🛰 Current position
+                      🛰 Текущая позиция
                     </div>
                     <div>{new Date(current.ts_utc).toLocaleString()}</div>
                     <div>Lat {current.lat.toFixed(3)}</div>
                     <div>Lon {current.lon.toFixed(3)}</div>
-                    {showCoverage && (
-                      <div style={{ marginTop: 6, color: "#7090b8" }}>
-                        Coverage radius ≈ 2 200 km
-                      </div>
-                    )}
+                    <div style={{ marginTop: 6, color: "#00d4ff", cursor: "pointer" }}>
+                      Нажмите для подробностей
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -328,13 +330,15 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             if (!mapSats.has(satName)) return null;
             const cur = oData?.current;
             if (!cur || !validLL(cur.lat, cur.lon)) return null;
-            const color = fleetColorMap[satName] || "#aaa";
+            const isDead = !!deadSatellites?.[satName];
+            const color = isDead ? "#666" : (fleetColorMap[satName] || "#aaa");
             const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
             const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
-            const trackSegs = splitDateline(trackLL);
+            const trackSegs = isDead ? [] : splitDateline(trackLL);
             const shortName = satName.replace("Polytech_Universe-", "PU-");
+            const deadInfo = deadSatellites?.[satName];
             const icon = L.divIcon({
-              html: `<div style="font-size:20px;filter:drop-shadow(0 0 4px ${color});line-height:1;">🛰</div>`,
+              html: `<div style="font-size:20px;filter:drop-shadow(0 0 4px ${color});line-height:1;${isDead ? "opacity:0.5;" : ""}">🛰</div>`,
               className: "",
               iconSize: [28, 28],
               iconAnchor: [14, 14],
@@ -349,15 +353,28 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                     pathOptions={{ color, weight: 1.8, opacity: 0.7 }}
                   />
                 ))}
-                <Marker position={[Number(cur.lat), Number(cur.lon)]} icon={icon}>
+                <Marker
+                  position={[Number(cur.lat), Number(cur.lon)]}
+                  icon={icon}
+                  eventHandlers={{ click: () => onSatelliteClick?.(satName) }}
+                >
                   <Popup>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
                       <div style={{ fontWeight: 700, color, marginBottom: 5 }}>
-                        🛰 {shortName}
+                        🛰 {shortName} {isDead && <span style={{ color: "#888", fontSize: 9 }}>OFFLINE</span>}
                       </div>
-                      <div>{new Date(cur.ts_utc).toLocaleString()}</div>
-                      <div>Lat {Number(cur.lat).toFixed(3)}</div>
-                      <div>Lon {Number(cur.lon).toFixed(3)}</div>
+                      {isDead ? (
+                        <div style={{ color: "#888" }}>Последний контакт: {deadInfo?.lastContact || "—"}</div>
+                      ) : (
+                        <>
+                          <div>{new Date(cur.ts_utc).toLocaleString()}</div>
+                          <div>Lat {Number(cur.lat).toFixed(3)}</div>
+                          <div>Lon {Number(cur.lon).toFixed(3)}</div>
+                        </>
+                      )}
+                      <div style={{ marginTop: 6, color: "#00d4ff", cursor: "pointer" }}>
+                        Нажмите для подробностей
+                      </div>
                     </div>
                   </Popup>
                 </Marker>

@@ -217,7 +217,7 @@ function makeSpotLight({ intensity = 1.6, angle = Math.PI / 7, distance = 800 })
   return light;
 }
 
-export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orbitDataProp = null, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {} }) {
+export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orbitDataProp = null, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {}, deadSatellites = {}, onSatelliteClick }) {
   const globeRef = useRef(null);
   const overlayRef = useRef(new THREE.Group());
   const lightsRef = useRef({ ambient: null, sun: null });
@@ -266,6 +266,9 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
     return wrapper;
   }, []);
+
+  const onSatClickRef = useRef(onSatelliteClick);
+  onSatClickRef.current = onSatelliteClick;
 
   const track = useMemo(() => orbit?.track ?? [], [orbit]);
   const current = useMemo(() => orbit?.current ?? null, [orbit]);
@@ -502,9 +505,10 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const satPos = llToXyz(lat, lng, rSat);
       const groundPos = llToXyz(lat, lng, rSurface);
 
-      // satellite sprite
+      // satellite sprite (clickable)
       const spr = makeSatelliteSprite(R0);
       spr.position.copy(satPos);
+      spr.userData = { satName: sat, clickable: true };
       grp.add(spr);
 
       // footprint sizes
@@ -577,21 +581,61 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     for (const [satName, oData] of Object.entries(multiOrbitData)) {
       if (!mapSats.has(satName)) continue;
       if (satName === sat) continue;
-      const color = fleetColorMap[satName] || "#aaa";
-      const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
-      const extraSegs = splitByDateline(extraTrack.map(p => ({ lat: Number(p.lat), lng: Number(p.lon), ts_utc: p.ts_utc })));
-      for (const seg of extraSegs) grp.add(makeDashedLine(seg, trackR, color));
+      const isDead = !!deadSatellites[satName];
+      const color = isDead ? "#555" : (fleetColorMap[satName] || "#aaa");
+
+      if (!isDead) {
+        const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
+        const extraSegs = splitByDateline(extraTrack.map(p => ({ lat: Number(p.lat), lng: Number(p.lon), ts_utc: p.ts_utc })));
+        for (const seg of extraSegs) grp.add(makeDashedLine(seg, trackR, color));
+      }
+
       const extraCur = oData?.current;
       if (extraCur && validLatLon(extraCur.lat, extraCur.lon)) {
         const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.06);
-        const eSpr = makeSatelliteSprite(R0 * 0.7);
+        const eSpr = makeSatelliteSprite(R0 * (isDead ? 0.55 : 0.7));
         eSpr.position.copy(ePos);
+        eSpr.userData = { satName, clickable: true };
+        if (isDead) eSpr.material.opacity = 0.5;
         grp.add(eSpr);
       }
     }
 
-    return () => { if (cleanupRaf) cleanupRaf(); };
-  }, [segments, current, globeReady, multiOrbitData, mapSats, fleetColorMap, sat]);
+    // Click handler for satellites
+    const onClick = (e) => {
+      const g = globeRef.current;
+      if (!g) return;
+      const renderer = g.renderer?.();
+      const camera = g.camera?.();
+      if (!renderer || !camera) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.params.Sprite = { threshold: 8 };
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(grp.children, true);
+      for (const hit of intersects) {
+        const obj = hit.object;
+        if (obj.userData?.clickable && obj.userData?.satName) {
+          onSatClickRef.current?.(obj.userData.satName);
+          return;
+        }
+      }
+    };
+
+    const canvas = globeRef.current?.renderer?.()?.domElement;
+    if (canvas) canvas.addEventListener("click", onClick);
+
+    return () => {
+      if (cleanupRaf) cleanupRaf();
+      if (canvas) canvas.removeEventListener("click", onClick);
+    };
+  }, [segments, current, globeReady, multiOrbitData, mapSats, fleetColorMap, sat, deadSatellites]);
 
   // -------------------------
   // UI sizing (вынесено в константы, чтобы проще править)

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  {% include 'components/head_base.html' %}
+
+  <!-- <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init()</script> -->
+
+  <script src="https://api-maps.yandex.ru/v3/?apikey=122cc2d8-cfc2-4b95-8482-ab66964ffb28&lang=ru_RU"></script>
+  <link rel="stylesheet" href="/static/css/map.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- DEV -->
+  <!-- <script src="https://livejs.com/live.js"></script> -->
+
+  <title>SpaceZ</title>
+</head>
+
+<body>
+
+  <div id="map"></div>
+
+  <div class="vessel-info-sidebar">
+
+    <div class="vessel-info-sidebar-toggle" onclick="toggleVesselWindow()">
+      <i class="bi bi-chevron-compact-right"></i>
+    </div>
+
+    <div class="content">
+      <div class="vessel-info-sidebar-greeting-text">
+        Выберите судно на&nbsp;карте
+      </div>
+
+      <span class="vessel-info-sidebar-loader" style="display: none;"></span>
+
+      <div class="real-content" style="display: none;">
+        <div>
+          <div class="image-container">
+            <div class="image-wrapper">
+              <img src="https://gloap.net/wp-content/images/gloap_base_owner/350533/logo.jpg" id="vessel-img">
+            </div>
+          </div>
+
+          <div class="type-model" id="type-model"></div>
+
+          <h2 id="vessel-name">Загрузка...</h2>
+
+          <div class="description-container">
+            <div class="description-el">
+              <span>
+                MMSI
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-mmsi">
+                Загрузка...
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                IMO
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-imo">
+                Загрузка...
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                Страна
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-country">
+                <div class="country-flag-container">
+                  <img src="https://static.vesselfinder.net/images/flags/4x3/ru.svg">
+                </div>
+                Россия
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                Длина
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-length">
+                Загрузка...
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                Ширина
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-width">
+                Загрузка...
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                Осадка
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-draft">
+                Загрузка...
+              </span>
+            </div>
+            <div class="description-el">
+              <span>
+                Тип
+              </span>
+              <div class="dots-line"></div>
+              <span id="vessel-type">
+                Загрузка...
+              </span>
+            </div>
+          </div>
+        </div>
+      
+        <!-- <div class="type-model" id="type-model"></div> -->
+        <div class="vessel-card-action-btns-container">
+          <button id="vessel-favorite-btn"><i class="bi bi-star"></i></button>
+          <button id="vessel-tracker-button"><i class="bi bi-geo"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="date-time-picker">
+    <div class="date-picker">
+      <label for="date-input">Выберите дату</label>
+      <input type="date" id="date-input" name="date-input">
+    </div>
+
+    <div class="time-slider">
+      <label for="time-slider">Выберите время</label>
+      <div class="slider-container">
+        <div class="range-and-description-container">
+          <input type="range" min="0" max="23" value="12" class="slider" id="time-slider">
+          <div class="time-description">
+            <span>0:00</span>
+            <!-- <span>12:00</span> -->
+            <span>23:00</span>
+          </div>
+        </div>
+        <span class="time-value" id="time-value">12:00</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="type-sort-control">
+    <h3>Типы кораблей</h3>
+
+    <div class="type-sort-chackbox-container">
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxTug" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Буксир</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxFishing" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Рыболовный</span>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxMilitary" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Военный</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxTanker" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Танкер</span>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxCargo" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Грузовой</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxOther" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Другое</span>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxSailing" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Парусник</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxNotAvailable" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Не известно</span>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="checkboxPassenger" checked>
+        <span class="custom-checkbox"></span>
+        <span class="label-text">Пассажирский</span>
+      </label>
+
+    </div>
+
+  </div>
+
+  <div class="tracker-control">
+    <div class="tracker-title-container">
+      <h3>Отслеживание</h3>
+      <div id="tracker-vessel-name">MATROSS</div>
+    </div>
+
+    <div class="date-picker">
+      <label for="tracker-start-datetime">Дата начала</label>
+      <input type="date" id="tracker-start-datetime" name="tracker-start-datetime">
+    </div>
+    <div class="date-picker">
+      <label for="tracker-stop-datetime">Дата конца</label>
+      <input type="date" id="tracker-stop-datetime" name="tracker-stop-datetime">
+    </div>
+
+    <button class="tracker-exit-btn" onclick="exitTracker()">Выключить отслеживание</button>
+  </div>
+
+  <nav>
+    <button onclick="showSearch()" id="show-search-btn"><i class="bi bi-search"></i></button>
+    <button onclick="showFavorites()" id="show-favorites-control-btn"><i class="bi bi-star"></i></button>
+    <button onclick="toggleTypeSortControl()" id="toggle-type-sort-control-btn"><i class="bi bi-funnel"></i></button>
+    <button onclick="toggleDateTimeControl()" id="toggle-datetime-control-btn"><i class="bi bi-clock"></i></button>
+  </nav>
+
+  <div class="map-loader-container">
+    <span class="map-loader"></span>
+  </div>
+
+  <div class="logo">
+    <img src="/static/img/logo-rounded.png" alt="logo">
+  </div>
+
+  <div class="search-background">
+    <div class="search-container">
+      <div class="search-bar">
+        <svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24"><g><path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path></g></svg>
+        <input type="search" class="search" placeholder="MMSI, IMO, название...">
+      </div>
+
+      <div class="search-results" id="search-results">
+        <!-- <div class="search-item">
+          <div class="search-image-container">
+            <img src="https://gloap.net/wp-content/images/gloap_base_owner/64079/logo.jpg">
+          </div>
+          <div class="search-vessel-info">
+            <span class="name">WHISTLER</span>
+            <span>MMSI: 338189849</span>
+            <span>IMO: 102983</span>
+            <div class="search-actions">
+              <button><i class="bi bi-crosshair"></i></button>
+              <button><i class="bi bi-star"></i></button>
+              <button><i class="bi bi-geo"></i></button>
+            </div>
+          </div>
+        </div> -->
+      </div>
+
+    </div>
+  </div>
+
+  <div class="favorites-background">
+    <div class="favorites-container">
+      <div class="favorites" id="favorites">
+        <!-- <div class="favorites-item">
+          <div class="info">
+            <span>FORTURE</span>
+            <span>857394710</span>
+          </div>
+          <div class="btns">
+            <button onclick="hideSearch();showVesselWithCoords('${mmsi}', '${lat}', '${lon}')"><i class="bi bi-crosshair"></i></button>
+            <button class="search-vessel-favorite"><i class="bi bi-star-fill"></i></button>
+            <button><i class="bi bi-geo"></i></button>
+          </div>
+        </div> -->
+      </div>
+        
+    </div>
+  </div>
+
+  <script src="/static/js/map.js"></script>
+</body>
+
+</html>
