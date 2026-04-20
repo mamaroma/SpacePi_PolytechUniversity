@@ -86,8 +86,8 @@ SATELLITE_FLEET = [
     {"name": "Polytech_Universe-1", "active": False, "color": "#888888"},
     {"name": "Polytech_Universe-2", "active": False, "color": "#666666"},
     {"name": "Polytech_Universe-3", "active": True,  "color": "#00ff88"},
-    {"name": "Polytech_Universe-4", "active": True,  "color": "#ff4d6a"},
-    {"name": "Polytech_Universe-5", "active": True,  "color": "#00d4ff"},
+    {"name": "Polytech_Universe-4", "active": False, "color": "#ff4d6a"},
+    {"name": "Polytech_Universe-5", "active": False, "color": "#00d4ff"},
     {"name": "Polytech_Universe-6", "active": False, "color": "#ffa63a"},
 ]
 

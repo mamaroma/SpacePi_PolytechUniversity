@@ -6,19 +6,21 @@ import NewsDetailPage from "./pages/NewsDetailPage";
 import SatellitesPage from "./pages/SatellitesPage";
 import ShipsPage from "./pages/ShipsPage";
 import EmiPage from "./pages/EmiPage";
-import SdrPage from "./pages/SdrPage";
 import DocsPage from "./pages/DocsPage";
 import CreatorsPage from "./pages/CreatorsPage";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
 import ChallengePage from "./pages/ChallengePage";
+import { API_BASE } from "./api";
+
+const SDR_URL = `${API_BASE}/sdr`;
 
 const MENU_ITEMS = [
   { to: "/",           label: "Главная",       icon: "🏠" },
   { to: "/telemetry",  label: "Телеметрия",    icon: "🛰" },
   { to: "/ais",        label: "AIS",           icon: "🚢" },
   { to: "/emi",        label: "ЭМИ",           icon: "⚡" },
-  { to: "/sdr",        label: "SDR",           icon: "📡" },
+  { to: SDR_URL,       label: "SDR",           icon: "📡", external: true },
   { to: "/challenge",  label: "Challenge",     icon: "🏆" },
   { to: "/docs",       label: "Документация",  icon: "📚" },
   { to: "/creators",   label: "Создатели",     icon: "👨‍🚀" },
@@ -39,6 +41,7 @@ function UtcClock() {
 
 function useCurrentLabel(pathname) {
   for (const item of MENU_ITEMS) {
+    if (item.external) continue;
     if (item.to === "/" && pathname === "/") return item;
     if (item.to !== "/" && pathname.startsWith(item.to)) return item;
   }
@@ -96,15 +99,30 @@ function AppInner() {
           {menuOpen && (
             <nav className="menu-dropdown">
               {MENU_ITEMS.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
-                >
-                  <span className="menu-item-icon">{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
+                item.external ? (
+                  <a
+                    key={item.to}
+                    href={item.to}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="menu-item"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <span className="menu-item-icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                    <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>↗</span>
+                  </a>
+                ) : (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+                  >
+                    <span className="menu-item-icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                )
               ))}
               {isAdmin && (
                 <NavLink to="/admin" className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
@@ -188,7 +206,6 @@ function AppInner() {
         <Route path="/telemetry" element={<SatellitesPage />} />
         <Route path="/ais" element={<ShipsPage />} />
         <Route path="/emi" element={<EmiPage />} />
-        <Route path="/sdr" element={<SdrPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/creators" element={<CreatorsPage />} />
         <Route path="/challenge" element={<ChallengePage />} />
