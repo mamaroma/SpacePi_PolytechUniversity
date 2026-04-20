@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import SQLModel, Field
@@ -44,3 +44,13 @@ class TelemetryPacket(SQLModel, table=True):
 
     uptime_sec: Optional[int] = None
     reset_count: Optional[int] = None
+
+
+class NewsItem(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    title: str
+    description: str
+    content: str = ""
+    image_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    views: int = Field(default=0)

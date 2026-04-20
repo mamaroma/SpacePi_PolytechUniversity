@@ -21,6 +21,7 @@ from .collect_api import router as collect_router
 from .news import router as news_router
 from .auth import router as auth_router
 from .user_models import User  # noqa: F401 — registers User table with SQLModel metadata
+from .models import NewsItem  # noqa: F401 — registers NewsItem table with SQLModel metadata
 from .sdr_bridge import attach_sdr, sdr_startup, sdr_shutdown
 
 logger = logging.getLogger(__name__)
