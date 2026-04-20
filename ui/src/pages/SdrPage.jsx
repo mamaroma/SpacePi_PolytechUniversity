@@ -11,8 +11,6 @@ export default function SdrPage() {
   const [errorDetail, setErrorDetail] = useState("");
   const timeoutRef = useRef(null);
 
-  const [errorDetail, setErrorDetail] = useState("");
-
   useEffect(() => {
     setStatus("connecting");
     setErrorDetail("");
