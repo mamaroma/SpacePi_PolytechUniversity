@@ -10,6 +10,7 @@ sgp4==2.23
 python-multipart
 # Auth
 passlib[bcrypt]
+bcrypt==4.2.1
 python-jose[cryptography]
 # SDR dependencies
 numpy

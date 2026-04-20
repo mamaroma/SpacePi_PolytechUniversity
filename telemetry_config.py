@@ -66,7 +66,7 @@ HEADERS = {
 # ----------------------------
 TG_CHANNEL = _getenv("TG_CHANNEL", "t.me/tinyGS_Telemetry")
 DATABASE_URL = _getenv("DATABASE_URL", f"sqlite:///{PROJECT_ROOT / 'telemetry.db'}")
-CORS_ALLOW_ORIGINS = _getenv("CORS_ALLOW_ORIGINS", "http://localhost:5173")
+CORS_ALLOW_ORIGINS = _getenv("CORS_ALLOW_ORIGINS", "*")
 
 DEFAULT_SATELLITE = _getenv("DEFAULT_SATELLITE", "Polytech_Universe-3")
 DEFAULT_DAYS = _getenv("DEFAULT_DAYS", 30, int)
