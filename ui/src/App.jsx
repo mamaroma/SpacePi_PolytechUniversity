@@ -11,6 +11,7 @@ import CreatorsPage from "./pages/CreatorsPage";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
 import ChallengePage from "./pages/ChallengePage";
+import Footer from "./components/Footer";
 import { API_BASE } from "./api";
 
 const SDR_URL = `${API_BASE}/sdr`;
@@ -26,7 +27,7 @@ const MENU_ITEMS = [
   { to: "/creators",   label: "Создатели",     icon: "👨‍🚀" },
 ];
 
-const ROLE_COLORS = { admin: "var(--accent)", moderator: "var(--yellow)", reader: "var(--text-muted)" };
+const ROLE_COLORS = { admin: "var(--orange)", moderator: "var(--accent)", reader: "var(--text-muted)" };
 
 function UtcClock() {
   const [t, setT] = useState(new Date());
@@ -36,7 +37,16 @@ function UtcClock() {
   }, []);
   const pad = (n) => String(n).padStart(2, "0");
   const s = `${pad(t.getUTCDate())}.${pad(t.getUTCMonth()+1)}.${t.getUTCFullYear()} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())} UTC`;
-  return <span className="mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>{s}</span>;
+  return (
+    <span
+      className="mono"
+      style={{ fontSize: 14, color: "var(--text-dim)", padding: "8px 14px",
+               border: "1px solid var(--border)", borderRadius: 10,
+               background: "rgba(36,65,40,0.55)" }}
+    >
+      {s}
+    </span>
+  );
 }
 
 function useCurrentLabel(pathname) {
@@ -79,7 +89,7 @@ function AppInner() {
         <a className="header-logo" href="/">
           <span className="header-logo-icon">🛰</span>
           PolySpace
-          <span className="header-badge">GS</span>
+          <span className="header-badge">Ground Station</span>
         </a>
 
         <div className="header-sep" />
@@ -139,47 +149,49 @@ function AppInner() {
 
         {/* User section */}
         {user ? (
-          <div style={{ position: "relative", marginLeft: 12 }} ref={userMenuRef}>
+          <div style={{ position: "relative", marginLeft: 14 }} ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(v => !v)}
               style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
-                background: "var(--surface-2)", border: "1px solid var(--border)",
-                borderRadius: 8, cursor: "pointer", color: "var(--text)", fontSize: 13
+                display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+                background: "var(--surface-2)", border: "1px solid var(--border-hi)",
+                borderRadius: 12, cursor: "pointer", color: "var(--text)", fontSize: 14,
+                fontWeight: 500,
               }}
             >
               <span style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: ROLE_COLORS[user.role], flexShrink: 0
+                width: 10, height: 10, borderRadius: "50%",
+                background: ROLE_COLORS[user.role], flexShrink: 0,
+                boxShadow: `0 0 8px ${ROLE_COLORS[user.role]}`
               }} />
-              <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {user.email}
               </span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>▾</span>
+              <span style={{ fontSize: 12, color: "var(--orange)" }}>▾</span>
             </button>
             {userMenuOpen && (
               <div style={{
-                position: "absolute", right: 0, top: "calc(100% + 6px)", background: "var(--surface-1)",
-                border: "1px solid var(--border)", borderRadius: 10, padding: 8,
-                minWidth: 180, zIndex: 10000, boxShadow: "0 8px 24px rgba(0,0,0,.8)"
+                position: "absolute", right: 0, top: "calc(100% + 8px)", background: "var(--surface-1)",
+                border: "1px solid var(--border-hi)", borderRadius: 12, padding: 8,
+                minWidth: 200, zIndex: 10000, boxShadow: "0 12px 32px rgba(0,0,0,.7)"
               }}>
-                <div style={{ padding: "6px 12px 10px", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
+                <div style={{ padding: "8px 12px 10px", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Роль</div>
-                  <div style={{ fontWeight: 600, color: ROLE_COLORS[user.role], fontSize: 13, textTransform: "capitalize" }}>
+                  <div style={{ fontWeight: 700, color: ROLE_COLORS[user.role], fontSize: 14, textTransform: "capitalize" }}>
                     {user.role}
                   </div>
                 </div>
                 {isAdmin && (
-                  <NavLink to="/admin" style={{ display: "block", padding: "8px 12px", borderRadius: 6, color: "var(--text)", fontSize: 13, textDecoration: "none" }}>
+                  <NavLink to="/admin" style={{ display: "block", padding: "8px 12px", borderRadius: 8, color: "var(--text)", fontSize: 13, textDecoration: "none" }}>
                     ⚙️ Управление
                   </NavLink>
                 )}
                 <button
                   onClick={logout}
                   style={{
-                    width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 6,
-                    background: "transparent", border: "none", color: "#f87171",
-                    fontSize: 13, cursor: "pointer"
+                    width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8,
+                    background: "transparent", border: "none", color: "var(--orange-2)",
+                    fontSize: 13, cursor: "pointer", fontWeight: 600,
                   }}
                 >
                   Выйти
@@ -191,8 +203,10 @@ function AppInner() {
           <NavLink
             to="/login"
             style={{
-              marginLeft: 12, padding: "6px 14px", borderRadius: 8, fontSize: 13,
-              background: "var(--accent)", color: "#fff", textDecoration: "none", fontWeight: 500
+              marginLeft: 14, padding: "12px 22px", borderRadius: 12, fontSize: 14,
+              background: "linear-gradient(135deg, var(--orange) 0%, var(--orange-2) 100%)",
+              color: "#1a3220", textDecoration: "none", fontWeight: 700,
+              boxShadow: "0 4px 14px rgba(218,73,39,0.30)",
             }}
           >
             Войти
@@ -214,10 +228,7 @@ function AppInner() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <footer className="footer">
-        <span>PolySpace Ground Station · Polytech University</span>
-        <span>API: <a href="/docs" target="_blank" rel="noreferrer">/docs</a></span>
-      </footer>
+      <Footer />
     </>
   );
 }

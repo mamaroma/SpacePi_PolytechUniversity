@@ -12,10 +12,74 @@ import MapCard from "../components/MapCard";
 import GlobeCard from "../components/GlobeCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import MetricCard from "../components/MetricCard";
+import Hint, { GuideBanner } from "../components/Hint";
 
 /* ── Inactive satellites (no TLE / no telemetry) ─────
-   These are drawn as a single static marker with "OFFLINE" status
-   instead of a broken orbit fetched from empty data. */
+   У них нет «живых» TLE/телеметрии, но карточки и спарклайны мы рисуем —
+   с заглушечной (синтетической) последней пачкой пакетов, чтобы пользователь
+   видел шаблон карточки и понимал, что аппарат именно «неактивен», а не
+   «странно пустой». */
+
+function lastContactToTs(label) {
+  const month = { "Январь": 0, "Февраль": 1, "Март": 2, "Апрель": 3, "Май": 4, "Июнь": 5,
+                  "Июль": 6, "Август": 7, "Сентябрь": 8, "Октябрь": 9, "Ноябрь": 10, "Декабрь": 11 };
+  const m = label?.match(/(\S+)\s+(\d{4})/);
+  if (m && month[m[1]] != null) return Date.UTC(Number(m[2]), month[m[1]], 15);
+  return Date.UTC(2023, 0, 1);
+}
+
+/** Детерминированный псевдо-генератор: один и тот же спутник всегда
+ *  даёт одинаковую «последнюю» телеметрию. */
+function seededRng(seed) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function genFakeRows(satName, lastContactLabel, count = 60) {
+  const seed = [...satName].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rnd = seededRng(seed);
+  const endTs = lastContactToTs(lastContactLabel);
+  const stepMs = 30 * 60 * 1000;
+  const rows = [];
+  let temp = -10 + rnd() * 30;
+  let bat  = 70 + rnd() * 25;
+  let solar = 200 + rnd() * 600;
+  let rssi = -100 - rnd() * 30;
+  let snr  = 2 + rnd() * 5;
+  let uptime = Math.floor(rnd() * 60 * 86400);
+  let resets = Math.floor(rnd() * 12);
+  for (let i = count - 1; i >= 0; i--) {
+    temp  += (rnd() - 0.5) * 1.4;
+    bat    = Math.max(1, Math.min(100, bat - rnd() * 0.6));
+    solar  = Math.max(0, solar + (rnd() - 0.5) * 80);
+    rssi  += (rnd() - 0.5) * 4;
+    snr   += (rnd() - 0.5) * 0.6;
+    uptime += stepMs / 1000;
+    if (rnd() < 0.02) resets += 1;
+    const ts = new Date(endTs - i * stepMs).toISOString();
+    rows.push({
+      ts_utc: ts,
+      temp_c: +temp.toFixed(2),
+      vbus_mv: 3500 + Math.floor(rnd() * 600),
+      ibus_ma: 50 + Math.floor(rnd() * 250),
+      battery_capacity_pct: +bat.toFixed(1),
+      solar_voltage_mv: 4200 + Math.floor(rnd() * 800),
+      solar_total_mw: +solar.toFixed(0),
+      rssi_dbm: +rssi.toFixed(1),
+      snr_db: +snr.toFixed(1),
+      uptime_sec: Math.floor(uptime),
+      reset_count: resets,
+      lat: -60 + rnd() * 120,
+      lon: -180 + rnd() * 360,
+    });
+  }
+  return rows;
+}
+
 const DEAD_SATELLITES = {
   "Polytech_Universe-1": {
     current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
@@ -30,24 +94,29 @@ const DEAD_SATELLITES = {
     dead: true,
   },
   "Polytech_Universe-4": {
-    current: { lat: 10.0, lon: 20.0, ts_utc: "—" },
+    current: { lat: 10.0, lon: 20.0, ts_utc: "2023-06-12T10:30:00Z" },
     track: [],
-    lastContact: "Нет данных",
+    lastContact: "Июнь 2023",
     dead: true,
   },
   "Polytech_Universe-5": {
-    current: { lat: -20.0, lon: 100.0, ts_utc: "—" },
+    current: { lat: -20.0, lon: 100.0, ts_utc: "2023-03-04T18:15:00Z" },
     track: [],
-    lastContact: "Нет данных",
+    lastContact: "Март 2023",
     dead: true,
   },
   "Polytech_Universe-6": {
-    current: { lat: 35.0, lon: -100.0, ts_utc: "—" },
+    current: { lat: 35.0, lon: -100.0, ts_utc: "2022-11-22T07:45:00Z" },
     track: [],
-    lastContact: "Нет данных",
+    lastContact: "Ноябрь 2022",
     dead: true,
   },
 };
+
+// Кэшируем, чтобы не пересчитывать на каждый ререндер
+const FAKE_TELEMETRY_CACHE = Object.fromEntries(
+  Object.entries(DEAD_SATELLITES).map(([name, info]) => [name, genFakeRows(name, info.lastContact)])
+);
 
 function toNum(x) {
   if (x === null || x === undefined) return null;
@@ -114,81 +183,86 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
         <div>
           <div className="sat-panel-name">🛰 {short}</div>
           <div className={`sat-panel-status ${isDead ? "dead" : "live"}`}>
-            {isDead ? `⚫ OFFLINE · ${deadInfo?.lastContact || "—"}` : "🟢 ACTIVE"}
+            {isDead ? `⚫ INACTIVE · посл. контакт ${deadInfo?.lastContact || "—"}` : "🟢 ACTIVE"}
           </div>
         </div>
         <button className="sat-panel-close" onClick={onClose}>×</button>
       </div>
 
-      {isDead ? (
-        <div className="sat-panel-dead-info">
-          <p>Спутник прекратил передачу данных.</p>
-          <p>Последний выход на связь: <strong>{deadInfo?.lastContact}</strong></p>
-          <p style={{ color: "var(--text-muted)", marginTop: 8, fontSize: 11 }}>
-            Аппарат находится на орбите, но не отвечает на запросы.
-          </p>
+      {isDead && (
+        <div style={{
+          background: "rgba(218,73,39,0.10)",
+          border: "1px dashed var(--orange-2)",
+          borderRadius: 10,
+          padding: "8px 10px",
+          marginBottom: 12,
+          fontSize: 11,
+          color: "var(--text-dim)",
+          lineHeight: 1.45,
+        }}>
+          Аппарат вне сети. Ниже — <strong style={{ color: "var(--orange)" }}>последний
+          снимок</strong> телеметрии перед потерей связи (архив, замороженные
+          данные).
         </div>
-      ) : (
-        <>
-          <div className="sat-panel-metrics">
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">🌡 Темп.</span>
-              <span className="sat-mini-value c-red">{latest?.temp_c != null ? `${Number(latest.temp_c).toFixed(1)}°C` : "—"}</span>
-            </div>
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">🔋 Батарея</span>
-              <span className="sat-mini-value c-green">{latest?.battery_capacity_pct != null ? `${latest.battery_capacity_pct}%` : "—"}</span>
-            </div>
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">☀ Солнце</span>
-              <span className="sat-mini-value c-yellow">{latest?.solar_total_mw != null ? `${latest.solar_total_mw} mW` : "—"}</span>
-            </div>
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">📡 RSSI</span>
-              <span className="sat-mini-value c-cyan">{latest?.rssi_dbm != null ? `${latest.rssi_dbm} dBm` : "—"}</span>
-            </div>
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">⏱ Uptime</span>
-              <span className="sat-mini-value c-purple">{uptimeStr(latest?.uptime_sec)}</span>
-            </div>
-            <div className="sat-mini-metric">
-              <span className="sat-mini-label">🔄 Resets</span>
-              <span className="sat-mini-value c-dim">{latest?.reset_count ?? "—"}</span>
-            </div>
-          </div>
-
-          {latest && (
-            <div className="sat-panel-last-packet">
-              <div className="sat-mini-label">Последний пакет</div>
-              <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                {new Date(latest.ts_utc).toLocaleString()}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                Vbus {latest.vbus_mv ?? "—"} mV · Ibus {latest.ibus_ma ?? "—"} mA
-              </div>
-            </div>
-          )}
-
-          <div className="sat-panel-charts">
-            <div className="sat-mini-chart">
-              <div className="sat-mini-label">Температура</div>
-              <MiniSparkline data={seriesTemp} dataKey="avg" color="#ff4d6a" />
-            </div>
-            <div className="sat-mini-chart">
-              <div className="sat-mini-label">Батарея %</div>
-              <MiniSparkline data={seriesBat} dataKey="avg" color="#00ff88" />
-            </div>
-            <div className="sat-mini-chart">
-              <div className="sat-mini-label">Солнечная мощность</div>
-              <MiniSparkline data={seriesSolar} dataKey="avg" color="#ffa63a" />
-            </div>
-          </div>
-
-          <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>
-            {rows.length} пакетов загружено
-          </div>
-        </>
       )}
+
+      <div className="sat-panel-metrics">
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">🌡 Темп.</span>
+          <span className="sat-mini-value c-red">{latest?.temp_c != null ? `${Number(latest.temp_c).toFixed(1)}°C` : "—"}</span>
+        </div>
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">🔋 Батарея</span>
+          <span className="sat-mini-value c-green">{latest?.battery_capacity_pct != null ? `${latest.battery_capacity_pct}%` : "—"}</span>
+        </div>
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">☀ Солнце</span>
+          <span className="sat-mini-value c-yellow">{latest?.solar_total_mw != null ? `${latest.solar_total_mw} mW` : "—"}</span>
+        </div>
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">📡 RSSI</span>
+          <span className="sat-mini-value c-cyan">{latest?.rssi_dbm != null ? `${latest.rssi_dbm} dBm` : "—"}</span>
+        </div>
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">⏱ Uptime</span>
+          <span className="sat-mini-value c-purple">{uptimeStr(latest?.uptime_sec)}</span>
+        </div>
+        <div className="sat-mini-metric">
+          <span className="sat-mini-label">🔄 Resets</span>
+          <span className="sat-mini-value c-dim">{latest?.reset_count ?? "—"}</span>
+        </div>
+      </div>
+
+      {latest && (
+        <div className="sat-panel-last-packet">
+          <div className="sat-mini-label">{isDead ? "Последний пакет (архив)" : "Последний пакет"}</div>
+          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+            {new Date(latest.ts_utc).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Vbus {latest.vbus_mv ?? "—"} mV · Ibus {latest.ibus_ma ?? "—"} mA
+          </div>
+        </div>
+      )}
+
+      <div className="sat-panel-charts">
+        <div className="sat-mini-chart">
+          <div className="sat-mini-label">Температура</div>
+          <MiniSparkline data={seriesTemp} dataKey="avg" color="var(--orange-2)" />
+        </div>
+        <div className="sat-mini-chart">
+          <div className="sat-mini-label">Батарея %</div>
+          <MiniSparkline data={seriesBat} dataKey="avg" color="var(--green)" />
+        </div>
+        <div className="sat-mini-chart">
+          <div className="sat-mini-label">Солнечная мощность</div>
+          <MiniSparkline data={seriesSolar} dataKey="avg" color="var(--orange)" />
+        </div>
+      </div>
+
+      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>
+        {rows.length} пакетов {isDead ? "в архиве" : "загружено"}
+      </div>
     </div>
   );
 }
@@ -246,7 +320,7 @@ export default function SatellitesPage() {
         }
       })
       .catch(() => {
-        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#00ff88" }]);
+        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#37b34a" }]);
       });
   }, []);
 
@@ -261,7 +335,7 @@ export default function SatellitesPage() {
 
   const fleetColorMap = useMemo(() => {
     const m = {};
-    for (const s of fleet) m[s.name] = s.color || "#00ff88";
+    for (const s of fleet) m[s.name] = s.color || "#37b34a";
     return m;
   }, [fleet]);
 
@@ -379,7 +453,13 @@ export default function SatellitesPage() {
     }
   }, []);
 
-  const chartData = useMemo(() => rows.map((r) => {
+  const isDeadSelected = selectedSat ? !!DEAD_SATELLITES[selectedSat] : false;
+  const panelRows = useMemo(() => {
+    if (isDeadSelected) return FAKE_TELEMETRY_CACHE[selectedSat] ?? [];
+    return rows;
+  }, [isDeadSelected, selectedSat, rows]);
+
+  const chartData = useMemo(() => panelRows.map((r) => {
     const ts = new Date(r.ts_utc);
     return {
       ts_ms: ts.getTime(),
@@ -394,23 +474,32 @@ export default function SatellitesPage() {
       uptime_sec: toNum(r.uptime_sec),
       reset_count: toNum(r.reset_count),
     };
-  }), [rows]);
+  }), [panelRows]);
 
   const datetimeLocalValue = useMemo(() => {
     const local = new Date(at.getTime() - at.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
   }, [at]);
 
-  const isDead = selectedSat ? !!DEAD_SATELLITES[selectedSat] : false;
+  const isDead = isDeadSelected;
   const deadInfo = selectedSat ? DEAD_SATELLITES[selectedSat] : null;
 
   return (
     <div className="app-body telemetry-page">
+      <GuideBanner id="telemetry-intro" icon="🛰">
+        Это <strong>живая телеметрия</strong> наших спутников Polytech Universe.
+        Откройте список <strong>«Спутники»</strong>, отметьте нужные — на глобусе/карте
+        появятся их орбиты. Кликните по иконке спутника, чтобы увидеть последний
+        пакет, графики температуры, заряд батареи и т. д. <strong>Неактивные</strong> аппараты
+        показывают архив последних принятых данных.
+      </GuideBanner>
+
       {/* Compact controls bar */}
       <div className="controls-card">
         <div className="ctrl-row">
           <div className="ctrl-group" style={{ position: "relative" }} ref={mapDropdownRef}>
             <span className="ctrl-label">Спутники</span>
+            <Hint text="Выберите, чьи орбиты и текущие позиции показывать на глобусе. Можно отмечать сразу несколько." />
             <button className="btn btn-sm" onClick={() => setMapDropdownOpen(v => !v)} style={{ minWidth: 120, textAlign: "left" }}>
               {mapSats.size} из {fleet.length} ▾
             </button>
@@ -437,6 +526,7 @@ export default function SatellitesPage() {
 
           <div className="ctrl-group">
             <span className="ctrl-label">Вид</span>
+            <Hint text="3D — интерактивный глобус (можно крутить колёсиком и WASD). 2D — плоская карта с покрытием." />
             <div className="row">
               <button className={`btn btn-tab ${viewMode === "globe" ? "active" : ""}`} onClick={() => setViewMode("globe")}>3D</button>
               <button className={`btn btn-tab ${viewMode === "map" ? "active" : ""}`} onClick={() => setViewMode("map")}>2D</button>
@@ -447,6 +537,7 @@ export default function SatellitesPage() {
 
           <div className="ctrl-group">
             <span className="ctrl-label">Время</span>
+            <Hint text="Момент, на который рассчитывается орбита. По умолчанию — «Сейчас», но можно отмотать на любой час прошлого/будущего." />
             <input type="datetime-local" value={datetimeLocalValue} onChange={(e) => setAt(new Date(e.target.value))} />
             <button className="btn btn-sm" onClick={() => setAt(new Date())}>Сейчас</button>
           </div>
@@ -527,7 +618,7 @@ export default function SatellitesPage() {
         {selectedSat && (
           <SatInfoPanel
             satName={selectedSat}
-            rows={rows}
+            rows={panelRows}
             chartData={chartData}
             isDead={isDead}
             deadInfo={deadInfo}

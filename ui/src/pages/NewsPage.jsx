@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { fetchNews, createNews, deleteNews } from "../api";
 import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
+import { GuideBanner } from "../components/Hint";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -79,6 +80,13 @@ export default function NewsPage() {
 
   return (
     <div className="app-body">
+      <GuideBanner id="news-intro" icon="📰">
+        <strong>Новости проекта.</strong> Здесь публикуются обновления о работе
+        наземной станции, запусках спутников и активностях образовательной
+        программы. Кликните <em>«Читать далее»</em> на карточке, чтобы открыть
+        полный текст.
+      </GuideBanner>
+
       <div className="news-header-row">
         <div>
           <h1 className="page-title">Новости PolySpace</h1>

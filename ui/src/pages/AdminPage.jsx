@@ -56,7 +56,7 @@ export default function AdminPage() {
       </div>
 
       {error && (
-        <div style={{ background: "rgba(248,71,71,.12)", border: "1px solid rgba(248,71,71,.3)", borderRadius: 8, padding: "10px 16px", color: "#f87171", fontSize: 13, marginBottom: 16 }}>
+        <div style={{ background: "rgba(218,73,39,0.14)", border: "1px solid rgba(218,73,39,0.4)", borderRadius: 8, padding: "10px 16px", color: "#da4927", fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
       )}

@@ -23,13 +23,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     markerShadow,
 });
 
-// ─── 🛰 Satellite DivIcon ──────────────────────────────────────
+// ─── 🛰 Satellite DivIcon (увеличен в 2 раза) ─────────────────
 const SAT_ICON = L.divIcon({
   html: `<div class="sat-div-icon">🛰</div>`,
   className: "",
-  iconSize:   [34, 34],
-  iconAnchor: [17, 17],
-  popupAnchor:[0, -20],
+  iconSize:   [60, 60],
+  iconAnchor: [30, 30],
+  popupAnchor:[0, -32],
 });
 
 const POLYTECH_COORDS = {
@@ -137,42 +137,44 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
       {/* Inject satellite icon animation + leaflet dark override */}
       <style>{`
         .sat-div-icon {
-          font-size: 26px;
+          font-size: 50px;
           line-height: 1;
-          filter: drop-shadow(0 0 6px #00ff88);
+          filter: drop-shadow(0 0 10px #37b34a);
           animation: sat-glow 2s ease-in-out infinite;
           user-select: none;
+          cursor: pointer;
+          text-align: center;
         }
         .polytech-logo-icon {
-          filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.5));
+          filter: drop-shadow(0 0 6px rgba(55, 179, 74, 0.6));
           border-radius: 6px;
         }
         @keyframes sat-glow {
-          0%,100% { filter: drop-shadow(0 0 5px #00ff88); }
-          50%      { filter: drop-shadow(0 0 14px #00ff88) drop-shadow(0 0 6px #00ff88); }
+          0%,100% { filter: drop-shadow(0 0 8px #37b34a); }
+          50%      { filter: drop-shadow(0 0 18px #f39768) drop-shadow(0 0 8px #37b34a); }
         }
         .leaflet-popup-content-wrapper,
         .leaflet-popup-tip {
-          background: #0d1526 !important;
-          color: #dce8ff !important;
-          border: 1px solid #2d4066 !important;
-          border-radius: 8px !important;
+          background: #244128 !important;
+          color: #f1ead2 !important;
+          border: 1px solid #56965b !important;
+          border-radius: 10px !important;
           box-shadow: 0 8px 24px rgba(0,0,0,.6) !important;
         }
         .leaflet-popup-content { margin: 10px 14px !important; }
         .leaflet-control-zoom a {
-          background: #0d1526 !important;
-          color: #7090b8 !important;
-          border-color: #1e2d4a !important;
+          background: #1a3220 !important;
+          color: #f1ead2 !important;
+          border-color: #3a5e3f !important;
         }
-        .leaflet-control-zoom a:hover { color: #dce8ff !important; }
-        .leaflet-container { background: #060b18 !important; }
+        .leaflet-control-zoom a:hover { color: #f39768 !important; }
+        .leaflet-container { background: #0a1a10 !important; }
         .leaflet-control-attribution {
-          background: rgba(13,21,38,.75) !important;
-          color: #4a6080 !important;
+          background: rgba(26,50,32,.85) !important;
+          color: #8aa090 !important;
           font-size: 10px !important;
         }
-        .leaflet-control-attribution a { color: #5a8ab5 !important; }
+        .leaflet-control-attribution a { color: #f39768 !important; }
       `}</style>
 
       <div className="card-header">
@@ -222,7 +224,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           <Marker position={[POLYTECH_COORDS.lat, POLYTECH_COORDS.lon]} icon={POLYTECH_ICON}>
             <Popup>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                <div style={{ fontWeight: 700, color: "#00ff88", marginBottom: 5 }}>
+                <div style={{ fontWeight: 700, color: "#37b34a", marginBottom: 5 }}>
                   Pi SPbPU
                 </div>
                 <div>Technopolis Polytech</div>
@@ -232,24 +234,24 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             </Popup>
           </Marker>
 
-          {/* ── Past orbit — solid red ───────────────────────── */}
+          {/* ── Past orbit — solid orange ────────────────────── */}
           {pastSegs.map((seg, i) => (
             <Polyline
               key={`past-${i}`}
               positions={seg}
-              pathOptions={{ color: "#ff4d6a", weight: 2.2, opacity: 0.9 }}
+              pathOptions={{ color: "#da4927", weight: 2.4, opacity: 0.9 }}
             />
           ))}
 
-          {/* ── Future orbit — dashed cyan ───────────────────── */}
+          {/* ── Future orbit — dashed light orange ───────────── */}
           {futureSegs.map((seg, i) => (
             <Polyline
               key={`fut-${i}`}
               positions={seg}
               pathOptions={{
-                color: "#00d4ff",
-                weight: 1.5,
-                opacity: 0.55,
+                color: "#f39768",
+                weight: 1.6,
+                opacity: 0.65,
                 dashArray: "7 7",
               }}
             />
@@ -262,15 +264,15 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
               center={[p.lat, p.lon]}
               radius={3.5}
               pathOptions={{
-                color: "#00d4ff",
-                fillColor: "#00d4ff",
-                fillOpacity: 0.8,
+                color: "#f39768",
+                fillColor: "#f39768",
+                fillOpacity: 0.85,
                 weight: 0,
               }}
             >
               <Popup>
                 <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                  <div style={{ fontWeight: 700, color: "#00d4ff", marginBottom: 4 }}>
+                  <div style={{ fontWeight: 700, color: "#f39768", marginBottom: 4 }}>
                     📡 TinyGS received
                   </div>
                   <div>{new Date(p.ts_utc).toLocaleString()}</div>
@@ -292,11 +294,11 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                   center={[current.lat, current.lon]}
                   radius={COVERAGE_M}
                   pathOptions={{
-                    color:       "#00ff88",
-                    fillColor:   "#00ff88",
-                    fillOpacity: 0.06,
+                    color:       "#37b34a",
+                    fillColor:   "#37b34a",
+                    fillOpacity: 0.07,
                     weight:      1.5,
-                    opacity:     0.45,
+                    opacity:     0.55,
                     dashArray:   "5 10",
                   }}
                 />
@@ -310,13 +312,13 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
               >
                 <Popup>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                    <div style={{ fontWeight: 700, color: "#00ff88", marginBottom: 5 }}>
+                    <div style={{ fontWeight: 700, color: "#37b34a", marginBottom: 5 }}>
                       🛰 Текущая позиция
                     </div>
                     <div>{new Date(current.ts_utc).toLocaleString()}</div>
                     <div>Lat {current.lat.toFixed(3)}</div>
                     <div>Lon {current.lon.toFixed(3)}</div>
-                    <div style={{ marginTop: 6, color: "#00d4ff", cursor: "pointer" }}>
+                    <div style={{ marginTop: 6, color: "#f39768", cursor: "pointer" }}>
                       Нажмите для подробностей
                     </div>
                   </div>
@@ -331,18 +333,18 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             const cur = oData?.current;
             if (!cur || !validLL(cur.lat, cur.lon)) return null;
             const isDead = !!deadSatellites?.[satName];
-            const color = isDead ? "#666" : (fleetColorMap[satName] || "#aaa");
+            const color = isDead ? "#9aa39c" : (fleetColorMap[satName] || "#56965b");
             const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
             const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
             const trackSegs = isDead ? [] : splitDateline(trackLL);
             const shortName = satName.replace("Polytech_Universe-", "PU-");
             const deadInfo = deadSatellites?.[satName];
             const icon = L.divIcon({
-              html: `<div style="font-size:20px;filter:drop-shadow(0 0 4px ${color});line-height:1;${isDead ? "opacity:0.5;" : ""}">🛰</div>`,
+              html: `<div style="font-size:42px;filter:drop-shadow(0 0 8px ${color});line-height:1;text-align:center;${isDead ? "opacity:0.6;" : ""}">🛰</div>`,
               className: "",
-              iconSize: [28, 28],
-              iconAnchor: [14, 14],
-              popupAnchor: [0, -16],
+              iconSize: [54, 54],
+              iconAnchor: [27, 27],
+              popupAnchor: [0, -28],
             });
             return (
               <React.Fragment key={satName}>
@@ -361,10 +363,10 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                   <Popup>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
                       <div style={{ fontWeight: 700, color, marginBottom: 5 }}>
-                        🛰 {shortName} {isDead && <span style={{ color: "#888", fontSize: 9 }}>OFFLINE</span>}
+                        🛰 {shortName} {isDead && <span style={{ color: "#da4927", fontSize: 9 }}>INACTIVE</span>}
                       </div>
                       {isDead ? (
-                        <div style={{ color: "#888" }}>Последний контакт: {deadInfo?.lastContact || "—"}</div>
+                        <div style={{ color: "#cbb98c" }}>Последний контакт: {deadInfo?.lastContact || "—"}</div>
                       ) : (
                         <>
                           <div>{new Date(cur.ts_utc).toLocaleString()}</div>
@@ -372,7 +374,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                           <div>Lon {Number(cur.lon).toFixed(3)}</div>
                         </>
                       )}
-                      <div style={{ marginTop: 6, color: "#00d4ff", cursor: "pointer" }}>
+                      <div style={{ marginTop: 6, color: "#f39768", cursor: "pointer" }}>
                         Нажмите для подробностей
                       </div>
                     </div>
@@ -407,10 +409,10 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             {s.replace("Polytech_Universe-", "PU-")}
           </span>
         ))}
-        <span><span style={{ color: "#00d4ff" }}>●</span> TinyGS received</span>
+        <span><span style={{ color: "#f39768" }}>●</span> TinyGS received</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><img src="/spbpu-logo.png" alt="SPbPU" style={{ width: 14, height: 14, borderRadius: 2 }} /> SPbPU</span>
         {showCoverage && (
-          <span><span style={{ color: "#00ff88" }}>◯</span> Coverage ≈ 2 200 km</span>
+          <span><span style={{ color: "#37b34a" }}>◯</span> Coverage ≈ 2 200 km</span>
         )}
       </div>
     </div>

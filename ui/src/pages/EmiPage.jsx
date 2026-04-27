@@ -3,11 +3,11 @@ import { MapContainer, TileLayer, CircleMarker, Popup, AttributionControl } from
 import "leaflet/dist/leaflet.css";
 
 function intensityColor(dbm) {
-  if (dbm >= -30) return "#ff4d6a";
-  if (dbm >= -50) return "#ffa63a";
-  if (dbm >= -70) return "#ffd700";
-  if (dbm >= -90) return "#00ff88";
-  return "#00d4ff";
+  if (dbm >= -30) return "#da4927";   // critical — deep orange
+  if (dbm >= -50) return "#f39768";   // high — light orange
+  if (dbm >= -70) return "#f3cb68";   // moderate — warm gold
+  if (dbm >= -90) return "#37b34a";   // low — green
+  return "#56965b";                   // minimal — pale green
 }
 
 function intensityLabel(dbm) {
@@ -144,9 +144,9 @@ export default function EmiPage() {
               />
             </div>
             <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
-              <span><span style={{ color: "#3388ff" }}>●</span> Низкое ЭМ излучение</span>
-              <span><span style={{ color: "#00aa00" }}>●</span> Среднее ЭМ излучение</span>
-              <span><span style={{ color: "#ff0000" }}>●</span> Высокое ЭМ излучение</span>
+              <span><span style={{ color: "#56965b" }}>●</span> Низкое ЭМ излучение</span>
+              <span><span style={{ color: "#37b34a" }}>●</span> Среднее ЭМ излучение</span>
+              <span><span style={{ color: "#da4927" }}>●</span> Высокое ЭМ излучение</span>
               <span style={{ marginLeft: "auto" }}>Источник: спутник Polytech Universe · данные СПбПУ</span>
             </div>
           </div>
@@ -218,12 +218,12 @@ export default function EmiPage() {
             </div>
             <div className="globe-inner" style={{ height: 600 }}>
               <style>{`
-                .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0d1526 !important; color: #dce8ff !important; border: 1px solid #2d4066 !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
+                .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #244128 !important; color: #f1ead2 !important; border: 1px solid #56965b !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
                 .leaflet-popup-content { margin: 10px 14px !important; }
-                .leaflet-control-zoom a { background: #0d1526 !important; color: #7090b8 !important; border-color: #1e2d4a !important; }
-                .leaflet-container { background: #060b18 !important; }
-                .leaflet-control-attribution { background: rgba(13,21,38,.75) !important; color: #4a6080 !important; font-size: 10px !important; }
-                .leaflet-control-attribution a { color: #5a8ab5 !important; }
+                .leaflet-control-zoom a { background: #1a3220 !important; color: #f1ead2 !important; border-color: #3a5e3f !important; }
+                .leaflet-container { background: #0a1a10 !important; }
+                .leaflet-control-attribution { background: rgba(26,50,32,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
+                .leaflet-control-attribution a { color: #f39768 !important; }
               `}</style>
               <MapContainer center={[50, 20]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false}>
                 <AttributionControl position="bottomright" prefix={false} />
@@ -250,7 +250,7 @@ export default function EmiPage() {
                           <div>Freq: {d.freq_mhz >= 1000 ? `${(d.freq_mhz / 1000).toFixed(1)} GHz` : `${d.freq_mhz} MHz`}</div>
                           <div>Source: {d.source}</div>
                           <div>Lat {d.lat.toFixed(3)} · Lon {d.lon.toFixed(3)}</div>
-                          <div style={{ color: "#7090b8", marginTop: 4 }}>{new Date(d.ts).toLocaleString()}</div>
+                          <div style={{ color: "#cbb98c", marginTop: 4 }}>{new Date(d.ts).toLocaleString()}</div>
                         </div>
                       </Popup>
                     </CircleMarker>
@@ -259,11 +259,11 @@ export default function EmiPage() {
               </MapContainer>
             </div>
             <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
-              <span><span style={{ color: "#ff4d6a" }}>●</span> Critical (&ge; -30 dBm)</span>
-              <span><span style={{ color: "#ffa63a" }}>●</span> High (-50…-30)</span>
-              <span><span style={{ color: "#ffd700" }}>●</span> Moderate (-70…-50)</span>
-              <span><span style={{ color: "#00ff88" }}>●</span> Low (-90…-70)</span>
-              <span><span style={{ color: "#00d4ff" }}>●</span> Minimal (&lt; -90)</span>
+              <span><span style={{ color: "#da4927" }}>●</span> Critical (&ge; -30 dBm)</span>
+              <span><span style={{ color: "#f39768" }}>●</span> High (-50…-30)</span>
+              <span><span style={{ color: "#f3cb68" }}>●</span> Moderate (-70…-50)</span>
+              <span><span style={{ color: "#37b34a" }}>●</span> Low (-90…-70)</span>
+              <span><span style={{ color: "#56965b" }}>●</span> Minimal (&lt; -90)</span>
             </div>
           </div>
 
