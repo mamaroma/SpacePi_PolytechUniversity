@@ -16,33 +16,85 @@ import { API_BASE } from "./api";
 
 const SDR_URL = `${API_BASE}/sdr`;
 
+/* SVG-иконки меню — без эмодзи, геометрический стиль */
+const MenuIcons = {
+  home: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 9 12 2 21 9"/><path d="M9 22V12h6v10"/><rect x="3" y="9" width="18" height="13" rx="1"/>
+    </svg>
+  ),
+  telemetry: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2"/><path d="M12 2a10 10 0 0 1 7.07 17.07"/><path d="M12 2a10 10 0 0 0-7.07 17.07"/>
+      <path d="M12 6a6 6 0 0 1 4.24 10.24"/><path d="M12 6a6 6 0 0 0-4.24 10.24"/>
+    </svg>
+  ),
+  ais: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 20h20"/><path d="M5 20V8l7-5 7 5v12"/><path d="M9 20v-6h6v6"/>
+    </svg>
+  ),
+  emi: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  ),
+  sdr: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" strokeDasharray="3 3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+    </svg>
+  ),
+  challenge: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  ),
+  docs: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+    </svg>
+  ),
+  creators: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+  ),
+  admin: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+    </svg>
+  ),
+};
+
 const MENU_ITEMS = [
-  { to: "/",           label: "Главная",       icon: "🏠" },
-  { to: "/telemetry",  label: "Телеметрия",    icon: "🛰" },
-  { to: "/ais",        label: "AIS",           icon: "🚢" },
-  { to: "/emi",        label: "ЭМИ",           icon: "⚡" },
-  { to: SDR_URL,       label: "SDR",           icon: "📡", external: true },
-  { to: "/challenge",  label: "Challenge",     icon: "🏆" },
-  { to: "/docs",       label: "Документация",  icon: "📚" },
-  { to: "/creators",   label: "Создатели",     icon: "👨‍🚀" },
+  { to: "/",           label: "Главная",      icon: MenuIcons.home },
+  { to: "/telemetry",  label: "Телеметрия",   icon: MenuIcons.telemetry },
+  { to: "/ais",        label: "AIS",          icon: MenuIcons.ais },
+  { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
+  { to: SDR_URL,       label: "SDR",          icon: MenuIcons.sdr, external: true },
+  { to: "/challenge",  label: "Challenge",    icon: MenuIcons.challenge },
+  { to: "/docs",       label: "Документация", icon: MenuIcons.docs },
+  { to: "/creators",   label: "Создатели",    icon: MenuIcons.creators },
 ];
 
 const ROLE_COLORS = { admin: "var(--orange)", moderator: "var(--accent)", reader: "var(--text-muted)" };
 
-function UtcClock() {
+function MskClock() {
   const [t, setT] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setT(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
   const pad = (n) => String(n).padStart(2, "0");
-  const s = `${pad(t.getUTCDate())}.${pad(t.getUTCMonth()+1)}.${t.getUTCFullYear()} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())} UTC`;
+  // MSK = UTC+3
+  const msk = new Date(t.getTime() + 3 * 3600 * 1000);
+  const s = `${pad(msk.getUTCDate())}.${pad(msk.getUTCMonth()+1)}.${msk.getUTCFullYear()} ${pad(msk.getUTCHours())}:${pad(msk.getUTCMinutes())}:${pad(msk.getUTCSeconds())} МСК`;
   return (
     <span
       className="mono"
-      style={{ fontSize: 14, color: "var(--text-dim)", padding: "8px 14px",
-               border: "1px solid var(--border)", borderRadius: 10,
-               background: "rgba(36,65,40,0.55)" }}
+      style={{ fontSize: 13, color: "var(--text-dim)", padding: "7px 14px",
+               border: "1px solid var(--border)", borderRadius: 8,
+               background: "rgba(36,65,40,0.55)", letterSpacing: "0.5px" }}
     >
       {s}
     </span>
@@ -87,8 +139,14 @@ function AppInner() {
     <>
       <header className="header">
         <a className="header-logo" href="/">
-          <span className="header-logo-icon">🛰</span>
-          PolySpace
+          <img
+            src="/polyspace-logo.png"
+            alt="PolySpace"
+            className="header-logo-img"
+          />
+          <span className="header-logo-text">
+            Poly<span className="header-logo-space">Space</span>
+          </span>
           <span className="header-badge">Ground Station</span>
         </a>
 
@@ -102,7 +160,9 @@ function AppInner() {
             <span className="menu-hamburger">
               <span /><span /><span />
             </span>
-            <span className="menu-current-label">{current.icon} {current.label}</span>
+            <span className="menu-current-label">
+          <span className="menu-item-icon">{current.icon}</span>{current.label}
+        </span>
             <span className="menu-chevron">▾</span>
           </button>
 
@@ -136,7 +196,7 @@ function AppInner() {
               ))}
               {isAdmin && (
                 <NavLink to="/admin" className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
-                  <span className="menu-item-icon">⚙️</span>
+                  <span className="menu-item-icon">{MenuIcons.admin}</span>
                   <span>Управление</span>
                 </NavLink>
               )}
@@ -145,7 +205,7 @@ function AppInner() {
         </div>
 
         <div className="header-spacer" />
-        <UtcClock />
+        <MskClock />
 
         {/* User section */}
         {user ? (
@@ -182,8 +242,8 @@ function AppInner() {
                   </div>
                 </div>
                 {isAdmin && (
-                  <NavLink to="/admin" style={{ display: "block", padding: "8px 12px", borderRadius: 8, color: "var(--text)", fontSize: 13, textDecoration: "none" }}>
-                    ⚙️ Управление
+                  <NavLink to="/admin" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "var(--text)", fontSize: 13, textDecoration: "none" }}>
+                    {MenuIcons.admin} Управление
                   </NavLink>
                 )}
                 <button

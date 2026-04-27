@@ -171,25 +171,49 @@ body {
 .header-logo {
   display: flex;
   align-items: center;
-  gap: 14px;
-  font-weight: 800;
-  font-size: 26px;
-  letter-spacing: -0.4px;
+  gap: 12px;
   white-space: nowrap;
-  color: var(--text);
   text-decoration: none;
-  background: linear-gradient(135deg, #f1ead2 0%, #f39768 100%);
+  flex-shrink: 0;
+}
+
+/* Круглое изображение логотипа */
+.header-logo-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 12px rgba(55,179,74,0.55)) drop-shadow(0 0 6px rgba(243,151,104,0.40));
+  transition: filter 0.25s, transform 0.25s;
+}
+.header-logo:hover .header-logo-img {
+  filter: drop-shadow(0 0 20px rgba(55,179,74,0.80)) drop-shadow(0 0 10px rgba(243,151,104,0.60));
+  transform: scale(1.05) rotate(-3deg);
+}
+
+/* Текст "Poly Space" */
+.header-logo-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  background: linear-gradient(135deg, #f1ead2 20%, #37b34a 60%, #f39768 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 24px rgba(243,151,104,0.15);
+  filter: drop-shadow(0 2px 8px rgba(55,179,74,0.35));
+  transition: filter 0.25s;
 }
-
-.header-logo-icon {
-  font-size: 38px;
-  line-height: 1;
-  filter: drop-shadow(0 0 10px rgba(55,179,74,0.55));
-  -webkit-text-fill-color: initial;
+.header-logo:hover .header-logo-text {
+  filter: drop-shadow(0 2px 16px rgba(243,151,104,0.55));
+}
+.header-logo-space {
+  background: linear-gradient(135deg, #f39768 0%, #da4927 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .header-badge {
@@ -1095,7 +1119,13 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 .menu-trigger.open .menu-hamburger span:nth-child(2) { opacity: 0; }
 .menu-trigger.open .menu-hamburger span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
-.menu-current-label { font-weight: 600; font-size: 16px; }
+.menu-current-label {
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .menu-chevron {
   font-size: 14px;
   color: var(--orange);
@@ -1147,7 +1177,20 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   font-weight: 700;
   border-left: 3px solid var(--orange);
 }
-.menu-item-icon { font-size: 20px; line-height: 1; width: 28px; text-align: center; }
+.menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--accent-2);
+  opacity: 0.85;
+  transition: color 0.15s, opacity 0.15s;
+}
+.menu-item:hover .menu-item-icon,
+.menu-item.active .menu-item-icon { color: var(--orange); opacity: 1; }
+.menu-current-label .menu-item-icon { color: var(--orange); opacity: 1; }
 
 /* ─── Page Titles ─────────────────────────────────── */
 .page-title {
@@ -1174,7 +1217,42 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   margin-bottom: 16px;
 }
 
-/* ─── News Page ─────────────────────────────────────── */
+/* ─── News Page with space background ───────────────── */
+/* The canvas is fixed behind content, so everything above it needs
+   a transparent or semi-transparent background to let stars show */
+.news-page-body {
+  position: relative;
+  z-index: 1;
+}
+.news-page-body .card,
+.news-page-body .news-card {
+  background: rgba(26, 50, 32, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(86,150,91,0.45);
+}
+.news-page-body .guide-banner {
+  background: rgba(26,50,32,0.75);
+  backdrop-filter: blur(8px);
+}
+
+/* Scroll-reveal animation for news cards */
+@keyframes news-card-in {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.news-card-reveal {
+  animation: news-card-in 0.55s cubic-bezier(.22,.68,0,1.1) both;
+}
+.news-card-reveal:nth-child(1)  { animation-delay: 0.05s; }
+.news-card-reveal:nth-child(2)  { animation-delay: 0.13s; }
+.news-card-reveal:nth-child(3)  { animation-delay: 0.21s; }
+.news-card-reveal:nth-child(4)  { animation-delay: 0.29s; }
+.news-card-reveal:nth-child(5)  { animation-delay: 0.37s; }
+.news-card-reveal:nth-child(6)  { animation-delay: 0.45s; }
+.news-card-reveal:nth-child(n+7){ animation-delay: 0.52s; }
+
+/* ─── News Grid ─────────────────────────────────────── */
 .news-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -1186,9 +1264,9 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: border-color 0.2s, transform 0.15s;
+  transition: border-color 0.2s, transform 0.18s, box-shadow 0.2s;
 }
-.news-card:hover { border-color: var(--orange); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(218,73,39,0.18); }
+.news-card:hover { border-color: var(--orange); transform: translateY(-3px); box-shadow: 0 12px 28px rgba(218,73,39,0.22); }
 
 /* carousel replaces old news-card-image */
 

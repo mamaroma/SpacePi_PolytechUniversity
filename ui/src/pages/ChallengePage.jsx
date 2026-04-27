@@ -157,7 +157,7 @@ function GraphActivity() {
           {DEMO_SATS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <button onClick={loadReal} disabled={loading} style={S.btnSec}>
-          {loading ? "⏳ Загрузка..." : "📡 Загрузить реальные данные"}
+          {loading ? "Загрузка..." : "Загрузить данные с сервера"}
         </button>
         {notice && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{notice}</span>}
       </div>
@@ -229,7 +229,7 @@ function GraphActivity() {
           <div ref={chartRef} style={{ ...S.card, padding: "14px 14px 6px", minHeight: 270, flexGrow: 1 }}>
             {plotted.length === 0 ? (
               <div style={{ height: 250, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <span style={{ fontSize: 32 }}>📈</span>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
                   Нажимай <strong style={{ color: "var(--accent)" }}>+</strong> рядом с точками, чтобы построить график
                 </span>
@@ -454,7 +454,7 @@ function PacketDecodeActivity() {
 
       {/* Decode form */}
       <div style={{ ...S.card, padding: 18 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>🔬 Декодируй поля пакета</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>Декодируй поля пакета</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {DECODE_FIELDS.map(f => {
             const ok = results ? results[f.key] : null;
@@ -495,15 +495,15 @@ function PacketDecodeActivity() {
             border: `1px solid ${score === 4 ? "rgba(55,179,74,0.45)" : "rgba(218,73,39,0.45)"}`,
           }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, color: score === 4 ? "#37b34a" : "#f39768" }}>
-              {score === 4 ? "🎉 Отлично! Пакет полностью декодирован!" : `⚠ Верно ${score} из 4 полей`}
+              {score === 4 ? "Пакет полностью декодирован!" : `Верно ${score} из 4 полей`}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 13 }}>
-                {results.sat_id ? "✅" : "❌"} ID спутника:&nbsp;
+                <span style={{ color: results.sat_id ? "var(--accent)" : "var(--orange-2)" }}>{results.sat_id ? "✓" : "✗"}</span> ID спутника:&nbsp;
                 <span style={{ color: FIELD_COLOR.sat, fontWeight: 600 }}>{pkt.satId} ({pkt.sat})</span>
               </div>
               <div style={{ fontSize: 13 }}>
-                {results.temp ? "✅" : "❌"} Температура:&nbsp;
+                <span style={{ color: results.temp ? "var(--accent)" : "var(--orange-2)" }}>{results.temp ? "✓" : "✗"}</span> Температура:&nbsp;
                 <span style={{ color: FIELD_COLOR.temp, fontWeight: 600 }}>{pkt.tempC.toFixed(2)} °C</span>
                 {!results.temp && (
                   <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
@@ -512,7 +512,7 @@ function PacketDecodeActivity() {
                 )}
               </div>
               <div style={{ fontSize: 13 }}>
-                {results.volt ? "✅" : "❌"} Напряжение:&nbsp;
+                <span style={{ color: results.volt ? "var(--accent)" : "var(--orange-2)" }}>{results.volt ? "✓" : "✗"}</span> Напряжение:&nbsp;
                 <span style={{ color: FIELD_COLOR.volt, fontWeight: 600 }}>{pkt.voltV.toFixed(3)} В</span>
                 {!results.volt && (
                   <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
@@ -521,7 +521,7 @@ function PacketDecodeActivity() {
                 )}
               </div>
               <div style={{ fontSize: 13 }}>
-                {results.cs ? "✅" : "❌"} Контрольная сумма:&nbsp;
+                <span style={{ color: results.cs ? "var(--accent)" : "var(--orange-2)" }}>{results.cs ? "✓" : "✗"}</span> Контрольная сумма:&nbsp;
                 <span style={{ color: FIELD_COLOR.cs, fontWeight: 600 }}>
                   {pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0")}
                 </span>
@@ -549,7 +549,7 @@ function PacketDecodeActivity() {
 const ACTIVITIES = [
   {
     key: "graph",
-    icon: "📈",
+    icon: null,
     title: "Построение графиков",
     difficulty: "Легко",
     diffColor: "#37b34a",
@@ -558,7 +558,7 @@ const ACTIVITIES = [
   },
   {
     key: "decode",
-    icon: "🔐",
+    icon: null,
     title: "Расшифровка пакетов",
     difficulty: "Средне",
     diffColor: "#f39768",
@@ -576,7 +576,7 @@ export default function ChallengePage() {
       <div className="page-wrap">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">🏆 Challenge</h1>
+            <h1 className="page-title">Challenge</h1>
             <p className="page-subtitle">Интерактивные задания по работе со спутниковыми данными</p>
           </div>
         </div>
@@ -594,7 +594,7 @@ export default function ChallengePage() {
               onMouseEnter={e => { e.currentTarget.style.borderColor = a.diffColor; e.currentTarget.style.boxShadow = `0 0 20px ${a.diffColor}22`; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
             >
-              <div style={{ fontSize: 40, marginBottom: 14 }}>{a.icon}</div>
+              {a.icon && <div style={{ fontSize: 40, marginBottom: 14 }}>{a.icon}</div>}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{a.title}</span>
                 <span style={{

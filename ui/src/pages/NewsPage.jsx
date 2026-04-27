@@ -4,6 +4,7 @@ import { fetchNews, createNews, deleteNews } from "../api";
 import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
 import { GuideBanner } from "../components/Hint";
+import SpaceBackground from "../components/SpaceBackground";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -79,12 +80,12 @@ export default function NewsPage() {
   };
 
   return (
-    <div className="app-body">
-      <GuideBanner id="news-intro" icon="📰">
-        <strong>Новости проекта.</strong> Здесь публикуются обновления о работе
-        наземной станции, запусках спутников и активностях образовательной
-        программы. Кликните <em>«Читать далее»</em> на карточке, чтобы открыть
-        полный текст.
+    <div className="app-body news-page-body">
+      <SpaceBackground />
+
+      <GuideBanner id="news-intro" icon={null}>
+        <strong>Новости проекта.</strong> Обновления наземной станции, запуски спутников,
+        активности образовательной программы. Кликните «Читать далее» для полного текста.
       </GuideBanner>
 
       <div className="news-header-row">
@@ -133,7 +134,9 @@ export default function NewsPage() {
               <label className="form-label">Фотографии</label>
               <label className="image-upload-area image-upload-area--multi">
                 <div className="image-upload-placeholder">
-                  <span style={{ fontSize: 28 }}>📷</span>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M8 5l1-2h6l1 2"/>
+                  </svg>
                   <span>{images.length > 0 ? `Добавить ещё` : "Нажмите для выбора"}</span>
                   {images.length > 0 && <span className="image-upload-count">{images.length} фото</span>}
                 </div>
@@ -172,7 +175,7 @@ export default function NewsPage() {
       ) : (
         <div className="news-grid">
           {news.map((item) => (
-            <article key={item.id} className="news-card card">
+            <article key={item.id} className="news-card card news-card-reveal">
               {item.images?.length > 0 && (
                 <NewsCarousel images={item.images} compact />
               )}
@@ -194,7 +197,11 @@ export default function NewsPage() {
                 <div className="news-card-actions">
                   <Link to={`/news/${item.id}`} className="btn btn-sm btn-primary">Читать далее</Link>
                   {isEditor && (
-                    <button className="btn btn-sm" onClick={() => handleDelete(item.id)} title="Удалить">🗑</button>
+                    <button className="btn btn-sm" onClick={() => handleDelete(item.id)} title="Удалить">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
               </div>

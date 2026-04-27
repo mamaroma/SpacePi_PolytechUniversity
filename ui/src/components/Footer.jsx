@@ -179,11 +179,8 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <span>PolySpace Ground Station · Polytech University</span>
-          <span style={{ marginLeft: "auto" }}>
-            API: <a href="/docs" target="_blank" rel="noreferrer">/docs</a>
-          </span>
-          <span>© {new Date().getFullYear()} PolySpace</span>
+          <span>PolySpace Ground Station · Polytech University · СПбПУ</span>
+          <span style={{ marginLeft: "auto" }}>© {new Date().getFullYear()} PolySpace</span>
         </div>
       </div>
     </footer>

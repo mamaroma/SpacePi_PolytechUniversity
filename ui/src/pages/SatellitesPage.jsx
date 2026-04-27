@@ -486,7 +486,7 @@ export default function SatellitesPage() {
 
   return (
     <div className="app-body telemetry-page">
-      <GuideBanner id="telemetry-intro" icon="🛰">
+      <GuideBanner id="telemetry-intro">
         Это <strong>живая телеметрия</strong> наших спутников Polytech Universe.
         Откройте список <strong>«Спутники»</strong>, отметьте нужные — на глобусе/карте
         появятся их орбиты. Кликните по иконке спутника, чтобы увидеть последний

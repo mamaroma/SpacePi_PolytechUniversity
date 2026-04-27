@@ -186,7 +186,7 @@ export default function ShipsPage() {
 
   return (
     <div className="app-body">
-      <GuideBanner id="ais-intro" icon="🚢">
+      <GuideBanner id="ais-intro">
         <strong>AIS-карта.</strong> Здесь показаны суда, которые мы видим через
         приёмник AIS-сигналов (имитация с переходом на <em>Marine Traffic</em>).
         Кликните по корме корабля, чтобы увидеть последний принятый AIS-пакет
