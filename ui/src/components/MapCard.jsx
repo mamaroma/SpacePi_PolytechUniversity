@@ -139,7 +139,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
         .sat-div-icon {
           font-size: 50px;
           line-height: 1;
-          filter: drop-shadow(0 0 10px #37b34a);
+          filter: drop-shadow(0 0 10px #724796);
           animation: sat-glow 2s ease-in-out infinite;
           user-select: none;
           cursor: pointer;
@@ -150,14 +150,14 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           border-radius: 6px;
         }
         @keyframes sat-glow {
-          0%,100% { filter: drop-shadow(0 0 8px #37b34a); }
-          50%      { filter: drop-shadow(0 0 18px #f39768) drop-shadow(0 0 8px #37b34a); }
+          0%,100% { filter: drop-shadow(0 0 8px #724796); }
+          50%      { filter: drop-shadow(0 0 18px #f39768) drop-shadow(0 0 8px #724796); }
         }
         .leaflet-popup-content-wrapper,
         .leaflet-popup-tip {
-          background: #244128 !important;
+          background: #1b1530 !important;
           color: #f1ead2 !important;
-          border: 1px solid #56965b !important;
+          border: 1px solid #724796 !important;
           border-radius: 10px !important;
           box-shadow: 0 8px 24px rgba(0,0,0,.6) !important;
         }
@@ -168,7 +168,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           border-color: #3a5e3f !important;
         }
         .leaflet-control-zoom a:hover { color: #f39768 !important; }
-        .leaflet-container { background: #0a1a10 !important; }
+        .leaflet-container { background: #0d0a18 !important; }
         .leaflet-control-attribution {
           background: rgba(26,50,32,.85) !important;
           color: #8aa090 !important;
@@ -224,7 +224,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           <Marker position={[POLYTECH_COORDS.lat, POLYTECH_COORDS.lon]} icon={POLYTECH_ICON}>
             <Popup>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                <div style={{ fontWeight: 700, color: "#37b34a", marginBottom: 5 }}>
+                <div style={{ fontWeight: 700, color: "#724796", marginBottom: 5 }}>
                   Pi SPbPU
                 </div>
                 <div>Technopolis Polytech</div>
@@ -294,8 +294,8 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                   center={[current.lat, current.lon]}
                   radius={COVERAGE_M}
                   pathOptions={{
-                    color:       "#37b34a",
-                    fillColor:   "#37b34a",
+                    color:       "#724796",
+                    fillColor:   "#724796",
                     fillOpacity: 0.07,
                     weight:      1.5,
                     opacity:     0.55,
@@ -312,7 +312,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
               >
                 <Popup>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                    <div style={{ fontWeight: 700, color: "#37b34a", marginBottom: 5 }}>
+                    <div style={{ fontWeight: 700, color: "#724796", marginBottom: 5 }}>
                       🛰 Текущая позиция
                     </div>
                     <div>{new Date(current.ts_utc).toLocaleString()}</div>
@@ -333,7 +333,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             const cur = oData?.current;
             if (!cur || !validLL(cur.lat, cur.lon)) return null;
             const isDead = !!deadSatellites?.[satName];
-            const color = isDead ? "#9aa39c" : (fleetColorMap[satName] || "#56965b");
+            const color = isDead ? "#6b5e7e" : (fleetColorMap[satName] || "#724796");
             const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
             const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
             const trackSegs = isDead ? [] : splitDateline(trackLL);
@@ -412,7 +412,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
         <span><span style={{ color: "#f39768" }}>●</span> TinyGS received</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><img src="/spbpu-logo.png" alt="SPbPU" style={{ width: 14, height: 14, borderRadius: 2 }} /> SPbPU</span>
         {showCoverage && (
-          <span><span style={{ color: "#37b34a" }}>◯</span> Coverage ≈ 2 200 km</span>
+          <span><span style={{ color: "#724796" }}>◯</span> Coverage ≈ 2 200 km</span>
         )}
       </div>
     </div>

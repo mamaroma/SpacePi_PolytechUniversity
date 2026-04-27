@@ -40,7 +40,7 @@ export default function SpaceBackground() {
       x: Math.random(),
       y: Math.random(),
       r: 0.18 + Math.random() * 0.22,
-      hue: i % 2 === 0 ? 140 : 30,   // green / orange
+      hue: i % 2 === 0 ? 275 : 22,   // purple / orange
       alpha: 0.04 + Math.random() * 0.06,
       phase: Math.random() * Math.PI * 2,
     }));
@@ -52,10 +52,10 @@ export default function SpaceBackground() {
       x: rand(-1, 1),   // normalised screen coords [-1..1]
       y: rand(-1, 1),
       z: rand(0.1, 1),  // depth: 0 = far, 1 = close
-      color: Math.random() < 0.15
-        ? `hsl(${rand(100, 160)},80%,${rand(72, 90)}%)`  // green-tinted
+      color: Math.random() < 0.18
+        ? `hsl(${rand(260, 300)},70%,${rand(72, 90)}%)`  // purple-tinted
         : Math.random() < 0.12
-          ? `hsl(${rand(20, 40)},90%,${rand(72, 88)}%)`   // orange
+          ? `hsl(${rand(18, 38)},88%,${rand(72, 88)}%)`   // orange
           : `hsl(0,0%,${rand(82, 100)}%)`,                 // white
       twinkle: rand(0, Math.PI * 2),
       twinkleSpeed: rand(0.015, 0.045),
@@ -73,11 +73,7 @@ export default function SpaceBackground() {
       ctx.clearRect(0, 0, W, H);
 
       /* Background */
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-      bgGrad.addColorStop(0,   "#030d07");
-      bgGrad.addColorStop(0.4, "#05130a");
-      bgGrad.addColorStop(1,   "#040f08");
-      ctx.fillStyle = bgGrad;
+      ctx.fillStyle = "#0a081a";
       ctx.fillRect(0, 0, W, H);
 
       /* Nebulae */

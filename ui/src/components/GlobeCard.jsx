@@ -58,7 +58,7 @@ function llToXyz(lat, lng, r) {
   return new THREE.Vector3(x * r, y * r, z * r);
 }
 
-function makeDashedLine(segment, r, color = "#37b34a") {
+function makeDashedLine(segment, r, color = "#724796") {
   const verts = [];
   for (const p of segment) {
     const v = llToXyz(p.lat, p.lng, r);
@@ -83,7 +83,7 @@ function makeDashedLine(segment, r, color = "#37b34a") {
 }
 
 function makeSatelliteSprite(r, opts = {}) {
-  const { glow = "rgba(55,179,74,0.35)", scale = 0.16 } = opts;
+  const { glow = "rgba(114,71,150,0.35)", scale = 0.16 } = opts;
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -189,7 +189,7 @@ function roughCentroid(feature) {
 // --------------------
 // Simple “beam + footprint annulus”
 // --------------------
-function makeBeamCone({ height, baseRadius, color = "#37b34a" }) {
+function makeBeamCone({ height, baseRadius, color = "#724796" }) {
   const geom = new THREE.ConeGeometry(baseRadius, height, 48, 1, true);
   const mat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(color),
@@ -203,7 +203,7 @@ function makeBeamCone({ height, baseRadius, color = "#37b34a" }) {
   return cone;
 }
 
-function makeFootprintAnnulus({ radiusOuter, radiusInner, color = "#37b34a" }) {
+function makeFootprintAnnulus({ radiusOuter, radiusInner, color = "#724796" }) {
   const geom = new THREE.RingGeometry(radiusInner, radiusOuter, 96, 1);
   const mat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(color),
@@ -218,7 +218,7 @@ function makeFootprintAnnulus({ radiusOuter, radiusInner, color = "#37b34a" }) {
 }
 
 function makeSpotLight({ intensity = 1.6, angle = Math.PI / 7, distance = 800 }) {
-  const light = new THREE.SpotLight(0x4ec866, intensity, distance, angle, 0.75, 1.0);
+  const light = new THREE.SpotLight(0x724796, intensity, distance, angle, 0.75, 1.0);
   light.castShadow = false;
   return light;
 }
@@ -254,11 +254,11 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     const popup = document.createElement("div");
     popup.style.cssText =
       "display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);" +
-      "background:#244128;border:1px solid #56965b;border-radius:8px;padding:10px 14px;" +
+      "background:#1b1530;border:1px solid #724796;border-radius:8px;padding:10px 14px;" +
       "box-shadow:0 8px 24px rgba(0,0,0,.6);white-space:nowrap;font-family:'Space Mono',monospace;" +
       "font-size:11px;color:#f1ead2;z-index:1000;pointer-events:auto;";
     popup.innerHTML =
-      '<div style="font-weight:700;color:#37b34a;margin-bottom:5px">SPbPU Ground Station</div>' +
+      '<div style="font-weight:700;color:#724796;margin-bottom:5px">SPbPU Ground Station</div>' +
       "<div>Technopolis Polytech</div>" +
       "<div>Polytechnicheskaya st. 29AF</div>" +
       "<div>Lat 60.01 &middot; Lon 30.38</div>";
@@ -498,7 +498,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
     // orbit track
     const trackR = R0 * 1.01;
-    for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#37b34a"));
+    for (const seg of segments) grp.add(makeDashedLine(seg, trackR, "#724796"));
 
     // satellite + simplified beam
     if (current && validLatLon(current.lat, current.lon)) {
@@ -512,7 +512,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const groundPos = llToXyz(lat, lng, rSurface);
 
       // satellite sprite (clickable, увеличен в ~2 раза)
-      const spr = makeSatelliteSprite(R0, { scale: 0.16, glow: "rgba(55,179,74,0.45)" });
+      const spr = makeSatelliteSprite(R0, { scale: 0.16, glow: "rgba(114,71,150,0.45)" });
       spr.position.copy(satPos);
       spr.userData = { satName: sat, clickable: true };
       grp.add(spr);
@@ -523,7 +523,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
       // beam cone: wide end on Earth, narrow end at the satellite
       const height = Math.max(0.001, rSat - rSurface);
-      const cone = makeBeamCone({ height, baseRadius: footprintOuter, color: "#37b34a" });
+      const cone = makeBeamCone({ height, baseRadius: footprintOuter, color: "#724796" });
 
       // place at mid and point down
       const midPos = satPos.clone().add(groundPos).multiplyScalar(0.5);
@@ -539,7 +539,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const { mesh: ring, mat: ringMat } = makeFootprintAnnulus({
         radiusOuter: footprintOuter,
         radiusInner: blindInner,
-        color: "#37b34a"
+        color: "#724796"
       });
 
       ring.position.copy(groundPos.clone().multiplyScalar(1.002));
@@ -588,7 +588,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       if (!mapSats.has(satName)) continue;
       if (satName === sat) continue;
       const isDead = !!deadSatellites[satName];
-      const color = isDead ? "#7a8a7d" : (fleetColorMap[satName] || "#56965b");
+      const color = isDead ? "#5e4d78" : (fleetColorMap[satName] || "#724796");
 
       if (!isDead) {
         const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
@@ -601,7 +601,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
         const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.06);
         const eSpr = makeSatelliteSprite(R0, {
           scale: isDead ? 0.12 : 0.14,
-          glow: isDead ? "rgba(218,73,39,0.30)" : `rgba(55,179,74,0.35)`,
+          glow: isDead ? "rgba(218,73,39,0.30)" : `rgba(114,71,150,0.35)`,
         });
         eSpr.position.copy(ePos);
         eSpr.userData = { satName, clickable: true };
@@ -679,7 +679,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
           globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
           bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
           showAtmosphere={true}
-          atmosphereColor="#9be1a3"
+          atmosphereColor="#9460b8"
           atmosphereAltitude={0.12}
           // labels (страны)
           labelsData={showCountryLabels ? countryLabels : []}

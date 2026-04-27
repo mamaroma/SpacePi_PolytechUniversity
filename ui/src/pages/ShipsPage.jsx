@@ -8,8 +8,8 @@ import Hint, { GuideBanner } from "../components/Hint";
 const SHIP_TYPES = {
   cargo:     { color: "#f39768", label: "Cargo" },
   tanker:    { color: "#da4927", label: "Tanker" },
-  passenger: { color: "#37b34a", label: "Passenger" },
-  fishing:   { color: "#56965b", label: "Fishing" },
+  passenger: { color: "#724796", label: "Passenger" },
+  fishing:   { color: "#8a5ab0", label: "Fishing" },
   tug:       { color: "#6cc77b", label: "Tug" },
   military:  { color: "#a52f1a", label: "Military" },
   sailing:   { color: "#cbb98c", label: "Sailing" },
@@ -227,10 +227,10 @@ export default function ShipsPage() {
         </div>
         <div className="globe-inner" style={{ height: 640 }}>
           <style>{`
-            .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #244128 !important; color: #f1ead2 !important; border: 1px solid #56965b !important; border-radius: 10px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
+            .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1b1530 !important; color: #f1ead2 !important; border: 1px solid #8a5ab0 !important; border-radius: 10px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
             .leaflet-popup-content { margin: 10px 14px !important; }
             .leaflet-control-zoom a { background: #1a3220 !important; color: #f1ead2 !important; border-color: #3a5e3f !important; }
-            .leaflet-container { background: #0a1a10 !important; }
+            .leaflet-container { background: #0d0a18 !important; }
             .leaflet-control-attribution { background: rgba(26,50,32,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
             .leaflet-control-attribution a { color: #f39768 !important; }
           `}</style>
@@ -262,7 +262,7 @@ export default function ShipsPage() {
                     </div>
 
                     <div style={{
-                      borderTop: "1px dashed #56965b",
+                      borderTop: "1px dashed #8a5ab0",
                       paddingTop: 8,
                       marginBottom: 6,
                       color: "#f39768",

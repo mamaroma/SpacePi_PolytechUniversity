@@ -26,16 +26,16 @@ const S = {
     color: "#da4927", fontWeight: 700, fontSize: 14, lineHeight: "22px", textAlign: "center",
   },
   btnAdd: {
-    background: "rgba(55,179,74,0.16)", border: "1px solid rgba(55,179,74,0.35)",
+    background: "rgba(114,71,150,0.18)", border: "1px solid rgba(114,71,150,0.40)",
     borderRadius: 6, width: 24, height: 24, cursor: "pointer",
-    color: "#37b34a", fontWeight: 700, fontSize: 16, lineHeight: "22px", textAlign: "center",
+    color: "#9460b8", fontWeight: 700, fontSize: 16, lineHeight: "22px", textAlign: "center",
   },
   th: {
     padding: "8px 10px", fontSize: 10, color: "var(--text-muted)", fontWeight: 600,
     textTransform: "uppercase", letterSpacing: "0.6px", textAlign: "left",
     borderBottom: "1px solid var(--border)",
   },
-  td: { padding: "5px 10px", borderBottom: "1px solid rgba(86,150,91,0.10)", color: "var(--text)", fontSize: 12 },
+  td: { padding: "5px 10px", borderBottom: "1px solid rgba(114,71,150,0.12)", color: "var(--text)", fontSize: 12 },
   card: {
     background: "var(--surface-1)", borderRadius: 12,
     border: "1px solid var(--border)", overflow: "hidden",
@@ -122,7 +122,7 @@ function GraphActivity() {
     if (!svg || plotted.length === 0) return;
     const clone = svg.cloneNode(true);
     const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%"); bg.setAttribute("fill", "#0a1a10");
+    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%"); bg.setAttribute("fill", "#0d0a18");
     clone.insertBefore(bg, clone.firstChild);
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" }));
     const img = new Image();
@@ -130,7 +130,7 @@ function GraphActivity() {
       const c = document.createElement("canvas");
       c.width = svg.clientWidth || 700; c.height = svg.clientHeight || 300;
       const ctx = c.getContext("2d");
-      ctx.fillStyle = "#0a1a10"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = "#0d0a18"; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
       c.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `temp_${selectedSat.replace(/\s/g,"_")}.png`; a.click(); }, "image/png");
@@ -188,9 +188,9 @@ function GraphActivity() {
                 {allPoints.map(pt => {
                   const added = !!plotted.find(p => p.id === pt.id);
                   return (
-                    <tr key={pt.id} style={{ background: added ? "rgba(55,179,74,0.10)" : "transparent", transition: "background 0.15s" }}>
+                    <tr key={pt.id} style={{ background: added ? "rgba(114,71,150,0.12)" : "transparent", transition: "background 0.15s" }}>
                       <td style={S.td}>{pt.label}</td>
-                      <td style={{ ...S.td, color: pt.temp < 0 ? "#9be1a3" : pt.temp > 40 ? "#da4927" : "var(--text)", fontWeight: 600 }}>
+                      <td style={{ ...S.td, color: pt.temp < 0 ? "#9460b8" : pt.temp > 40 ? "#da4927" : "var(--text)", fontWeight: 600 }}>
                         {pt.temp}
                       </td>
                       <td style={{ ...S.td, color: "var(--text-muted)" }}>{pt.volt}</td>
@@ -241,10 +241,10 @@ function GraphActivity() {
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8aa090" }} />
                   <YAxis tick={{ fontSize: 10, fill: "#8aa090" }} unit="°" />
                   <Tooltip
-                    contentStyle={{ background: "#244128", border: "1px solid #56965b", borderRadius: 8, fontSize: 12, color: "#f1ead2" }}
+                    contentStyle={{ background: "#231c3e", border: "1px solid rgba(114,71,150,0.55)", borderRadius: 8, fontSize: 12, color: "#ede8f5" }}
                     formatter={(v) => [`${v} °C`, "Температура"]}
                   />
-                  <ReferenceLine y={0} stroke="#56965b" strokeDasharray="4 2" />
+                  <ReferenceLine y={0} stroke="rgba(114,71,150,0.55)" strokeDasharray="4 2" />
                   <Line
                     type="monotone" dataKey="temp" stroke="#f39768" strokeWidth={2}
                     dot={{ fill: "#f39768", r: 3, strokeWidth: 0 }}
@@ -297,8 +297,8 @@ function toHexArr(u8) {
 }
 
 const FIELD_COLOR = {
-  sync: "#f3cb68", sat: "#9be1a3", type: "#56965b",
-  ts: "#6cc77b", temp: "#da4927", volt: "#f39768", cs: "#cbb98c",
+  sync: "#f3cb68", sat: "#9460b8", type: "#724796",
+  ts: "#8878a4", temp: "#da4927", volt: "#f39768", cs: "#c2b5d4",
 };
 
 function byteField(i) {
@@ -418,7 +418,7 @@ function PacketDecodeActivity() {
       )}
 
       {/* Hex dump */}
-      <div style={{ background: "#0a1a10", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 18px" }}>
+      <div style={{ background: "#130e22", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 18px" }}>
         <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, letterSpacing: "0.5px" }}>
           HEX DUMP &nbsp;·&nbsp; {hexArr.length} байт &nbsp;·&nbsp; наведи мышь на байт, чтобы узнать поле
         </div>
@@ -472,7 +472,7 @@ function PacketDecodeActivity() {
                   disabled={submitted}
                   style={{
                     ...S.input,
-                    borderColor: ok === true ? "#37b34a" : ok === false ? "#da4927" : "var(--border)",
+                    borderColor: ok === true ? "#724796" : ok === false ? "#da4927" : "var(--border)",
                   }}
                 />
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{f.hint}</div>
@@ -491,10 +491,10 @@ function PacketDecodeActivity() {
         ) : (
           <div style={{
             marginTop: 18, padding: 16, borderRadius: 12,
-            background: score === 4 ? "rgba(55,179,74,0.10)" : "rgba(218,73,39,0.10)",
-            border: `1px solid ${score === 4 ? "rgba(55,179,74,0.45)" : "rgba(218,73,39,0.45)"}`,
+            background: score === 4 ? "rgba(114,71,150,0.12)" : "rgba(218,73,39,0.10)",
+            border: `1px solid ${score === 4 ? "rgba(114,71,150,0.45)" : "rgba(218,73,39,0.45)"}`,
           }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, color: score === 4 ? "#37b34a" : "#f39768" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, color: score === 4 ? "#9460b8" : "#f39768" }}>
               {score === 4 ? "Пакет полностью декодирован!" : `Верно ${score} из 4 полей`}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -552,7 +552,7 @@ const ACTIVITIES = [
     icon: null,
     title: "Построение графиков",
     difficulty: "Легко",
-    diffColor: "#37b34a",
+    diffColor: "#724796",
     desc: "Выбери спутник, загрузи пакеты с телеметрией и построй график температуры по точкам. Сохраняй результат как CSV или PNG.",
     skills: ["Работа с данными", "Визуализация", "CSV / PNG экспорт"],
   },

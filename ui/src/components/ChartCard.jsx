@@ -12,16 +12,16 @@ import {
 
 const DARK_TOOLTIP = {
   contentStyle: {
-    background: "#244128",
-    border: "1px solid #56965b",
+    background: "#231c3e",
+    border: "1px solid rgba(114,71,150,0.55)",
     borderRadius: 8,
     boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-    color: "#f1ead2",
+    color: "#ede8f5",
     fontSize: 12,
     fontFamily: "'Space Mono', monospace",
   },
-  labelStyle: { color: "#cbb98c", marginBottom: 4 },
-  itemStyle: { color: "#f1ead2" },
+  labelStyle: { color: "#c2b5d4", marginBottom: 4 },
+  itemStyle: { color: "#ede8f5" },
 };
 
 export default function ChartCard({ title, data, lines, xKey = "x" }) {
@@ -40,17 +40,17 @@ export default function ChartCard({ title, data, lines, xKey = "x" }) {
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#2e5234"
+              stroke="rgba(114,71,150,0.20)"
               vertical={false}
             />
             <XAxis
               dataKey={xKey}
-              tick={{ fill: "#8aa090", fontSize: 10, fontFamily: "'Space Mono', monospace" }}
-              axisLine={{ stroke: "#2e5234" }}
+              tick={{ fill: "#8878a4", fontSize: 10, fontFamily: "'Space Mono', monospace" }}
+              axisLine={{ stroke: "rgba(114,71,150,0.20)" }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: "#8aa090", fontSize: 10, fontFamily: "'Space Mono', monospace" }}
+              tick={{ fill: "#8878a4", fontSize: 10, fontFamily: "'Space Mono', monospace" }}
               axisLine={false}
               tickLine={false}
               width={44}
@@ -59,7 +59,7 @@ export default function ChartCard({ title, data, lines, xKey = "x" }) {
               contentStyle={DARK_TOOLTIP.contentStyle}
               labelStyle={DARK_TOOLTIP.labelStyle}
               itemStyle={DARK_TOOLTIP.itemStyle}
-              cursor={{ stroke: "#56965b", strokeWidth: 1 }}
+              cursor={{ stroke: "rgba(114,71,150,0.45)", strokeWidth: 1 }}
             />
             <Legend
               wrapperStyle={{ fontSize: 11, fontFamily: "'Inter', sans-serif", paddingTop: 4 }}
@@ -70,7 +70,7 @@ export default function ChartCard({ title, data, lines, xKey = "x" }) {
                 type="monotone"
                 dataKey={l.key}
                 name={l.name ?? l.key}
-                stroke={l.color ?? "#37b34a"}
+                stroke={l.color ?? "#724796"}
                 strokeWidth={1.8}
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0 }}

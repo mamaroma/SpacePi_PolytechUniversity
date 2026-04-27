@@ -252,7 +252,7 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
         </div>
         <div className="sat-mini-chart">
           <div className="sat-mini-label">Батарея %</div>
-          <MiniSparkline data={seriesBat} dataKey="avg" color="var(--green)" />
+          <MiniSparkline data={seriesBat} dataKey="avg" color="var(--accent)" />
         </div>
         <div className="sat-mini-chart">
           <div className="sat-mini-label">Солнечная мощность</div>
@@ -320,7 +320,7 @@ export default function SatellitesPage() {
         }
       })
       .catch(() => {
-        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#37b34a" }]);
+        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#724796" }]);
       });
   }, []);
 
@@ -335,7 +335,7 @@ export default function SatellitesPage() {
 
   const fleetColorMap = useMemo(() => {
     const m = {};
-    for (const s of fleet) m[s.name] = s.color || "#37b34a";
+    for (const s of fleet) m[s.name] = s.color || "#724796";
     return m;
   }, [fleet]);
 
@@ -581,7 +581,7 @@ export default function SatellitesPage() {
         )}
 
         {collectMsg && (
-          <div style={{ fontSize: 12, color: "var(--green)", paddingTop: 6 }}>{collectMsg}</div>
+          <div style={{ fontSize: 12, color: "var(--accent-2)", paddingTop: 6 }}>{collectMsg}</div>
         )}
       </div>
 

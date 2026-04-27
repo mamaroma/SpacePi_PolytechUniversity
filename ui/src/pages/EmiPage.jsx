@@ -6,8 +6,8 @@ function intensityColor(dbm) {
   if (dbm >= -30) return "#da4927";   // critical — deep orange
   if (dbm >= -50) return "#f39768";   // high — light orange
   if (dbm >= -70) return "#f3cb68";   // moderate — warm gold
-  if (dbm >= -90) return "#37b34a";   // low — green
-  return "#56965b";                   // minimal — pale green
+  if (dbm >= -90) return "#724796";   // low — purple
+  return "#9460b8";                   // minimal — light purple
 }
 
 function intensityLabel(dbm) {
@@ -144,8 +144,8 @@ export default function EmiPage() {
               />
             </div>
             <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
-              <span><span style={{ color: "#56965b" }}>●</span> Низкое ЭМ излучение</span>
-              <span><span style={{ color: "#37b34a" }}>●</span> Среднее ЭМ излучение</span>
+              <span><span style={{ color: "#9460b8" }}>●</span> Низкое ЭМ излучение</span>
+              <span><span style={{ color: "#724796" }}>●</span> Среднее ЭМ излучение</span>
               <span><span style={{ color: "#da4927" }}>●</span> Высокое ЭМ излучение</span>
               <span style={{ marginLeft: "auto" }}>Источник: спутник Polytech Universe · данные СПбПУ</span>
             </div>
@@ -218,10 +218,10 @@ export default function EmiPage() {
             </div>
             <div className="globe-inner" style={{ height: 600 }}>
               <style>{`
-                .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #244128 !important; color: #f1ead2 !important; border: 1px solid #56965b !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
+                .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #231c3e !important; color: #ede8f5 !important; border: 1px solid rgba(114,71,150,0.55) !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
                 .leaflet-popup-content { margin: 10px 14px !important; }
                 .leaflet-control-zoom a { background: #1a3220 !important; color: #f1ead2 !important; border-color: #3a5e3f !important; }
-                .leaflet-container { background: #0a1a10 !important; }
+                .leaflet-container { background: #0d0a18 !important; }
                 .leaflet-control-attribution { background: rgba(26,50,32,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
                 .leaflet-control-attribution a { color: #f39768 !important; }
               `}</style>
@@ -262,8 +262,8 @@ export default function EmiPage() {
               <span><span style={{ color: "#da4927" }}>●</span> Critical (&ge; -30 dBm)</span>
               <span><span style={{ color: "#f39768" }}>●</span> High (-50…-30)</span>
               <span><span style={{ color: "#f3cb68" }}>●</span> Moderate (-70…-50)</span>
-              <span><span style={{ color: "#37b34a" }}>●</span> Low (-90…-70)</span>
-              <span><span style={{ color: "#56965b" }}>●</span> Minimal (&lt; -90)</span>
+              <span><span style={{ color: "#724796" }}>●</span> Low (-90…-70)</span>
+              <span><span style={{ color: "#9460b8" }}>●</span> Minimal (&lt; -90)</span>
             </div>
           </div>
 
