@@ -1,47 +1,46 @@
 import React, { useState } from "react";
 
+/* darkBg: логотипы со светлыми цветами — показываем на тёмном фоне (наш зелёный).
+   lightBg: логотипы с тёмными/чёрными цветами — показываем на белом прямоугольнике. */
 const PARTNERS = [
   {
     name: "Политех СПб",
     role: "СПбПУ Петра Великого",
-    logoText: "ПОЛИ",
-    logoVariant: "",
+    logo: "/polytech-logo.svg",
+    bg: "light",
     href: "https://www.spbstu.ru/",
   },
   {
-    name: "SpacePi",
-    role: "Лаборатория",
-    logoText: "Sπ",
-    logoVariant: "mix",
-    href: "https://spacepi.ru/",
+    name: "Space-π",
+    role: "Научно-образовательный проект",
+    logo: "/spacepi-logo.svg",
+    bg: "dark",
+    href: "https://spacepi.space/",
   },
   {
     name: "ФСИ",
     role: "Фонд содействия инновациям",
-    logoText: "ФСИ",
-    logoVariant: "orange",
+    logo: "/fsi-logo.png",
+    bg: "light",
     href: "https://fasie.ru/",
   },
   {
     name: "Роскосмос",
     role: "Госкорпорация",
-    logoText: "🚀",
-    logoVariant: "orange",
+    logo: "/roscosmos-logo.png",
+    bg: "light",
     href: "https://www.roscosmos.ru/",
   },
   {
-    name: "ИЭиТ",
-    role: "ВШПФиКТ · СПбПУ",
-    logoText: "ИЭ",
-    logoVariant: "",
-    href: "https://www.spbstu.ru/structure/institut_energetiki_i_transportnyh_sistem/",
+    name: "ИЭиТ · ВШПФиКТ",
+    role: "СПбПУ",
+    logo: "/polytech-logo.svg",
+    bg: "light",
+    href: "https://www.spbstu.ru/structure/vysshaya-shkola-promyshlennoy-fiziki-i-kompyuternykh-tekhnologiy/",
   },
 ];
 
 function PartnerCard({ p }) {
-  const variantClass =
-    p.logoVariant === "orange" ? "partner-logo--orange" :
-    p.logoVariant === "mix"    ? "partner-logo--mix"    : "";
   return (
     <a
       className="partner-card"
@@ -50,7 +49,14 @@ function PartnerCard({ p }) {
       rel="noopener noreferrer"
       title={`${p.name} — ${p.role}`}
     >
-      <div className={`partner-logo ${variantClass}`}>{p.logoText}</div>
+      <div className={`partner-logo-img-wrap partner-logo-img-wrap--${p.bg}`}>
+        <img
+          src={p.logo}
+          alt={p.name}
+          className="partner-logo-img"
+          loading="lazy"
+        />
+      </div>
       <div className="partner-name">{p.name}</div>
       <div className="partner-role">{p.role}</div>
     </a>
