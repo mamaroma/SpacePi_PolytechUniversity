@@ -1,10 +1,78 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import { useNavigate } from "react-router-dom";
+import { fetchStorageSecretKey } from "../api";
 
 const BASE = import.meta.env.VITE_API_BASE || "";
 const ROLE_COLORS = { admin: "var(--accent)", moderator: "var(--yellow)", reader: "var(--text-muted)" };
 const ROLE_LABELS = { admin: "Admin", moderator: "Moderator", reader: "Reader" };
+
+function SecretKeyCard({ authHeader }) {
+  const [shown, setShown] = useState(false);
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const reveal = async () => {
+    if (shown) { setShown(false); return; }
+    setBusy(true); setErr("");
+    try {
+      const r = await fetchStorageSecretKey(authHeader);
+      setKey(r.secret_key);
+      setShown(true);
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async () => {
+    if (!key) return;
+    try { await navigator.clipboard.writeText(key); } catch {}
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 20, borderColor: "rgba(218,73,39,0.45)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--orange-2)", marginBottom: 6 }}>
+            Secret Key для Хранилища
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.55 }}>
+            Этот ключ выдают пользователям с ролью <strong>Reader</strong>, чтобы
+            они могли получить доступ к разделу <em>«Хранилище»</em>. Ключ
+            фиксированный — он никогда не меняется.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-primary" onClick={reveal} disabled={busy}>
+            {busy ? "…" : shown ? "Скрыть" : "Показать ключ"}
+          </button>
+          {shown && (
+            <button className="btn" onClick={copy}>Копировать</button>
+          )}
+        </div>
+      </div>
+
+      {err && (
+        <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>{err}</div>
+      )}
+
+      {shown && (
+        <div style={{
+          marginTop: 14, padding: "12px 14px", borderRadius: 10,
+          background: "#130e22", border: "1px solid rgba(218,73,39,0.55)",
+          fontFamily: "'Space Mono', monospace", fontSize: 13,
+          color: "var(--orange)", letterSpacing: "0.5px",
+          wordBreak: "break-all", lineHeight: 1.5,
+        }}>
+          {key}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const { user, authHeader, isAdmin } = useAuth();
@@ -60,6 +128,8 @@ export default function AdminPage() {
           {error}
         </div>
       )}
+
+      <SecretKeyCard authHeader={authHeader} />
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
         {Object.entries(ROLE_LABELS).map(([role, label]) => (

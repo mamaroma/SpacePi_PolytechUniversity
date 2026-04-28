@@ -3,7 +3,12 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { fetchTelemetry, isoDaysAgo } from "../api";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import {
+  fetchTelemetry, isoDaysAgo,
+  decodeAisFile, decodeTelemetryFile, demodulateIqFile,
+} from "../api";
 
 // ─── Shared styles ─────────────────────────────────────────────────────────────
 const S = {
@@ -94,11 +99,57 @@ function GraphActivity() {
           volt: +Number(p.volt || 3.7).toFixed(3),
         };
       });
-      if (pts.length > 0) { setAllPoints(pts); setPlotted([]); setNotice(`Загружено ${pts.length} реальных точек`); }
+      if (pts.length > 0) { setAllPoints(pts); setPlotted([]); setNotice(`Загружено ${pts.length} реальных точек`); setUploadAis([]); }
       else { setNotice("Реальных данных нет — используются демо-данные"); }
     } catch { setNotice("Нет подключения к API — используются демо-данные"); }
     setLoading(false);
   }, [selectedSat]);
+
+  // Загрузка пользовательского пакета — телеметрия (.bin) или AIS (.txt)
+  const [uploadAis, setUploadAis] = useState([]);   // декодированные AIS-точки для карты
+  const handleUserFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLoading(true); setNotice("");
+    const isAis = /\.(txt|aivdm|log)$/i.test(file.name);
+    try {
+      if (isAis) {
+        const res = await decodeAisFile(file);
+        const pts = (res.decoded || []).filter(p => p.lat != null && p.lon != null).map((p, i) => ({
+          id: i, mmsi: p.mmsi, lat: p.lat, lon: p.lon,
+          speed: p.speed, course: p.course, heading: p.heading,
+          status: p.status, msg_type: p.msg_type,
+        }));
+        setUploadAis(pts); setPlotted([]); setAllPoints([]);
+        setNotice(`AIS: декодировано ${res.count} сообщений (${res.errors} ошибок)`);
+      } else {
+        const res = await decodeTelemetryFile(file);
+        const pts = (res.packets || [])
+          .filter(p => p.crc_ok || p.sync_ok)
+          .map((p, i) => ({
+            id: i,
+            ts_ms: (p.ts_unix || Math.floor(Date.now() / 1000)) * 1000,
+            label: p.ts_iso ? p.ts_iso.slice(11, 16) : `#${i}`,
+            date: p.ts_iso ? p.ts_iso.slice(0, 10) : "",
+            temp: +(p.temp_c ?? 0).toFixed(2),
+            volt: +((p.vbus_mv ?? 0) / 1000).toFixed(3),
+            battery: p.battery_pct,
+            rssi: p.rssi_dbm,
+          }));
+        if (pts.length === 0) {
+          setNotice(`В файле не найдено валидных пакетов (всего ${res.count}). Проверь формат.`);
+        } else {
+          setAllPoints(pts); setPlotted([]); setUploadAis([]);
+          setNotice(`Декодировано ${pts.length} телеметрия-пакетов из «${file.name}»`);
+        }
+      }
+    } catch (err) {
+      setNotice("Ошибка: " + (err?.message || err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addPoint = (pt) => {
     if (plotted.find(p => p.id === pt.id)) return;
@@ -151,16 +202,62 @@ function GraphActivity() {
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <select
           value={selectedSat}
-          onChange={e => { setSelectedSat(e.target.value); setAllPoints(genDemo(e.target.value)); setPlotted([]); setNotice(""); }}
+          onChange={e => { setSelectedSat(e.target.value); setAllPoints(genDemo(e.target.value)); setPlotted([]); setUploadAis([]); setNotice(""); }}
           style={S.select}
         >
           {DEMO_SATS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <button onClick={loadReal} disabled={loading} style={S.btnSec}>
-          {loading ? "Загрузка..." : "Загрузить данные с сервера"}
+          {loading ? "Загрузка..." : "Загрузить с сервера"}
         </button>
-        {notice && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{notice}</span>}
+        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+          {loading ? "..." : "↑ Загрузить свой пакет"}
+          <input
+            type="file"
+            accept=".bin,.dat,.tlm,.txt,.aivdm,.log"
+            style={{ display: "none" }}
+            onChange={handleUserFile}
+            disabled={loading}
+          />
+        </label>
+        <span style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 240 }}>
+          .bin/.dat — телеметрия · .txt/.aivdm — AIS
+        </span>
+        {notice && <span style={{ fontSize: 12, color: "var(--accent-2)", flex: "1 0 100%" }}>{notice}</span>}
       </div>
+
+      {/* Если загружен AIS — рисуем карту с точками */}
+      {uploadAis.length > 0 && (
+        <div style={{ ...S.card, padding: 0, height: 360, overflow: "hidden" }}>
+          <MapContainer
+            center={[uploadAis[0].lat, uploadAis[0].lon]}
+            zoom={4}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+              attribution="&copy; CARTO"
+            />
+            {uploadAis.map(p => (
+              <CircleMarker
+                key={p.id}
+                center={[p.lat, p.lon]}
+                radius={6}
+                pathOptions={{ color: "#f39768", fillColor: "#f39768", fillOpacity: 0.85, weight: 1 }}
+              >
+                <Popup>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#ede8f5" }}>
+                    <div style={{ color: "#f39768", fontWeight: 700, marginBottom: 4 }}>MMSI {p.mmsi}</div>
+                    Скорость: {p.speed} уз<br />
+                    Курс: {p.course}°<br />
+                    Тип msg: {p.msg_type}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
+          </MapContainer>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,1fr) minmax(340px,1.6fr)", gap: 16 }}>
         {/* Left: data table */}
@@ -545,6 +642,298 @@ function PacketDecodeActivity() {
   );
 }
 
+// ─── Activity 3: AIS decoding ──────────────────────────────────────────────────
+function AisDecodeActivity() {
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const handle = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true); setError("");
+    try {
+      const r = await decodeAisFile(file);
+      setResult(r);
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, padding: 18 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 14 }}>
+          Загрузите файл <code>.txt</code> с сообщениями NMEA-AIVDM (по строке на пакет).
+          Каждая строка должна выглядеть так:
+          <pre style={{ marginTop: 8, padding: 10, background: "#130e22", borderRadius: 6, fontSize: 12, color: "var(--accent-2)", overflow: "auto" }}>
+{`!AIVDM,1,1,,A,13lq2>002f0V3scdr8ATr40p8L07,0*6A
+!AIVDM,1,1,,B,15?dU2h0j710dfifFDumRTHr0<0=,0*33`}
+          </pre>
+        </div>
+        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+          {busy ? "Декодирую…" : "↑ Загрузить AIS-файл"}
+          <input type="file" accept=".txt,.aivdm,.log" style={{ display: "none" }} onChange={handle} disabled={busy} />
+        </label>
+        {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
+      </div>
+
+      {result && (
+        <div style={{ ...S.card, padding: 0 }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>Файл: {result.filename}</span>
+            <span style={{ color: "var(--accent-2)", fontFamily: "'Space Mono', monospace" }}>
+              ✓ {result.count} · ✗ {result.errors}
+            </span>
+          </div>
+          <div style={{ maxHeight: 460, overflow: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "'Space Mono', monospace" }}>
+              <thead style={{ position: "sticky", top: 0, background: "var(--surface-2)" }}>
+                <tr>
+                  {["MMSI", "msg", "lat", "lon", "speed", "course", "heading", "status"].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.decoded.map((p, i) => (
+                  <tr key={i} style={{ background: i % 2 ? "transparent" : "rgba(114,71,150,0.06)" }}>
+                    <td style={{ ...S.td, color: "var(--orange)", fontWeight: 600 }}>{p.mmsi}</td>
+                    <td style={S.td}>{p.msg_type}</td>
+                    <td style={S.td}>{typeof p.lat === "number" ? p.lat.toFixed(4) : "—"}</td>
+                    <td style={S.td}>{typeof p.lon === "number" ? p.lon.toFixed(4) : "—"}</td>
+                    <td style={S.td}>{p.speed ?? "—"}</td>
+                    <td style={S.td}>{p.course ?? "—"}</td>
+                    <td style={S.td}>{p.heading ?? "—"}</td>
+                    <td style={{ ...S.td, color: "var(--text-muted)" }}>{String(p.status ?? "")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Activity 4: Telemetry decoding ────────────────────────────────────────────
+function TelemetryDecodeActivity() {
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const handle = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true); setError("");
+    try {
+      const r = await decodeTelemetryFile(file);
+      setResult(r);
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, padding: 18 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 12 }}>
+          Загрузите бинарный файл с пакетами телеметрии Polytech Universe.
+          Формат пакета (32 байта):
+        </div>
+        <pre style={{ padding: 12, background: "#130e22", borderRadius: 6, fontSize: 11, color: "var(--accent-2)", overflow: "auto", marginBottom: 14 }}>
+{`bytes 0..1   sync     0xAA 0x55
+bytes 2..3   sat_id   uint16 LE
+bytes 4..7   ts       uint32 LE (UNIX seconds)
+bytes 8..11  temp     int32  LE (×100, °C)
+bytes 12..15 vbus_mv  uint32 LE
+bytes 16..19 ibus_ma  int32  LE
+bytes 20..21 batt%    uint16 LE (×10)
+bytes 22..23 rssi     int16  LE
+bytes 24..25 snr      int16  LE
+bytes 26..29 uptime   uint32 LE (sec)
+bytes 30..31 CRC-16   CCITT-FALSE, big-endian`}
+        </pre>
+        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+          {busy ? "Декодирую…" : "↑ Загрузить .bin/.dat"}
+          <input type="file" accept=".bin,.dat,.tlm" style={{ display: "none" }} onChange={handle} disabled={busy} />
+        </label>
+        {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
+          Демо-файл доступен в разделе «Хранилище» → Телеметрия.
+        </div>
+      </div>
+
+      {result && (
+        <div style={{ ...S.card, padding: 0 }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>{result.filename}</span>
+            <span style={{ color: "var(--text-muted)", fontFamily: "'Space Mono', monospace", fontSize: 12 }}>{result.size_bytes} B</span>
+            <span style={{ color: "var(--accent-2)", fontFamily: "'Space Mono', monospace", fontSize: 12 }}>{result.count} пакетов</span>
+          </div>
+          <div style={{ maxHeight: 460, overflow: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "'Space Mono', monospace" }}>
+              <thead style={{ position: "sticky", top: 0, background: "var(--surface-2)" }}>
+                <tr>
+                  {["#", "sync", "sat", "ts", "T °C", "Vbus", "Ibus", "bat%", "RSSI", "SNR", "uptime", "CRC"].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.packets.map((p, i) => (
+                  <tr key={i} style={{ background: i % 2 ? "transparent" : "rgba(114,71,150,0.06)" }}>
+                    <td style={{ ...S.td, color: "var(--text-muted)" }}>{i}</td>
+                    <td style={{ ...S.td, color: p.sync_ok ? "var(--accent)" : "var(--orange-2)" }}>{p.sync_ok ? "✓" : "✗"}</td>
+                    <td style={{ ...S.td, color: "var(--orange)", fontWeight: 600 }}>{p.sat_id}</td>
+                    <td style={S.td}>{p.ts_iso?.slice(11, 19) || p.ts_unix}</td>
+                    <td style={{ ...S.td, color: p.temp_c < 0 ? "#9460b8" : p.temp_c > 40 ? "#da4927" : "var(--text)" }}>{p.temp_c}</td>
+                    <td style={S.td}>{p.vbus_mv}</td>
+                    <td style={S.td}>{p.ibus_ma}</td>
+                    <td style={S.td}>{p.battery_pct}</td>
+                    <td style={S.td}>{p.rssi_dbm}</td>
+                    <td style={S.td}>{p.snr_db}</td>
+                    <td style={S.td}>{p.uptime_sec}</td>
+                    <td style={{ ...S.td, color: p.crc_ok ? "var(--accent)" : "var(--orange-2)" }}>{p.crc_ok ? "OK" : "FAIL"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Activity 5: IQ demodulation (gm.py) ───────────────────────────────────────
+function IqDemodActivity() {
+  const [params, setParams] = useState({
+    sample_rate: 250000, center_freq: 437845000, bandwidth: 62500,
+    spreading_factor: 8, decimation: 40, interpolation: 1,
+    cutoff_freq: 35000, transition_width: 10000, freq_shift: 60000,
+    sync_word: 18, preamble_len: 8,
+  });
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const set = (k) => (e) => setParams(p => ({ ...p, [k]: Number(e.target.value) }));
+
+  const handle = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true); setError("");
+    try {
+      const r = await demodulateIqFile(file, params);
+      setResult(r);
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, padding: 18 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 14 }}>
+          Имитация пайплайна <code>gm.py</code> — демодулятора сырой IQ-записи (LoRa).
+          Загрузите файл <code>raw.iq</code> (complex float32, c флешки SDR)
+          и задайте параметры приёма из комментариев в коде <code>gm.py</code>:
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10, marginBottom: 14,
+        }}>
+          {[
+            ["sample_rate",      "Sample rate (Гц)"],
+            ["center_freq",      "Center freq (Гц)"],
+            ["bandwidth",        "Bandwidth (Гц)"],
+            ["spreading_factor", "Spreading factor"],
+            ["decimation",       "Decimation"],
+            ["interpolation",    "Interpolation"],
+            ["cutoff_freq",      "Cutoff freq (Гц)"],
+            ["transition_width", "Transition (Гц)"],
+            ["freq_shift",       "Freq shift (Гц)"],
+            ["sync_word",        "Sync word"],
+            ["preamble_len",     "Preamble len"],
+          ].map(([k, lbl]) => (
+            <label key={k} className="form-label">
+              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{lbl}</span>
+              <input
+                type="number" className="form-input"
+                value={params[k]} onChange={set(k)}
+                style={{ fontFamily: "'Space Mono', monospace" }}
+              />
+            </label>
+          ))}
+        </div>
+
+        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+          {busy ? "Демодулирую…" : "↑ Загрузить raw.iq"}
+          <input type="file" accept=".iq,.cf32,.dat,.bin" style={{ display: "none" }} onChange={handle} disabled={busy} />
+        </label>
+        {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
+      </div>
+
+      {result && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ ...S.card, padding: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+              Параметры записи
+            </div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, lineHeight: 1.7 }}>
+              <div>Файл: <span style={{ color: "var(--orange)" }}>{result.filename}</span></div>
+              <div>Размер: {result.size_bytes} B</div>
+              <div>Сэмплов: {result.n_samples}</div>
+              <div>Длительность: {result.duration_s} c</div>
+              <div>Эффективная частота: {(result.effective_sample_rate / 1000).toFixed(2)} kS/s</div>
+              <div style={{ marginTop: 10, color: result.crc_ok ? "var(--accent-2)" : "var(--orange-2)" }}>
+                CRC: {result.crc_ok ? "✓ OK" : "✗ FAIL"}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ ...S.card, padding: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+              Пайплайн обработки
+            </div>
+            <ol style={{ paddingLeft: 18, fontSize: 12, color: "var(--text-dim)", lineHeight: 1.65 }}>
+              {result.pipeline.map((step, i) => <li key={i}>{step}</li>)}
+            </ol>
+          </div>
+
+          <div style={{ ...S.card, padding: 16, gridColumn: "1 / -1" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+              data.bin (первые 64 байта)
+            </div>
+            <pre style={{ padding: 12, background: "#130e22", borderRadius: 6, fontSize: 11, color: "var(--accent-2)", overflow: "auto", margin: 0, fontFamily: "'Space Mono', monospace" }}>
+              {result.payload_hex}
+            </pre>
+            {result.decoded_payload && (
+              <div style={{ marginTop: 12, padding: 12, background: "rgba(114,71,150,0.10)", borderRadius: 6, border: "1px solid rgba(114,71,150,0.35)", fontSize: 13, color: "var(--text)" }}>
+                <span style={{ color: "var(--orange)", fontWeight: 700, marginRight: 8 }}>Decoded:</span>
+                {result.decoded_payload}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Challenge Page ────────────────────────────────────────────────────────
 const ACTIVITIES = [
   {
@@ -553,8 +942,8 @@ const ACTIVITIES = [
     title: "Построение графиков",
     difficulty: "Легко",
     diffColor: "#724796",
-    desc: "Выбери спутник, загрузи пакеты с телеметрией и построй график температуры по точкам. Сохраняй результат как CSV или PNG.",
-    skills: ["Работа с данными", "Визуализация", "CSV / PNG экспорт"],
+    desc: "Выбери спутник, загрузи пакеты с телеметрией и построй график температуры. Можно подгружать свои файлы AIS / Telemetry с отображением на карте и диаграммах.",
+    skills: ["Работа с данными", "Визуализация", "Загрузка файлов"],
   },
   {
     key: "decode",
@@ -564,6 +953,33 @@ const ACTIVITIES = [
     diffColor: "#f39768",
     desc: "Получи сырой двоичный пакет со спутника и декодируй его по протоколу: satellite ID, температуру, напряжение и контрольную сумму.",
     skills: ["Двоичный протокол", "Little-endian", "XOR контрольная сумма"],
+  },
+  {
+    key: "ais",
+    icon: null,
+    title: "Декодирование AIS",
+    difficulty: "Средне",
+    diffColor: "#f39768",
+    desc: "Загрузи бинарный или текстовый файл с пакетами AIS (NMEA-AIVDM), декодируй MMSI, координаты, скорость и курс кораблей.",
+    skills: ["NMEA-AIVDM", "AIS protocol", "pyais"],
+  },
+  {
+    key: "telemetry",
+    icon: null,
+    title: "Декодирование телеметрии",
+    difficulty: "Средне",
+    diffColor: "#f39768",
+    desc: "Загрузи бинарный поток телеметрии Polytech Universe и распарси температуру, напряжение, RSSI/SNR. Проверь CRC-16 каждого пакета.",
+    skills: ["Бинарный парсинг", "struct LE/BE", "CRC-16 CCITT"],
+  },
+  {
+    key: "iq",
+    icon: null,
+    title: "Демодуляция сырой записи",
+    difficulty: "Средне",
+    diffColor: "#f39768",
+    desc: "Загрузи raw.iq запись с SDR, задай параметры приёма (sample rate, freq shift, SF, bandwidth) и пропусти через тот же пайплайн, что в gm.py — до получения data.bin.",
+    skills: ["LoRa SDR", "GNU Radio params", "FFT demod"],
   },
 ];
 
@@ -643,7 +1059,11 @@ export default function ChallengePage() {
         </div>
       </div>
 
-      {activity === "graph" ? <GraphActivity /> : <PacketDecodeActivity />}
+      {activity === "graph"     && <GraphActivity />}
+      {activity === "decode"    && <PacketDecodeActivity />}
+      {activity === "ais"       && <AisDecodeActivity />}
+      {activity === "telemetry" && <TelemetryDecodeActivity />}
+      {activity === "iq"        && <IqDemodActivity />}
     </div>
   );
 }

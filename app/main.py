@@ -23,6 +23,9 @@ from .auth import router as auth_router
 from .user_models import User  # noqa: F401 — registers User table with SQLModel metadata
 from .models import NewsItem  # noqa: F401 — registers NewsItem table with SQLModel metadata
 from .sdr_bridge import attach_sdr, sdr_startup, sdr_shutdown
+from .decode_api import router as decode_router
+from .storage_api import router as storage_router, seed_demo_storage
+from .satellites_api import router as satellites_info_router
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +104,12 @@ def get_fleet() -> List[Dict[str, Any]]:
 app.include_router(collect_router)
 app.include_router(news_router)
 app.include_router(auth_router)
+app.include_router(decode_router)
+app.include_router(storage_router)
+app.include_router(satellites_info_router)
+
+# Заполняем «Хранилище» демо-файлами на старте (если ещё пусто)
+seed_demo_storage()
 
 # Mount SDR sub-service under /sdr
 attach_sdr(app)

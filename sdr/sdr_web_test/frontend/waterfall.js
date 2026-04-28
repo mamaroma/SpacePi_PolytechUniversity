@@ -2,33 +2,46 @@
  * Waterfall display renderer for SDR spectrum visualization
  */
 class WaterfallRenderer {
-    constructor(canvasId) {
+    constructor(canvasId, spectrumCanvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        
+
+        // АЧХ canvas — горизонтальный спектр поверх водопада
+        this.spectrumCanvas = spectrumCanvasId
+            ? document.getElementById(spectrumCanvasId)
+            : null;
+        this.spectrumCtx = this.spectrumCanvas
+            ? this.spectrumCanvas.getContext('2d')
+            : null;
+
         // Display parameters
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.fftSize = 1024;
-        
+
         // Waterfall data buffer
         this.waterfallData = [];
         this.maxRows = this.height;
-        
+
         // Color mapping parameters
         this.intensity = 0.5;
         this.contrast = 0.5;
         this.minDb = -80;
         this.maxDb = -20;
-        
+
+        // Сглаженный спектр (для красивой АЧХ)
+        this.smoothedSpectrum = null;
+        this.smoothFactor = 0.65;
+        this.peakHold = null;
+
         // Frequency display
         this.centerFreq = 145800000; // Default
         this.sampleRate = 2048000;   // Default
-        
+
         // Initialize canvas
         this.initCanvas();
         this.createFrequencyScale();
-        
+
         // Start animation loop
         this.animate();
     }
@@ -48,7 +61,7 @@ class WaterfallRenderer {
         // Update frequency parameters
         this.centerFreq = centerFreq;
         this.sampleRate = sampleRate;
-        
+
         // Ensure FFT data is the right size
         if (fftData.length !== this.fftSize) {
             // Interpolate or truncate to match display width
@@ -57,15 +70,28 @@ class WaterfallRenderer {
             // Resample to canvas width
             fftData = this.resampleFFTData(fftData, this.width);
         }
-        
+
         // Add new row to waterfall data
         this.waterfallData.unshift(fftData);
-        
+
         // Keep only the rows we can display
         if (this.waterfallData.length > this.maxRows) {
             this.waterfallData = this.waterfallData.slice(0, this.maxRows);
         }
-        
+
+        // Сглаживаем для АЧХ
+        if (!this.smoothedSpectrum || this.smoothedSpectrum.length !== fftData.length) {
+            this.smoothedSpectrum = fftData.slice();
+            this.peakHold = fftData.slice();
+        } else {
+            const k = this.smoothFactor;
+            for (let i = 0; i < fftData.length; i++) {
+                this.smoothedSpectrum[i] = this.smoothedSpectrum[i] * k + fftData[i] * (1 - k);
+                if (fftData[i] > this.peakHold[i]) this.peakHold[i] = fftData[i];
+                else this.peakHold[i] = this.peakHold[i] * 0.998 + fftData[i] * 0.002;
+            }
+        }
+
         // Update frequency scale
         this.updateFrequencyScale();
     }
@@ -119,6 +145,94 @@ class WaterfallRenderer {
         // Clear canvas and draw the waterfall
         this.clearCanvas();
         this.ctx.putImageData(imageData, 0, 0);
+
+        // Отрисовать АЧХ
+        this.renderSpectrumLine();
+    }
+
+    renderSpectrumLine() {
+        if (!this.spectrumCtx || !this.smoothedSpectrum) return;
+        const ctx = this.spectrumCtx;
+        const W = this.spectrumCanvas.width;
+        const H = this.spectrumCanvas.height;
+        const data = this.smoothedSpectrum;
+        const peaks = this.peakHold;
+        const N = data.length;
+
+        // фон + сетка
+        ctx.fillStyle = '#0d0a18';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.strokeStyle = 'rgba(114,71,150,0.18)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+            const y = (i / 5) * H;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+        }
+        for (let i = 0; i <= 8; i++) {
+            const x = (i / 8) * W;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, H);
+            ctx.stroke();
+        }
+
+        const dbToY = (db) => {
+            const norm = (db - this.minDb) / (this.maxDb - this.minDb);
+            const v = Math.max(0, Math.min(1, norm));
+            return H - v * H;
+        };
+
+        // дБ-метки слева
+        ctx.fillStyle = '#8878a4';
+        ctx.font = '10px "Space Mono", monospace';
+        for (let i = 0; i <= 4; i++) {
+            const db = this.maxDb - (i / 4) * (this.maxDb - this.minDb);
+            const y = (i / 4) * H;
+            ctx.fillText(`${db.toFixed(0)} dB`, 4, y + 11);
+        }
+
+        // peak hold (тонкая оранжевая линия)
+        ctx.strokeStyle = 'rgba(243,151,104,0.65)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+            const x = (i / (N - 1)) * W;
+            const y = dbToY(peaks[i]);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // живая АЧХ — заливка градиентом
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0,   'rgba(114,71,150,0.55)');
+        grad.addColorStop(1,   'rgba(114,71,150,0.05)');
+
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (let i = 0; i < N; i++) {
+            const x = (i / (N - 1)) * W;
+            const y = dbToY(data[i]);
+            ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // основная линия — насыщенный фиолет
+        ctx.strokeStyle = '#9460b8';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+            const x = (i / (N - 1)) * W;
+            const y = dbToY(data[i]);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
     }
     
     dbToColor(dbValue) {

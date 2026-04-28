@@ -18,3 +18,5 @@ boto3
 numpy
 scipy
 pyzmq
+# AIS decoder for Challenge module
+pyais

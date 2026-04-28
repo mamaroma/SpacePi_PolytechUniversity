@@ -20,6 +20,13 @@
             <!-- Спектрограмма -->
             <section class="spectrum-section">
                 <div id="pass-status" class="pass-status">ИДЁТ ПРОЛЁТ!</div>
+
+                <!-- АЧХ — горизонтальный спектр (live) -->
+                <div class="spectrum-line-wrap">
+                    <div class="spectrum-line-title">АЧХ — амплитудно-частотная характеристика</div>
+                    <canvas id="spectrum-line-canvas" width="1024" height="160"></canvas>
+                </div>
+
                 <div class="spectrum-container">
                     <canvas id="waterfall-canvas" width="1024" height="300"></canvas>
                     <div class="frequency-scale" id="frequency-scale"></div>
@@ -81,7 +88,7 @@
         });
 
         async function initializeApp() {
-            waterfallRenderer = new WaterfallRenderer('waterfall-canvas');
+            waterfallRenderer = new WaterfallRenderer('waterfall-canvas', 'spectrum-line-canvas');
             timelinePlayer = new TimelinePlayer('timeline-canvas', 'timeline-controls');
             connectWebSocket();
             

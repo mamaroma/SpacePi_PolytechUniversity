@@ -122,3 +122,95 @@ export async function trackNewsView(id) {
     // non-critical — ignore errors silently
   }
 }
+
+/* ── Satellites Info (Documentation) ───────────────── */
+export async function fetchSatellitesInfo() {
+  return fetchJson(`${API_BASE}/api/satellites/info`);
+}
+
+export async function createSatelliteInfo(body, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/satellites/info`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+export async function deleteSatelliteInfo(id, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/satellites/info/${id}`, {
+    method: "DELETE",
+    headers: { ...authHeader },
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+/* ── Decoders for Challenge ─────────────────────────── */
+async function _uploadFile(path, file, extraFields = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  for (const [k, v] of Object.entries(extraFields)) {
+    fd.append(k, String(v));
+  }
+  const r = await fetch(`${API_BASE}${path}`, { method: "POST", body: fd });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+export const decodeAisFile      = (file) => _uploadFile("/api/decode/ais", file);
+export const decodeTelemetryFile = (file) => _uploadFile("/api/decode/telemetry", file);
+export const demodulateIqFile   = (file, params = {}) => _uploadFile("/api/decode/iq", file, params);
+
+/* ── Storage ────────────────────────────────────────── */
+export async function fetchStorageList(authHeader = {}, unlockKey = null) {
+  const qs = unlockKey ? `?unlock_key=${encodeURIComponent(unlockKey)}` : "";
+  const r = await fetch(`${API_BASE}/api/storage${qs}`, { headers: { ...authHeader } });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+export function storageDownloadUrl(kind, name, unlockKey) {
+  const qs = unlockKey ? `?unlock_key=${encodeURIComponent(unlockKey)}` : "";
+  return `${API_BASE}/api/storage/${kind}/${encodeURIComponent(name)}${qs}`;
+}
+
+export async function uploadStorageFile(kind, file, authHeader = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(`${API_BASE}/api/storage/${kind}`, {
+    method: "POST",
+    headers: { ...authHeader },
+    body: fd,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+export async function deleteStorageFile(kind, name, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/storage/${kind}/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+    headers: { ...authHeader },
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+export async function fetchStorageSecretKey(authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/storage/_secret_key`, { headers: { ...authHeader } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}

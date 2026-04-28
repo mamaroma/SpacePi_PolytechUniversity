@@ -11,6 +11,8 @@ import CreatorsPage from "./pages/CreatorsPage";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
 import ChallengePage from "./pages/ChallengePage";
+import StoragePage from "./pages/StoragePage";
+import SnapshotsPage from "./pages/SnapshotsPage";
 import Footer from "./components/Footer";
 import { API_BASE } from "./api";
 
@@ -64,6 +66,16 @@ const MenuIcons = {
       <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
     </svg>
   ),
+  storage: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+    </svg>
+  ),
+  snapshots: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 6l1-2h6l1 2"/>
+    </svg>
+  ),
 };
 
 const MENU_ITEMS = [
@@ -73,6 +85,8 @@ const MENU_ITEMS = [
   { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
   { to: SDR_URL,       label: "SDR",          icon: MenuIcons.sdr, external: true },
   { to: "/challenge",  label: "Challenge",    icon: MenuIcons.challenge },
+  { to: "/storage",    label: "Хранилище",    icon: MenuIcons.storage },
+  { to: "/snapshots",  label: "Снимки",       icon: MenuIcons.snapshots },
   { to: "/docs",       label: "Документация", icon: MenuIcons.docs },
   { to: "/creators",   label: "Создатели",    icon: MenuIcons.creators },
 ];
@@ -262,14 +276,9 @@ function AppInner() {
         ) : (
           <NavLink
             to="/login"
-            style={{
-              marginLeft: 14, padding: "12px 22px", borderRadius: 12, fontSize: 14,
-              background: "linear-gradient(135deg, var(--orange) 0%, var(--orange-2) 100%)",
-              color: "#1a3220", textDecoration: "none", fontWeight: 700,
-              boxShadow: "0 4px 14px rgba(218,73,39,0.30)",
-            }}
+            className="header-extras-btn"
           >
-            Войти
+            Доп. возможности
           </NavLink>
         )}
       </header>
@@ -283,6 +292,8 @@ function AppInner() {
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/creators" element={<CreatorsPage />} />
         <Route path="/challenge" element={<ChallengePage />} />
+        <Route path="/storage" element={<StoragePage />} />
+        <Route path="/snapshots" element={<SnapshotsPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
