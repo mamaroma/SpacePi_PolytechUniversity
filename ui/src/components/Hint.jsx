@@ -1,18 +1,87 @@
-import React from "react";
+import React, { useState, useRef, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+
+const OFFSET = 10; // px between hint circle and tooltip
+
+/** Вычисляем лучшую сторону: предпочитаем сверху, но если места нет — снизу */
+function calcStyle(rect) {
+  const spaceAbove = rect.top;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const preferAbove = spaceAbove >= 120 || spaceAbove > spaceBelow;
+
+  let top, arrowStyle;
+  if (preferAbove) {
+    top = rect.top + window.scrollY - OFFSET; // tooltip bottom = this value (via transform)
+    arrowStyle = "above";
+  } else {
+    top = rect.bottom + window.scrollY + OFFSET;
+    arrowStyle = "below";
+  }
+
+  // горизонталь: центрируем, но не выходим за экран
+  let left = rect.left + rect.width / 2 + window.scrollX;
+  return { top, left, arrowStyle, preferAbove };
+}
 
 /** Маленькая всплывающая подсказка-кружок «?», объясняет куда кликать.
- *  <Hint text="..." /> — над элементом
- *  <Hint text="..." position="bottom" /> — под элементом */
-export default function Hint({ text, position = "top" }) {
-  return (
-    <span
-      className={`hint ${position === "bottom" ? "hint--bottom" : ""}`}
-      data-hint={text}
-      role="img"
-      aria-label="подсказка"
+ *  Tooltip рендерится через портал в body — никогда не обрезается overflow. */
+export default function Hint({ text }) {
+  const [visible, setVisible] = useState(false);
+  const [style, setStyle] = useState(null);
+  const ref = useRef(null);
+  const timerRef = useRef(null);
+
+  const show = useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setStyle(calcStyle(rect));
+    setVisible(true);
+  }, []);
+
+  const hide = useCallback(() => {
+    setVisible(false);
+  }, []);
+
+  // пересчёт при скролле пока открыт
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const onScroll = () => {
+      if (ref.current) setStyle(calcStyle(ref.current.getBoundingClientRect()));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [visible]);
+
+  const tooltip = visible && style ? createPortal(
+    <div
+      className={`hint-portal-tooltip ${style.arrowStyle === "above" ? "hint-portal--above" : "hint-portal--below"}`}
+      style={{
+        left: style.left,
+        top: style.top,
+      }}
     >
-      ?
-    </span>
+      {text}
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <span
+        ref={ref}
+        className="hint"
+        onMouseEnter={show}
+        onFocus={show}
+        onMouseLeave={hide}
+        onBlur={hide}
+        role="img"
+        aria-label="подсказка"
+        tabIndex={0}
+      >
+        ?
+      </span>
+      {tooltip}
+    </>
   );
 }
 

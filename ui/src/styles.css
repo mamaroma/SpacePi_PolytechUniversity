@@ -96,14 +96,10 @@ body {
   transform: scale(1.08);
   box-shadow: 0 0 14px rgba(218,73,39,0.45);
 }
-/* Подсказка по умолчанию вылезает СНИЗУ от знака вопроса —
- * благодаря этому она никогда не перекрывается sticky-шапкой. */
-.hint::after {
-  content: attr(data-hint);
+/* ── Портальный тултип (рендерится в <body>, не обрезается overflow) ── */
+.hint-portal-tooltip {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%) translateY(-4px);
+  z-index: 999999;
   background: var(--surface-2);
   border: 1px solid var(--orange-2);
   color: var(--text);
@@ -113,19 +109,41 @@ body {
   font-weight: 500;
   white-space: normal;
   width: max-content;
-  max-width: 280px;
+  max-width: min(280px, calc(100vw - 32px));
   text-align: left;
   line-height: 1.5;
-  box-shadow: 0 12px 32px rgba(0,0,0,0.65);
-  opacity: 0;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.75);
   pointer-events: none;
-  transition: opacity 0.18s, transform 0.18s;
-  z-index: 99999;
+  animation: hint-fade-in 0.15s ease forwards;
 }
-.hint::before {
+
+/* Вылезает СВЕРХУ от «?» */
+.hint-portal--above {
+  transform: translateX(-50%) translateY(-100%);
+}
+/* Вылезает СНИЗУ от «?» */
+.hint-portal--below {
+  transform: translateX(-50%);
+}
+
+/* Треугольник-стрелочка СНИЗУ тултипа (указывает вниз на «?») */
+.hint-portal--above::after {
   content: '';
   position: absolute;
-  top: calc(100% + 4px);
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--orange-2);
+}
+/* Треугольник-стрелочка СВЕРХУ тултипа (указывает вверх на «?») */
+.hint-portal--below::after {
+  content: '';
+  position: absolute;
+  top: -6px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
@@ -133,19 +151,12 @@ body {
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
   border-bottom: 6px solid var(--orange-2);
-  opacity: 0;
-  transition: opacity 0.18s;
-  z-index: 99999;
 }
-.hint:hover::after,
-.hint:focus::after { opacity: 1; transform: translateX(-50%) translateY(0); }
-.hint:hover::before,
-.hint:focus::before { opacity: 1; }
 
-/* Старый флаг "bottom" — теперь означает «над знаком вопроса» (для совместимости) */
-.hint--bottom::after { top: auto; bottom: calc(100% + 10px); transform: translateX(-50%) translateY(4px); }
-.hint--bottom:hover::after { transform: translateX(-50%) translateY(0); }
-.hint--bottom::before { top: auto; bottom: calc(100% + 4px); border-bottom: none; border-top: 6px solid var(--orange-2); }
+@keyframes hint-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 .guide-banner {
   display: flex;
