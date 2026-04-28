@@ -241,7 +241,7 @@ body {
   transition: color 0.25s;
 }
 .header-logo:hover .header-logo-text { color: #ede8f5; }
-.header-logo-space { color: var(--orange-2); }
+.header-logo-space { color: #8dc63f; }
 
 .header-badge {
   display: inline-block;
