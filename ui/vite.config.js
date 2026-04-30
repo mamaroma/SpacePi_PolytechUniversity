@@ -23,22 +23,11 @@ export default defineConfig({
   build: {
     target: "es2020",
     sourcemap: false,
-    chunkSizeWarningLimit: 1024,
-    rollupOptions: {
-      output: {
-        // Делим тяжёлые сторонние библиотеки на отдельные чанки —
-        // браузер кеширует их между релизами и быстрее парсит.
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("react-globe.gl") || id.includes("/three") || id.includes("three/")) return "vendor-3d";
-          if (id.includes("leaflet") || id.includes("react-leaflet")) return "vendor-leaflet";
-          if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
-          if (id.includes("react-router-dom") || id.includes("@remix-run")) return "vendor-router";
-          if (id.includes("react-dom") || id.includes("scheduler") || /\/react\//.test(id)) return "vendor-react";
-          return "vendor";
-        },
-      },
-    },
+    chunkSizeWarningLimit: 1400,
+    // NOTE: не используем manualChunks — recharts/d3/three имеют круговые
+    // зависимости и при явном дроблении Rollup выдаёт
+    // «Cannot access '...' before initialization».
+    // Vite сам разбивает vendor-бандл достаточно хорошо благодаря lazy-imports.
   },
   optimizeDeps: {
     include: [
