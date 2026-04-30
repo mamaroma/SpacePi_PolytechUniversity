@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, AttributionControl } from "react-leaflet";
+import { createPortal } from "react-dom";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, AttributionControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { GuideBanner } from "../components/Hint";
 
@@ -18,69 +19,101 @@ const FOLDER_COLORS = {
   "Фотографии с КА":     "#f39768",
 };
 
+/* Возвращаем только человекочитаемое название.
+ * title в манифесте генерируется как «Регион · <имя_файла>» —
+ * файловую часть всегда убираем, оставляем только регион. */
+function cleanTitle(snap) {
+  return snap.region || snap.title || "Снимок";
+}
+
 function PhotoCard({ snap, onClose }) {
   const [imgErr, setImgErr] = useState(false);
+  const title = cleanTitle(snap);
   return (
-    <div style={{
-      position: "absolute",
-      right: 16, top: 16, zIndex: 1000,
-      width: 360,
-      background: "rgba(13,10,24,0.95)",
-      border: "1px solid var(--border-hi)",
-      borderRadius: 12,
-      overflow: "hidden",
-      boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
-      backdropFilter: "blur(8px)",
-    }}>
-      <div style={{
-        position: "relative",
-        height: 220,
-        background: "#1b1530",
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100000,
+        background: "rgba(8,5,18,0.72)",
+        backdropFilter: "blur(5px)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        overflow: "hidden",
-      }}>
-        {imgErr ? (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: 16 }}>
-            <div style={{ fontWeight: 600, color: "var(--orange)" }}>Фото в обработке</div>
-            <div style={{ fontSize: 11, marginTop: 4 }}>Архивные данные · файл ещё не выгружен в бакет</div>
-          </div>
-        ) : (
-          <img
-            src={snap.url}
-            alt={snap.title}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgErr(true)}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        )}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 8, right: 8,
-            background: "rgba(0,0,0,0.6)", color: "#f1ead2",
-            border: "none", borderRadius: 8,
-            padding: "5px 10px", fontSize: 14, cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >×</button>
-      </div>
-      <div style={{ padding: "12px 16px 14px" }}>
+        padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative",
+          width: "min(420px, 100%)",
+          background: "rgba(13,10,24,0.97)",
+          border: "1px solid var(--border-hi)",
+          borderRadius: 14,
+          overflow: "hidden",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.85)",
+          animation: "snap-card-in 0.17s ease",
+        }}
+      >
+        <style>{`
+          @keyframes snap-card-in {
+            from { opacity:0; transform:translateY(8px) scale(0.97); }
+            to   { opacity:1; transform:translateY(0)   scale(1); }
+          }
+        `}</style>
+
+        {/* Фото */}
         <div style={{
-          color: FOLDER_COLORS[snap.folder] || "var(--accent)",
-          fontSize: 10, letterSpacing: 1, fontWeight: 700,
-          textTransform: "uppercase", marginBottom: 4,
+          position: "relative", height: 240,
+          background: "#1b1530",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
         }}>
-          {snap.folder}
+          {imgErr ? (
+            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: 20 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🛰</div>
+              <div style={{ fontWeight: 600, color: "var(--orange)" }}>Фото загружается</div>
+              <div style={{ fontSize: 11, marginTop: 6, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                {snap.url}
+              </div>
+            </div>
+          ) : (
+            <img
+              src={snap.url}
+              alt={title}
+              loading="eager"
+              decoding="async"
+              onError={() => setImgErr(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          )}
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute", top: 10, right: 10,
+              background: "rgba(0,0,0,0.65)", color: "#f1ead2",
+              border: "1px solid rgba(243,151,104,0.5)", borderRadius: 8,
+              width: 30, height: 30, fontSize: 16, cursor: "pointer",
+              fontWeight: 700, lineHeight: 1, display: "flex",
+              alignItems: "center", justifyContent: "center",
+            }}
+            aria-label="Закрыть"
+          >×</button>
         </div>
-        <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 6 }}>
-          {snap.region}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8 }}>
-          {snap.title}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Space Mono', monospace" }}>
-          {snap.lat.toFixed(3)}° · {snap.lon.toFixed(3)}°
+
+        {/* Описание */}
+        <div style={{ padding: "14px 18px 18px" }}>
+          <div style={{
+            color: FOLDER_COLORS[snap.folder] || "var(--accent)",
+            fontSize: 10, letterSpacing: 1.2, fontWeight: 700,
+            textTransform: "uppercase", marginBottom: 6,
+          }}>
+            {snap.folder}
+          </div>
+          <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 17, marginBottom: 8, lineHeight: 1.3 }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Space Mono', monospace" }}>
+            {snap.lat.toFixed(3)}° N · {snap.lon.toFixed(3)}° E
+          </div>
         </div>
       </div>
     </div>
@@ -170,13 +203,13 @@ export default function SnapshotsPage() {
         </div>
         <div className="globe-inner" style={{ height: 600, position: "relative" }}>
           <style>{`
-            .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1b1530 !important; color: #f1ead2 !important; border: 1px solid #8a5ab0 !important; border-radius: 10px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
-            .leaflet-popup-content { margin: 10px 14px !important; }
-            .leaflet-control-zoom a { background: #1a3220 !important; color: #f1ead2 !important; border-color: #3a5e3f !important; }
-            .leaflet-container { background: #0d0a18 !important; }
-            .leaflet-control-attribution { background: rgba(26,50,32,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
+            .leaflet-control-zoom a { background: #1b1530 !important; color: #f1ead2 !important; border-color: #8a5ab0 !important; }
+            .leaflet-container { background: #0d0a18 !important; cursor: pointer !important; }
+            .leaflet-control-attribution { background: rgba(19,14,34,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
             .leaflet-control-attribution a { color: #f39768 !important; }
           `}</style>
+          {/* preferCanvas=true + Popup не совместимы — используем только
+              eventHandlers.click для открытия карточки через портал */}
           <MapContainer center={[40, 30]} zoom={2} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas>
             <AttributionControl position="bottomright" prefix={false} />
             <TileLayer
@@ -189,8 +222,12 @@ export default function SnapshotsPage() {
               <CircleMarker
                 key={s.id}
                 center={[s.lat, s.lon]}
-                radius={7}
-                eventHandlers={{ click: () => setSelected(s) }}
+                radius={8}
+                eventHandlers={{
+                  click: () => setSelected(s),
+                  mouseover: (e) => { e.target.setStyle({ radius: 11, fillOpacity: 1 }); },
+                  mouseout: (e) => { e.target.setStyle({ radius: 8, fillOpacity: 0.7 }); },
+                }}
                 pathOptions={{
                   color: FOLDER_COLORS[s.folder],
                   fillColor: FOLDER_COLORS[s.folder],
@@ -199,30 +236,14 @@ export default function SnapshotsPage() {
                   opacity: 0.9,
                 }}
               >
-                <Popup>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, maxWidth: 220 }}>
-                    <div style={{ fontWeight: 700, color: FOLDER_COLORS[s.folder], marginBottom: 5 }}>
-                      {s.region}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#cbb98c", marginBottom: 6 }}>{s.title}</div>
-                    <button
-                      onClick={() => setSelected(s)}
-                      style={{
-                        marginTop: 4, padding: "4px 10px",
-                        background: FOLDER_COLORS[s.folder], color: "#0d0a18",
-                        border: "none", borderRadius: 6, fontSize: 11,
-                        fontWeight: 700, cursor: "pointer",
-                      }}
-                    >
-                      Открыть фото
-                    </button>
-                  </div>
-                </Popup>
+                <Tooltip direction="top" offset={[0, -6]} opacity={0.92}>
+                  <span style={{ fontFamily: "system-ui", fontSize: 12 }}>
+                    {cleanTitle(s)}
+                  </span>
+                </Tooltip>
               </CircleMarker>
             ))}
           </MapContainer>
-
-          {selected && <PhotoCard snap={selected} onClose={() => setSelected(null)} />}
         </div>
         <div style={{ display: "flex", gap: 18, marginTop: 8, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
           <strong style={{ color: "var(--orange)", letterSpacing: 0.5 }}>Легенда:</strong>
@@ -232,11 +253,17 @@ export default function SnapshotsPage() {
               {f}
             </span>
           ))}
-          <span style={{ marginLeft: "auto" }}>
-            Снимки берутся напрямую из бакета Yandex&nbsp;Cloud
+          <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>
+            Кликните на точку, чтобы открыть снимок · Yandex&nbsp;Cloud
           </span>
         </div>
       </div>
+
+      {/* Карточка снимка — в портале, поверх всего, включая шапку */}
+      {selected && createPortal(
+        <PhotoCard snap={selected} onClose={() => setSelected(null)} />,
+        document.body
+      )}
     </div>
   );
 }
