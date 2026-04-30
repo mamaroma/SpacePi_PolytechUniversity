@@ -13,6 +13,7 @@ import AdminPage from "./pages/AdminPage";
 import ChallengePage from "./pages/ChallengePage";
 import StoragePage from "./pages/StoragePage";
 import SnapshotsPage from "./pages/SnapshotsPage";
+import IdentificationPage from "./pages/IdentificationPage";
 import Footer from "./components/Footer";
 import { API_BASE } from "./api";
 
@@ -76,6 +77,11 @@ const MenuIcons = {
       <rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 6l1-2h6l1 2"/>
     </svg>
   ),
+  identification: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
 };
 
 const MENU_ITEMS = [
@@ -85,10 +91,11 @@ const MENU_ITEMS = [
   { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
   { to: SDR_URL,       label: "SDR",          icon: MenuIcons.sdr, external: true },
   { to: "/challenge",  label: "Challenge",    icon: MenuIcons.challenge },
-  { to: "/storage",    label: "Хранилище",    icon: MenuIcons.storage },
-  { to: "/snapshots",  label: "Снимки",       icon: MenuIcons.snapshots },
-  { to: "/docs",       label: "Документация", icon: MenuIcons.docs },
-  { to: "/creators",   label: "Создатели",    icon: MenuIcons.creators },
+  { to: "/storage",       label: "Хранилище",     icon: MenuIcons.storage },
+  { to: "/snapshots",     label: "Снимки",        icon: MenuIcons.snapshots },
+  { to: "/identification", label: "Идентификация", icon: MenuIcons.identification },
+  { to: "/docs",          label: "История проекта", icon: MenuIcons.docs },
+  { to: "/creators",      label: "Создатели",     icon: MenuIcons.creators },
 ];
 
 const ROLE_COLORS = { admin: "var(--orange)", moderator: "var(--accent)", reader: "var(--text-muted)" };
@@ -294,6 +301,7 @@ function AppInner() {
         <Route path="/challenge" element={<ChallengePage />} />
         <Route path="/storage" element={<StoragePage />} />
         <Route path="/snapshots" element={<SnapshotsPage />} />
+        <Route path="/identification" element={<IdentificationPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

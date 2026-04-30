@@ -80,35 +80,47 @@ function genFakeRows(satName, lastContactLabel, count = 60) {
   return rows;
 }
 
+/* «Последний контакт» — статичные ярлыки. Для PU-6 он динамический
+ * (неделя назад / две недели назад), потому что аппарат недавно потерял связь. */
+function recentLabel(daysAgo) {
+  const d = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getUTCFullYear()} (≈${daysAgo} дн. назад)`;
+}
+
 const DEAD_SATELLITES = {
   "Polytech_Universe-1": {
     current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
     track: [],
-    lastContact: "Январь 2024",
+    lastContact: "Январь 2024 (архивные данные)",
     dead: true,
   },
   "Polytech_Universe-2": {
     current: { lat: -15.7, lon: -42.3, ts_utc: "2023-10-05T08:00:00Z" },
     track: [],
-    lastContact: "Октябрь 2023",
+    lastContact: "Октябрь 2023 (архивные данные)",
     dead: true,
   },
   "Polytech_Universe-4": {
     current: { lat: 10.0, lon: 20.0, ts_utc: "2023-06-12T10:30:00Z" },
     track: [],
-    lastContact: "Июнь 2023",
+    lastContact: "Июнь 2023 (архивные данные)",
     dead: true,
   },
   "Polytech_Universe-5": {
     current: { lat: -20.0, lon: 100.0, ts_utc: "2023-03-04T18:15:00Z" },
     track: [],
-    lastContact: "Март 2023",
+    lastContact: "Март 2023 (архивные данные)",
     dead: true,
   },
   "Polytech_Universe-6": {
-    current: { lat: 35.0, lon: -100.0, ts_utc: "2022-11-22T07:45:00Z" },
+    current: {
+      lat: 35.0, lon: -100.0,
+      ts_utc: new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString(),
+    },
     track: [],
-    lastContact: "Ноябрь 2022",
+    lastContact: recentLabel(14),
     dead: true,
   },
 };
@@ -208,27 +220,27 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
 
       <div className="sat-panel-metrics">
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">🌡 Темп.</span>
-          <span className="sat-mini-value c-red">{latest?.temp_c != null ? `${Number(latest.temp_c).toFixed(1)}°C` : "—"}</span>
+          <span className="sat-mini-label">Температура корпуса</span>
+          <span className="sat-mini-value c-red">{latest?.temp_c != null ? `${Number(latest.temp_c).toFixed(1)} °C` : "—"}</span>
         </div>
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">🔋 Батарея</span>
-          <span className="sat-mini-value c-green">{latest?.battery_capacity_pct != null ? `${latest.battery_capacity_pct}%` : "—"}</span>
+          <span className="sat-mini-label">Заряд батареи</span>
+          <span className="sat-mini-value c-green">{latest?.battery_capacity_pct != null ? `${latest.battery_capacity_pct} %` : "—"}</span>
         </div>
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">☀ Солнце</span>
-          <span className="sat-mini-value c-yellow">{latest?.solar_total_mw != null ? `${latest.solar_total_mw} mW` : "—"}</span>
+          <span className="sat-mini-label">Мощность СБ</span>
+          <span className="sat-mini-value c-yellow">{latest?.solar_total_mw != null ? `${latest.solar_total_mw} мВт` : "—"}</span>
         </div>
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">📡 RSSI</span>
-          <span className="sat-mini-value c-cyan">{latest?.rssi_dbm != null ? `${latest.rssi_dbm} dBm` : "—"}</span>
+          <span className="sat-mini-label">Уровень RSSI</span>
+          <span className="sat-mini-value c-cyan">{latest?.rssi_dbm != null ? `${latest.rssi_dbm} дБм` : "—"}</span>
         </div>
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">⏱ Uptime</span>
+          <span className="sat-mini-label">Время работы</span>
           <span className="sat-mini-value c-purple">{uptimeStr(latest?.uptime_sec)}</span>
         </div>
         <div className="sat-mini-metric">
-          <span className="sat-mini-label">🔄 Resets</span>
+          <span className="sat-mini-label">Перезагрузки</span>
           <span className="sat-mini-value c-dim">{latest?.reset_count ?? "—"}</span>
         </div>
       </div>
@@ -247,16 +259,31 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
 
       <div className="sat-panel-charts">
         <div className="sat-mini-chart">
-          <div className="sat-mini-label">Температура</div>
+          <div className="sat-mini-label">Температура корпуса, °C</div>
           <MiniSparkline data={seriesTemp} dataKey="avg" color="var(--orange-2)" />
+          {seriesTemp.length > 1 && (
+            <div className="sat-mini-period">
+              {seriesTemp[0].x}&nbsp;—&nbsp;{seriesTemp[seriesTemp.length - 1].x}
+            </div>
+          )}
         </div>
         <div className="sat-mini-chart">
-          <div className="sat-mini-label">Батарея %</div>
+          <div className="sat-mini-label">Заряд батареи, %</div>
           <MiniSparkline data={seriesBat} dataKey="avg" color="var(--accent)" />
+          {seriesBat.length > 1 && (
+            <div className="sat-mini-period">
+              {seriesBat[0].x}&nbsp;—&nbsp;{seriesBat[seriesBat.length - 1].x}
+            </div>
+          )}
         </div>
         <div className="sat-mini-chart">
-          <div className="sat-mini-label">Солнечная мощность</div>
+          <div className="sat-mini-label">Мощность солнечных панелей, мВт</div>
           <MiniSparkline data={seriesSolar} dataKey="avg" color="var(--orange)" />
+          {seriesSolar.length > 1 && (
+            <div className="sat-mini-period">
+              {seriesSolar[0].x}&nbsp;—&nbsp;{seriesSolar[seriesSolar.length - 1].x}
+            </div>
+          )}
         </div>
       </div>
 

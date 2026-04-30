@@ -24,6 +24,11 @@ const KIND_META = {
     desc:   "Сырые комплексные отсчёты с SDR (complex float32).",
     accept: ".iq,.cf32,.dat,.bin",
   },
+  demo_emi: {
+    label:  "демоЭМИ",
+    desc:   "Демонстрационные точки ЭМ-обстановки для карты /emi. Используется только в учебных целях.",
+    accept: ".json,.csv",
+  },
 };
 
 function fmtBytes(n) {
@@ -190,7 +195,7 @@ function KindSection({ kind, files, unlockKey, isEditor, authHeader, onMutate })
 export default function StoragePage() {
   const { user, isEditor, authHeader } = useAuth();
   const [unlockKey, setUnlockKey] = useState(() => localStorage.getItem("polyspace.storage.key") || "");
-  const [data, setData] = useState({ ais: [], telemetry: [], iq: [] });
+  const [data, setData] = useState({ ais: [], telemetry: [], iq: [], demo_emi: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("ais");
@@ -208,6 +213,7 @@ export default function StoragePage() {
         ais:       res.ais       || [],
         telemetry: res.telemetry || [],
         iq:        res.iq        || [],
+        demo_emi:  res.demo_emi  || [],
       });
     } catch (err) {
       const msg = err?.message || String(err);

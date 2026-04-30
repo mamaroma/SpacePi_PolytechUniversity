@@ -68,9 +68,21 @@ function splitDateline(pts) {
   return segs;
 }
 
-// ─── Coverage radius ───────────────────────────────────────────
-// LEO ~500 km altitude, ~10° elevation mask → ~2 200 km ground radius
-const COVERAGE_M = 2_200_000;
+// ─── Coverage radius (depends on orbital altitude) ─────────────
+const ORBIT_ALT_KM = {
+  "Polytech_Universe-1": 530,
+  "Polytech_Universe-2": 540,
+  "Polytech_Universe-3": 565,
+  "Polytech_Universe-4": 575,
+  "Polytech_Universe-5": 575,
+  "Polytech_Universe-6": 580,
+};
+function coverageMetersFor(satName) {
+  const alt = ORBIT_ALT_KM[satName] ?? 565;
+  // 500 km → 1900 km, 600 km → 2400 km radius
+  return (1700 + (alt - 500) * 7) * 1000;
+}
+const COVERAGE_M_DEFAULT = 2_200_000;
 
 // ─── Component ────────────────────────────────────────────────
 export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {}, deadSatellites = {}, onSatelliteClick }) {
@@ -220,16 +232,39 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             maxZoom={19}
           />
 
-          {/* ── SPbPU Polytech marker ───────────────────────────── */}
+          {/* ── НИК СПбПУ — приёмная станция с фото и описанием ───── */}
           <Marker position={[POLYTECH_COORDS.lat, POLYTECH_COORDS.lon]} icon={POLYTECH_ICON}>
-            <Popup>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
-                <div style={{ fontWeight: 700, color: "#724796", marginBottom: 5 }}>
-                  Pi SPbPU
+            <Popup maxWidth={360} minWidth={320}>
+              <div style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: 12, width: 320 }}>
+                <img
+                  src="/nik-spbpu.png"
+                  alt="НИК СПбПУ"
+                  style={{
+                    width: "100%", borderRadius: 8, marginBottom: 10,
+                    border: "1px solid rgba(114,71,150,0.45)",
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
+                  }}
+                />
+                <div style={{ fontWeight: 700, color: "#9460b8", fontSize: 14, marginBottom: 4, letterSpacing: 0.3 }}>
+                  Приёмная станция НИК СПбПУ
                 </div>
-                <div>Technopolis Polytech</div>
-                <div>Lat {POLYTECH_COORDS.lat.toFixed(2)}</div>
-                <div>Lon {POLYTECH_COORDS.lon.toFixed(2)}</div>
+                <div style={{ fontSize: 11, color: "#cbb98c", marginBottom: 8, fontStyle: "italic" }}>
+                  Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
+                </div>
+                <div style={{ fontSize: 11.5, color: "#ede8f5", lineHeight: 1.55, marginBottom: 8 }}>
+                  Здесь установлена наземная LoRa-станция, которая принимает
+                  телеметрию и AIS-пакеты со спутников программы
+                  <strong style={{ color: "#f39768" }}> Polytech Universe</strong> в моменты пролёта
+                  над Санкт-Петербургом.
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px", fontSize: 11, fontFamily: "'Space Mono', monospace", color: "#c2b5d4" }}>
+                  <span style={{ color: "#8aa090" }}>Адрес:</span>
+                  <span>ул. Политехническая, 29АФ</span>
+                  <span style={{ color: "#8aa090" }}>Координаты:</span>
+                  <span>{POLYTECH_COORDS.lat.toFixed(4)}° N · {POLYTECH_COORDS.lon.toFixed(4)}° E</span>
+                  <span style={{ color: "#8aa090" }}>Диапазон:</span>
+                  <span>437.0–437.5 МГц UHF</span>
+                </div>
               </div>
             </Popup>
           </Marker>
@@ -288,11 +323,11 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           {/* ── Current satellite position ───────────────────── */}
           {current && (
             <>
-              {/* Coverage circle */}
+              {/* Coverage circle (radius depends on satellite altitude) */}
               {showCoverage && (
                 <Circle
                   center={[current.lat, current.lon]}
-                  radius={COVERAGE_M}
+                  radius={coverageMetersFor("Polytech_Universe-3")}
                   pathOptions={{
                     color:       "#724796",
                     fillColor:   "#724796",
@@ -355,6 +390,21 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                     pathOptions={{ color, weight: 1.8, opacity: 0.7 }}
                   />
                 ))}
+                {/* Зона покрытия — для активных яркая, для неактивных бледная */}
+                {showCoverage && (
+                  <Circle
+                    center={[Number(cur.lat), Number(cur.lon)]}
+                    radius={coverageMetersFor(satName)}
+                    pathOptions={{
+                      color:       color,
+                      fillColor:   color,
+                      fillOpacity: isDead ? 0.025 : 0.06,
+                      weight:      isDead ? 0.8 : 1.2,
+                      opacity:     isDead ? 0.30 : 0.50,
+                      dashArray:   "4 8",
+                    }}
+                  />
+                )}
                 <Marker
                   position={[Number(cur.lat), Number(cur.lon)]}
                   icon={icon}

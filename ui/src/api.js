@@ -214,3 +214,7 @@ export async function fetchStorageSecretKey(authHeader = {}) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
+
+export async function fetchDemoEmiPackets() {
+  return fetchJson(`${API_BASE}/api/storage/_demo_emi`);
+}

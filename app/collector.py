@@ -10,7 +10,16 @@ from telethon.sessions import StringSession
 from telemetry_config import settings
 from .db import engine
 from .models import TelemetryPacket
-from .parser import parse_tinygs_telegram
+from .parser import parse_tinygs_telegram, SAT_ALIASES
+
+
+def _aliases_for(satellite: str) -> list[str]:
+    """Все известные имена для данного спутника (canonical + псевдонимы)."""
+    aliases = [satellite]
+    for alias, canon in SAT_ALIASES.items():
+        if canon == satellite and alias not in aliases:
+            aliases.append(alias)
+    return aliases
 
 # Always resolve to project root so the path works regardless of CWD.
 # Prefer TELETHON_SESSION_NAME from env, but keep compatibility with the
@@ -88,6 +97,8 @@ async def collect_last_month(satellite: str = "Polytech_Universe-3", days: int =
             "Run `python collect.py` in a terminal first to log in."
         )
 
+    aliases = _aliases_for(satellite)
+
     async with client:
         entity = await client.get_entity(settings.tg_channel)
 
@@ -101,7 +112,9 @@ async def collect_last_month(satellite: str = "Polytech_Universe-3", days: int =
                     break
 
                 text = msg.message or ""
-                if satellite not in text:
+                # Принимаем сообщение, если в нём встречается канонич. имя
+                # ИЛИ любой из его псевдонимов (PolyU-4, PU-4 и т.п.).
+                if not any(a in text for a in aliases):
                     continue
 
                 # дедуп по message_id
@@ -121,7 +134,10 @@ async def collect_last_month(satellite: str = "Polytech_Universe-3", days: int =
                 row = TelemetryPacket(
                     channel=settings.tg_channel,
                     message_id=msg.id,
-                    satellite=parsed.satellite,
+                    # Сохраняем под каноническим именем спутника, чтобы фронт
+                    # всегда корректно агрегировал PU-4/PU-5 даже если бот
+                    # прислал альтернативный тэг.
+                    satellite=satellite,
                     ts_utc=msg_ts,
                     raw_text=text,
                     tle_lat=parsed.tle_lat,

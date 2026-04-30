@@ -60,6 +60,52 @@ class SatelliteCreate(BaseModel):
 
 _DEFAULT: list[dict] = [
     {
+        "id": "polytech-universe-1",
+        "name": "Политех Юниверс-1",
+        "name_en": "Polytech Universe-1",
+        "norad": 53371,
+        "launch_date": "2022-08-09",
+        "orbit_alt_km": 530,
+        "frequency_mhz": 437.0,
+        "protocol": "LoRa / RS11S",
+        "form_factor": "3U CubeSat",
+        "mass_kg": 4.51,
+        "status": "lost",
+        "mission": "Измерение уровня электромагнитного излучения над Землёй",
+        "description": (
+            "Первый спутник СПбПУ Петра Великого, созданный совместно со "
+            "Специальным технологическим центром (СТЦ). Нёс на борту спектрометры "
+            "и радиопередатчик для оценки распределения ЭМИ-фона по поверхности "
+            "планеты в разных частотных диапазонах. Запущен 09.08.2022 с "
+            "космодрома «Байконур» РН «Союз-2.1б» с РБ «Фрегат». "
+            "Сошёл с орбиты 09.10.2024."
+        ),
+        "image_url": "/pu12-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/polytech-universe-1-i-2/",
+    },
+    {
+        "id": "polytech-universe-2",
+        "name": "Политех Юниверс-2",
+        "name_en": "Polytech Universe-2",
+        "norad": 53372,
+        "launch_date": "2022-08-09",
+        "orbit_alt_km": 540,
+        "frequency_mhz": 437.0,
+        "protocol": "LoRa / RS10S",
+        "form_factor": "3U CubeSat",
+        "mass_kg": 4.51,
+        "status": "lost",
+        "mission": "Измерение уровня электромагнитного излучения над Землёй",
+        "description": (
+            "Парный аппарат к Polytech Universe-1. Решал ту же задачу — "
+            "построение глобальной карты ЭМ излучения. Использовал для приёма "
+            "и контроля сеть радиолюбительских станций (SatNOGS, TinyGS). "
+            "Сошёл с орбиты 18.10.2024."
+        ),
+        "image_url": "/pu12-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/polytech-universe-1-i-2/",
+    },
+    {
         "id": "polytech-universe-3",
         "name": "Политех Юниверс-3",
         "name_en": "Polytech Universe-3",
@@ -78,7 +124,8 @@ _DEFAULT: list[dict] = [
             "Используется для приёма сигналов АИС морских судов, телеметрии "
             "и образовательных задач СПбПУ."
         ),
-        "source_url": "https://spacepi.space",
+        "image_url": "/pu3-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/politeh-yunivers-3/",
     },
     {
         "id": "polytech-universe-4",
@@ -97,7 +144,8 @@ _DEFAULT: list[dict] = [
             "Четвёртый аппарат серии. Запущен с космодрома Восточный 5 ноября 2024 г. "
             "Несёт полезную нагрузку для отработки задач связи и мониторинга."
         ),
-        "source_url": "https://spacepi.space",
+        "image_url": "/pu4-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/politeh-yunivers-4/",
     },
     {
         "id": "polytech-universe-5",
@@ -117,7 +165,8 @@ _DEFAULT: list[dict] = [
             "Используется для исследований радиоэлектронной обстановки и "
             "экспериментов с группировкой малых спутников."
         ),
-        "source_url": "https://spacepi.space",
+        "image_url": "/pu5-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/politeh-yunivers-5/",
     },
     {
         "id": "polytech-universe-6",
@@ -128,16 +177,19 @@ _DEFAULT: list[dict] = [
         "orbit_alt_km": 580,
         "frequency_mhz": 437.5,
         "protocol": "LoRa",
-        "form_factor": "3U CubeSat",
-        "mass_kg": 4.0,
+        "form_factor": "16U CubeSat",
+        "mass_kg": 24.0,
         "status": "active",
-        "mission": "Расширение группировки Polytech Universe",
+        "mission": "ДЗЗ в радиочастотном диапазоне и приём AIS",
         "description": (
-            "Шестой аппарат серии Polytech Universe. Запущен 28 декабря 2025 г. "
-            "Является логическим продолжением программы школьных и студенческих "
-            "спутников Политеха."
+            "Шестой аппарат серии Polytech Universe — самый крупный в линейке. "
+            "Малый космический аппарат СПбПУ Петра Великого формата 16U для "
+            "дистанционного зондирования Земли в радиочастотном диапазоне и "
+            "приёма сигналов автоматической идентификационной системы судов "
+            "(AIS). Запущен 28 декабря 2025 г."
         ),
-        "source_url": "https://spacepi.space",
+        "image_url": "/pu6-photo.jpg",
+        "source_url": "https://spacepi.space/satellites/politeh-yunivers-6/",
     },
 ]
 

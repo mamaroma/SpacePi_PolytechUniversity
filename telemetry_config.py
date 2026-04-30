@@ -83,12 +83,15 @@ AUTO_COLLECT_INTERVAL_MINUTES = _getenv("AUTO_COLLECT_INTERVAL_MINUTES", 30, int
 # Satellite fleet registry
 # ----------------------------
 SATELLITE_FLEET = [
-    {"name": "Polytech_Universe-1", "active": False, "color": "#888888"},
-    {"name": "Polytech_Universe-2", "active": False, "color": "#666666"},
-    {"name": "Polytech_Universe-3", "active": True,  "color": "#00ff88"},
-    {"name": "Polytech_Universe-4", "active": False, "color": "#ff4d6a"},
-    {"name": "Polytech_Universe-5", "active": False, "color": "#00d4ff"},
-    {"name": "Polytech_Universe-6", "active": False, "color": "#ffa63a"},
+    {"name": "Polytech_Universe-1", "active": False, "color": "#7a6e92"},
+    {"name": "Polytech_Universe-2", "active": False, "color": "#5e4d78"},
+    {"name": "Polytech_Universe-3", "active": True,  "color": "#724796"},
+    # PU-4 и PU-5 запущены и активно передают LoRa-телеметрию через TinyGS.
+    # В TinyGS они появляются под именами Polytech_Universe-4 / Polytech_Universe-5,
+    # а также под альтернативными именами (см. parser.py — алиасы).
+    {"name": "Polytech_Universe-4", "active": True,  "color": "#9460b8"},
+    {"name": "Polytech_Universe-5", "active": True,  "color": "#f39768"},
+    {"name": "Polytech_Universe-6", "active": False, "color": "#da4927"},
 ]
 
 # ----------------------------

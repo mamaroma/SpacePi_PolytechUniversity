@@ -32,6 +32,30 @@ class Parsed:
 
 
 SAT_RE = re.compile(r"^🛰\s*(?P<sat>.+)\s*$", re.MULTILINE)
+
+# Альтернативные имена в TinyGS-канале → канонические имена в нашей БД.
+# Бот иногда присылает короткие тэги (PolyU-4, PU-4) — мы их нормализуем.
+SAT_ALIASES: dict[str, str] = {}
+for n in (3, 4, 5, 6, 1, 2):
+    canon = f"Polytech_Universe-{n}"
+    SAT_ALIASES[canon] = canon
+    SAT_ALIASES[f"Polytech Universe-{n}"] = canon
+    SAT_ALIASES[f"Polytech-Universe-{n}"] = canon
+    SAT_ALIASES[f"Polytech_Universe_{n}"] = canon
+    SAT_ALIASES[f"PolyU-{n}"] = canon
+    SAT_ALIASES[f"Poly_U-{n}"] = canon
+    SAT_ALIASES[f"PU-{n}"] = canon
+    SAT_ALIASES[f"PU{n}"] = canon
+
+
+def _normalize_sat(name: str) -> str:
+    name = (name or "").strip()
+    if not name:
+        return name
+    # Чистим частые "хвосты" вроде "Polytech_Universe-3 (3U)"
+    cleaned = name.split("(")[0].strip()
+    return SAT_ALIASES.get(cleaned, cleaned)
+
 TLE_LOC_RE = re.compile(r"TLE Location:\s*\[(?P<lat>%s)\s*,\s*(?P<lon>%s)\]" % (_float, _float))
 TEMP_RE = re.compile(r"🌡\s*(?P<t>%s)\s*ºC" % _float)
 TEMP_MIN_RE = re.compile(r"min\s*(?P<t>%s)\s*ºC" % _float)
@@ -68,7 +92,8 @@ def parse_tinygs_telegram(text: str) -> Optional[Parsed]:
     m = SAT_RE.search(text)
     if not m:
         return None
-    sat = m.group("sat").strip()
+    raw_sat = m.group("sat").strip()
+    sat = _normalize_sat(raw_sat)
 
     out = Parsed(satellite=sat)
 

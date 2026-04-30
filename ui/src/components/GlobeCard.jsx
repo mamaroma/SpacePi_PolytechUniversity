@@ -223,6 +223,35 @@ function makeSpotLight({ intensity = 1.6, angle = Math.PI / 7, distance = 800 })
   return light;
 }
 
+/* Высоты орбит спутников Polytech Universe (км) — оценочные.
+ * Чем выше орбита — тем шире зона радиовидимости. */
+const ORBIT_ALT_KM = {
+  "Polytech_Universe-1": 530,
+  "Polytech_Universe-2": 540,
+  "Polytech_Universe-3": 565,
+  "Polytech_Universe-4": 575,
+  "Polytech_Universe-5": 575,
+  "Polytech_Universe-6": 580,
+};
+export function orbitAltKmForSat(name) {
+  return ORBIT_ALT_KM[name] ?? 565;
+}
+
+/* Зона покрытия (footprint) масштабируется по высоте орбиты + локальной
+ * "выпуклости" Земли. На 565 км — base 0.24, на 530 км — чуть меньше,
+ * на 580 — чуть больше. Шкала специально консервативная (от 0.18 до 0.28). */
+export function footprintScaleByAlt(altKm) {
+  const norm = Math.max(0.0, Math.min(1.0, (altKm - 480) / 200));
+  return 0.18 + norm * 0.10;
+}
+
+/* Зависимость наземного радиуса (метры) для 2D-карты от высоты орбиты.
+ * Эмпирически: ~ 1900 km на 500 км, ~ 2400 km на 600 км. */
+export function coverageRadiusMeters(altKm) {
+  const km = 1700 + (altKm - 500) * 7;  // 500 → 1700 km, 600 → 2400 km
+  return km * 1000;
+}
+
 export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orbitDataProp = null, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {}, deadSatellites = {}, onSatelliteClick }) {
   const globeRef = useRef(null);
   const overlayRef = useRef(new THREE.Group());
@@ -248,20 +277,41 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
     const icon = document.createElement("img");
     icon.src = "/spbpu-logo.png";
-    icon.style.cssText = "width:26px;height:26px;border-radius:5px;display:block;";
+    icon.style.cssText = "width:30px;height:30px;border-radius:6px;display:block;box-shadow:0 0 12px rgba(114,71,150,0.7);";
     wrapper.appendChild(icon);
 
     const popup = document.createElement("div");
     popup.style.cssText =
-      "display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);" +
-      "background:#1b1530;border:1px solid #724796;border-radius:8px;padding:10px 14px;" +
-      "box-shadow:0 8px 24px rgba(0,0,0,.6);white-space:nowrap;font-family:'Space Mono',monospace;" +
-      "font-size:11px;color:#f1ead2;z-index:1000;pointer-events:auto;";
-    popup.innerHTML =
-      '<div style="font-weight:700;color:#724796;margin-bottom:5px">SPbPU Ground Station</div>' +
-      "<div>Technopolis Polytech</div>" +
-      "<div>Polytechnicheskaya st. 29AF</div>" +
-      "<div>Lat 60.01 &middot; Lon 30.38</div>";
+      "display:none;position:absolute;bottom:42px;left:50%;transform:translateX(-50%);" +
+      "background:#130e22;border:1px solid #724796;border-radius:10px;padding:0;overflow:hidden;" +
+      "box-shadow:0 12px 32px rgba(0,0,0,.75);font-family:'Inter',system-ui,sans-serif;" +
+      "font-size:12px;color:#ede8f5;z-index:1000;pointer-events:auto;width:320px;";
+
+    popup.innerHTML = `
+      <img src="/nik-spbpu.png" alt="НИК СПбПУ"
+           style="display:block;width:100%;height:160px;object-fit:cover;border-bottom:1px solid rgba(114,71,150,0.45);" />
+      <div style="padding:12px 14px 14px;">
+        <div style="font-weight:700;color:#9460b8;font-size:14px;margin-bottom:4px;letter-spacing:0.3px;">
+          Приёмная станция НИК СПбПУ
+        </div>
+        <div style="font-size:11px;color:#cbb98c;margin-bottom:10px;font-style:italic;">
+          Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
+        </div>
+        <div style="font-size:11.5px;color:#ede8f5;line-height:1.55;margin-bottom:10px;">
+          Наземная LoRa-станция приёма телеметрии и AIS-пакетов со спутников
+          программы <span style="color:#f39768;font-weight:600">Polytech Universe</span>
+          в моменты пролёта над Санкт-Петербургом.
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;font-family:'Space Mono',monospace;color:#c2b5d4;">
+          <span style="color:#8aa090">Адрес:</span>
+          <span>Политехническая, 29АФ</span>
+          <span style="color:#8aa090">Коорд.:</span>
+          <span>60.01° N · 30.38° E</span>
+          <span style="color:#8aa090">Диапазон:</span>
+          <span>437.0–437.5 МГц UHF</span>
+        </div>
+      </div>
+    `;
     wrapper.appendChild(popup);
 
     wrapper.addEventListener("click", (e) => {
@@ -517,9 +567,10 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       spr.userData = { satName: sat, clickable: true };
       grp.add(spr);
 
-      // footprint sizes
-      const footprintOuter = R0 * 0.24;
-      const blindInner = R0 * 0.09;
+      // footprint sizes — масштаб зависит от высоты орбиты
+      const altKm = orbitAltKmForSat(sat);
+      const footprintOuter = R0 * footprintScaleByAlt(altKm);
+      const blindInner = footprintOuter * 0.38;
 
       // beam cone: wide end on Earth, narrow end at the satellite
       const height = Math.max(0.001, rSat - rSurface);
@@ -598,7 +649,10 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
       const extraCur = oData?.current;
       if (extraCur && validLatLon(extraCur.lat, extraCur.lon)) {
-        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.06);
+        // ВАЖНО: используем тот же радиус (R0 * 1.11), что и для основного спутника,
+        // и для 2D-карты (которая берёт чистые lat/lon). Иначе позиция на 2D и 3D
+        // не совпадает.
+        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.11);
         const eSpr = makeSatelliteSprite(R0, {
           scale: isDead ? 0.12 : 0.14,
           glow: isDead ? "rgba(218,73,39,0.30)" : `rgba(114,71,150,0.35)`,
@@ -607,6 +661,23 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
         eSpr.userData = { satName, clickable: true };
         if (isDead) eSpr.material.opacity = 0.65;
         grp.add(eSpr);
+
+        // Зона покрытия для НЕ-основных спутников (тоже на 3D глобусе)
+        const altKm = orbitAltKmForSat(satName);
+        const groundFootprint = R0 * footprintScaleByAlt(altKm);
+        const blindInner = groundFootprint * 0.38;
+        const groundPos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.005);
+        const { mesh: ring2 } = makeFootprintAnnulus({
+          radiusOuter: groundFootprint,
+          radiusInner: blindInner,
+          color,
+        });
+        ring2.position.copy(groundPos.clone().multiplyScalar(1.002));
+        const outward2 = groundPos.clone().normalize();
+        ring2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward2);
+        if (isDead) ring2.material.opacity = 0.16;
+        else ring2.material.opacity = 0.32;
+        grp.add(ring2);
       }
     }
 

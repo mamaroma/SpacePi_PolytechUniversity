@@ -7,9 +7,9 @@ import {
 } from "../api";
 
 const STATUS_LABEL = {
-  active:   { label: "На орбите",   color: "var(--accent)" },
-  inactive: { label: "Неактивен",   color: "var(--orange)" },
-  lost:     { label: "Потерян",      color: "var(--orange-2)" },
+  active:   { label: "На орбите",       color: "var(--accent)" },
+  inactive: { label: "Неактивен",       color: "var(--orange)" },
+  lost:     { label: "Сошёл с орбиты",  color: "var(--orange-2)" },
 };
 
 function Field({ label, value, mono }) {
@@ -31,6 +31,16 @@ function SatelliteCard({ sat, isEditor, onDelete }) {
   const status = STATUS_LABEL[sat.status] ?? STATUS_LABEL.active;
   return (
     <article className="sat-doc-card">
+      {sat.image_url && (
+        <div className="sat-doc-image-wrap">
+          <img
+            src={sat.image_url}
+            alt={sat.name_en}
+            className="sat-doc-image"
+            loading="lazy"
+          />
+        </div>
+      )}
       <header className="sat-doc-header">
         <div>
           <h3 className="sat-doc-title">{sat.name}</h3>
@@ -94,7 +104,8 @@ const EMPTY_FORM = {
   name: "", name_en: "", norad: "", launch_date: "",
   orbit_alt_km: "", frequency_mhz: "", protocol: "",
   form_factor: "3U CubeSat", mass_kg: "", status: "active",
-  description: "", mission: "", source_url: "https://spacepi.space",
+  description: "", mission: "",
+  image_url: "", source_url: "https://spacepi.space",
 };
 
 function SatelliteForm({ onSubmit, onCancel, busy }) {
@@ -172,6 +183,10 @@ function SatelliteForm({ onSubmit, onCancel, busy }) {
         <textarea className="form-textarea" rows={4} value={form.description} onChange={set("description")} />
       </label>
       <label className="form-label">
+        URL изображения (фото спутника)
+        <input className="form-input" value={form.image_url} onChange={set("image_url")} placeholder="https://… или /pu7-photo.jpg" />
+      </label>
+      <label className="form-label">
         Ссылка на источник
         <input className="form-input" value={form.source_url} onChange={set("source_url")} />
       </label>
@@ -231,13 +246,15 @@ export default function DocsPage() {
     <div className="app-body">
       <div className="page-header-row">
         <div>
-          <h1 className="page-title">Документация: спутники Polytech Universe</h1>
+          <h1 className="page-title">История проекта · Polytech Universe</h1>
           <p className="page-subtitle">
-            Каталог космических аппаратов программы СПбПУ. Источник данных:
+            Хронология аппаратов программы школьных и студенческих спутников
+            СПбПУ Петра&nbsp;Великого. Данные и фотографии — сайт
             {" "}
             <a href="https://spacepi.space" target="_blank" rel="noreferrer" style={{ color: "var(--orange)" }}>
               spacepi.space
             </a>
+            .
           </p>
         </div>
         {isEditor && (

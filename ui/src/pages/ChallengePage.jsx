@@ -76,29 +76,51 @@ function genDemo(sat) {
 }
 
 // ─── Activity 1: Graph Builder ─────────────────────────────────────────────────
+const PARAM_OPTIONS = [
+  { key: "temp",    label: "Температура корпуса", unit: "°C", color: "#f39768" },
+  { key: "volt",    label: "Напряжение шины",      unit: "В",  color: "#9460b8" },
+  { key: "battery", label: "Заряд батареи",         unit: "%", color: "#6cc77b" },
+  { key: "rssi",    label: "Уровень RSSI",          unit: "дБм", color: "#cbb98c" },
+];
+
 function GraphActivity() {
   const [selectedSat, setSelectedSat] = useState(DEMO_SATS[0]);
   const [allPoints, setAllPoints] = useState(() => genDemo(DEMO_SATS[0]));
   const [plotted, setPlotted] = useState([]);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [paramKey, setParamKey] = useState("temp");
   const chartRef = useRef(null);
+
+  const param = PARAM_OPTIONS.find((p) => p.key === paramKey) || PARAM_OPTIONS[0];
 
   const loadReal = useCallback(async () => {
     setLoading(true); setNotice("");
     try {
       const { from, to } = isoDaysAgo(7);
       const data = await fetchTelemetry({ sat: selectedSat, from, to, limit: 100 });
-      const pts = (data.points || data || []).filter(p => p.temp_c != null).slice(0, 50).map((p, i) => {
-        const d = new Date(p.ts_ms || p.ts * 1000);
-        return {
-          id: i, ts_ms: d.getTime(),
-          label: `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`,
-          date: d.toLocaleDateString("ru-RU"),
-          temp: +Number(p.temp_c).toFixed(2),
-          volt: +Number(p.volt || 3.7).toFixed(3),
-        };
-      });
+      // API возвращает массив TelemetryPacket с полем ts_utc (ISO string),
+      // также могут встречаться ts_ms (миллисекунды) или ts (UNIX seconds).
+      // Поэтому разбираем все три варианта аккуратно.
+      const list = Array.isArray(data) ? data : (data.points || []);
+      const pts = list
+        .filter((p) => p.temp_c != null || p.battery_capacity_pct != null)
+        .slice(0, 50)
+        .map((p, i) => {
+          const ts = p.ts_utc ? new Date(p.ts_utc) :
+                     p.ts_ms  ? new Date(p.ts_ms) :
+                     p.ts     ? new Date(p.ts * 1000) : new Date();
+          return {
+            id: i,
+            ts_ms: ts.getTime(),
+            label: `${String(ts.getUTCHours()).padStart(2, "0")}:${String(ts.getUTCMinutes()).padStart(2, "0")}`,
+            date: ts.toLocaleDateString("ru-RU"),
+            temp:    p.temp_c   != null ? +Number(p.temp_c).toFixed(2) : null,
+            volt:    p.vbus_mv  != null ? +(Number(p.vbus_mv) / 1000).toFixed(3) : (p.volt ? +Number(p.volt).toFixed(3) : 3.7),
+            battery: p.battery_capacity_pct != null ? +Number(p.battery_capacity_pct).toFixed(1) : null,
+            rssi:    p.rssi_dbm != null ? Number(p.rssi_dbm) : null,
+          };
+        });
       if (pts.length > 0) { setAllPoints(pts); setPlotted([]); setNotice(`Загружено ${pts.length} реальных точек`); setUploadAis([]); }
       else { setNotice("Реальных данных нет — используются демо-данные"); }
     } catch { setNotice("Нет подключения к API — используются демо-данные"); }
@@ -160,11 +182,14 @@ function GraphActivity() {
   const clearAll = () => setPlotted([]);
 
   const downloadCSV = () => {
-    const rows = ["Время,Дата,Температура (°C),Напряжение (В)",
-      ...plotted.map(p => `${p.label},${p.date},${p.temp},${p.volt}`)];
+    const header = "Время,Дата,Температура (°C),Напряжение (В),Заряд батареи (%),RSSI (дБм)";
+    const rows = [header,
+      ...plotted.map((p) =>
+        `${p.label},${p.date},${p.temp ?? ""},${p.volt ?? ""},${p.battery ?? ""},${p.rssi ?? ""}`
+      )];
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" }));
-    a.download = `temp_${selectedSat.replace(/\s/g, "_")}.csv`;
+    a.download = `${paramKey}_${selectedSat.replace(/\s/g, "_")}.csv`;
     a.click();
   };
 
@@ -189,12 +214,16 @@ function GraphActivity() {
     img.src = url;
   };
 
-  const stats = plotted.length > 0 ? {
-    count: plotted.length,
-    min: Math.min(...plotted.map(p => p.temp)),
-    max: Math.max(...plotted.map(p => p.temp)),
-    avg: +(plotted.reduce((s, p) => s + p.temp, 0) / plotted.length).toFixed(2),
-  } : null;
+  const stats = plotted.length > 0 ? (() => {
+    const vals = plotted.map((p) => p[paramKey]).filter((v) => v != null && Number.isFinite(v));
+    if (!vals.length) return null;
+    return {
+      count: vals.length,
+      min: +Math.min(...vals).toFixed(2),
+      max: +Math.max(...vals).toFixed(2),
+      avg: +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2),
+    };
+  })() : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -206,6 +235,11 @@ function GraphActivity() {
           style={S.select}
         >
           {DEMO_SATS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={paramKey} onChange={(e) => setParamKey(e.target.value)} style={S.select} title="Параметр для графика">
+          {PARAM_OPTIONS.map((p) => (
+            <option key={p.key} value={p.key}>{p.label} ({p.unit})</option>
+          ))}
         </select>
         <button onClick={loadReal} disabled={loading} style={S.btnSec}>
           {loading ? "Загрузка..." : "Загрузить с сервера"}
@@ -276,21 +310,22 @@ function GraphActivity() {
               <thead style={{ position: "sticky", top: 0, background: "var(--surface-2)" }}>
                 <tr>
                   <th style={S.th}>Время</th>
-                  <th style={S.th}>°C</th>
-                  <th style={S.th}>В</th>
+                  <th style={S.th}>Дата</th>
+                  <th style={S.th}>{param.unit}</th>
                   <th style={S.th}></th>
                 </tr>
               </thead>
               <tbody>
                 {allPoints.map(pt => {
                   const added = !!plotted.find(p => p.id === pt.id);
+                  const v = pt[paramKey];
                   return (
                     <tr key={pt.id} style={{ background: added ? "rgba(114,71,150,0.12)" : "transparent", transition: "background 0.15s" }}>
                       <td style={S.td}>{pt.label}</td>
-                      <td style={{ ...S.td, color: pt.temp < 0 ? "#9460b8" : pt.temp > 40 ? "#da4927" : "var(--text)", fontWeight: 600 }}>
-                        {pt.temp}
+                      <td style={{ ...S.td, color: "var(--text-muted)", fontSize: 11 }}>{pt.date}</td>
+                      <td style={{ ...S.td, color: param.color, fontWeight: 600 }}>
+                        {v != null && Number.isFinite(v) ? v : "—"}
                       </td>
-                      <td style={{ ...S.td, color: "var(--text-muted)" }}>{pt.volt}</td>
                       <td style={S.td}>
                         <button
                           onClick={() => added ? removePoint(pt.id) : addPoint(pt)}
@@ -313,7 +348,12 @@ function GraphActivity() {
           {/* Stats */}
           {stats && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-              {[["Точек", stats.count], ["Мин °C", stats.min], ["Макс °C", stats.max], ["Среднее °C", stats.avg]].map(([label, val]) => (
+              {[
+                ["Точек", stats.count],
+                [`Мин ${param.unit}`, stats.min],
+                [`Макс ${param.unit}`, stats.max],
+                [`Среднее ${param.unit}`, stats.avg],
+              ].map(([label, val]) => (
                 <div key={label} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>{label}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "var(--accent)" }}>{val}</div>
@@ -335,17 +375,27 @@ function GraphActivity() {
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={plotted} margin={{ top: 5, right: 8, left: -22, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(86,150,91,0.18)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8aa090" }} />
-                  <YAxis tick={{ fontSize: 10, fill: "#8aa090" }} unit="°" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: "#8aa090" }}
+                    label={{ value: "Время (UTC)", position: "insideBottom", offset: -2, fill: "#8aa090", fontSize: 10 }}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: "#8aa090" }} unit={` ${param.unit}`} />
                   <Tooltip
                     contentStyle={{ background: "#231c3e", border: "1px solid rgba(114,71,150,0.55)", borderRadius: 8, fontSize: 12, color: "#ede8f5" }}
-                    formatter={(v) => [`${v} °C`, "Температура"]}
+                    formatter={(v) => [`${v} ${param.unit}`, param.label]}
+                    labelFormatter={(label, items) => {
+                      const it = items?.[0]?.payload;
+                      return it ? `${it.date} ${it.label} UTC` : label;
+                    }}
                   />
                   <ReferenceLine y={0} stroke="rgba(114,71,150,0.55)" strokeDasharray="4 2" />
                   <Line
-                    type="monotone" dataKey="temp" stroke="#f39768" strokeWidth={2}
-                    dot={{ fill: "#f39768", r: 3, strokeWidth: 0 }}
+                    type="monotone" dataKey={paramKey} stroke={param.color} strokeWidth={2}
+                    dot={{ fill: param.color, r: 3, strokeWidth: 0 }}
                     activeDot={{ r: 5 }} animationDuration={250}
+                    isAnimationActive={false}
+                    connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -482,8 +532,16 @@ function PacketDecodeActivity() {
       {/* Format reference */}
       {showFormat && (
         <div style={S.card}>
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, fontWeight: 600 }}>
-            📐 Формат телеметрического пакета · 13 байт
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span>Формат телеметрического пакета · 13 байт</span>
+            <a
+              href="https://spacepi.space/satellites/politeh-yunivers-3/"
+              target="_blank"
+              rel="noreferrer"
+              style={{ fontSize: 11, color: "var(--orange)", textDecoration: "none", padding: "3px 10px", border: "1px solid var(--orange)", borderRadius: 6 }}
+            >
+              ↗ Документация по полям
+            </a>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -674,10 +732,20 @@ function AisDecodeActivity() {
 !AIVDM,1,1,,B,15?dU2h0j710dfifFDumRTHr0<0=,0*33`}
           </pre>
         </div>
-        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
-          {busy ? "Декодирую…" : "↑ Загрузить AIS-файл"}
-          <input type="file" accept=".txt,.aivdm,.log" style={{ display: "none" }} onChange={handle} disabled={busy} />
-        </label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+            {busy ? "Декодирую…" : "↑ Загрузить AIS-файл"}
+            <input type="file" accept=".txt,.aivdm,.log" style={{ display: "none" }} onChange={handle} disabled={busy} />
+          </label>
+          <a
+            href="https://www.itu.int/rec/R-REC-M.1371"
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12, color: "var(--orange)", textDecoration: "none", padding: "8px 14px", border: "1px solid var(--orange)", borderRadius: 8 }}
+          >
+            ↗ Документация AIS / ITU-R M.1371
+          </a>
+        </div>
         {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
       </div>
 
@@ -761,10 +829,20 @@ bytes 24..25 snr      int16  LE
 bytes 26..29 uptime   uint32 LE (sec)
 bytes 30..31 CRC-16   CCITT-FALSE, big-endian`}
         </pre>
-        <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
-          {busy ? "Декодирую…" : "↑ Загрузить .bin/.dat"}
-          <input type="file" accept=".bin,.dat,.tlm" style={{ display: "none" }} onChange={handle} disabled={busy} />
-        </label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+            {busy ? "Декодирую…" : "↑ Загрузить .bin/.dat"}
+            <input type="file" accept=".bin,.dat,.tlm" style={{ display: "none" }} onChange={handle} disabled={busy} />
+          </label>
+          <a
+            href="https://spacepi.space/satellites/politeh-yunivers-3/"
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12, color: "var(--orange)", textDecoration: "none", padding: "8px 14px", border: "1px solid var(--orange)", borderRadius: 8 }}
+          >
+            ↗ Документация по полям телеметрии
+          </a>
+        </div>
         {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
         <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
           Демо-файл доступен в разделе «Хранилище» → Телеметрия.

@@ -34,7 +34,7 @@ const PARTNERS = [
   {
     name: "ИЭиТ · ВШПФиКТ",
     role: "СПбПУ",
-    logo: "/polytech-logo.svg",
+    logo: "/ieit-logo.png",
     bg: "light",
     href: "https://www.spbstu.ru/structure/vysshaya-shkola-promyshlennoy-fiziki-i-kompyuternykh-tekhnologiy/",
   },

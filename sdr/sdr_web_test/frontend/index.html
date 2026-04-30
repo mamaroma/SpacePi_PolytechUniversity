@@ -9,12 +9,44 @@
 <body>
     <div class="container">
         <header>
-            <h1>SDR Трансляция</h1>
+            <div class="header-left">
+                <a href="/" class="back-btn" title="Вернуться в основной сервис">← Назад в сервис</a>
+                <h1>SDR Трансляция</h1>
+            </div>
             <div class="status">
                 <span id="connection-status" class="status-item">Отключено</span>
                 <span id="recording-status" class="status-item">Не записывается</span>
             </div>
         </header>
+
+        <!-- Описание модуля и инструкция -->
+        <section class="sdr-info-card">
+            <details open>
+                <summary>Что это за модуль и как им пользоваться</summary>
+                <div class="sdr-info-body">
+                    <p>
+                        <strong>SDR (Software-Defined Radio)</strong> — модуль приёма
+                        радиосигналов со спутников Polytech Universe.
+                        Подключённый USB-приёмник (RTL-SDR / HackRF) непрерывно
+                        слушает диапазон <code>437 МГц</code> и стримит
+                        IQ-сэмплы в браузер по WebSocket.
+                    </p>
+                    <ol>
+                        <li>Дождитесь статуса <em>«Подключено»</em> в правом верхнем углу.</li>
+                        <li>Внизу — таблица предстоящих <em>пролётов спутников</em>: красные подсвечивают текущий проход.</li>
+                        <li>Когда нужный спутник появляется в зоне приёма — нажмите <em>«Начать запись»</em>. Файл <code>.iq</code> (complex float32) автоматически скачается после остановки.</li>
+                        <li>График <em>«АЧХ»</em> сверху показывает амплитудно-частотную характеристику принимаемого сигнала в реальном времени.</li>
+                        <li>Снизу — водопад (waterfall) и временная шкала за последние 48 часов.</li>
+                        <li>Записанные <code>.iq</code>-файлы можно загрузить в раздел
+                            <em>Challenge → Демодуляция сырой записи</em> для расшифровки протоколом LoRa (gm.py).</li>
+                    </ol>
+                    <p class="sdr-info-tip">
+                        Регуляторы <em>Яркость</em> и <em>Контраст</em> подстраивают
+                        отображение водопада, не меняя сами данные.
+                    </p>
+                </div>
+            </details>
+        </section>
 
         <main>
             <!-- Спектрограмма -->
