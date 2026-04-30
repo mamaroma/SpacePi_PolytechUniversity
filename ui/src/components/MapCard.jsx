@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   MapContainer,
   TileLayer,
@@ -87,6 +88,7 @@ const COVERAGE_M_DEFAULT = 2_200_000;
 // ─── Component ────────────────────────────────────────────────
 export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, multiOrbitData = {}, mapSats = new Set(), fleetColorMap = {}, deadSatellites = {}, onSatelliteClick }) {
   const [showCoverage, setShowCoverage] = useState(true);
+  const [nikOverlayOpen, setNikOverlayOpen] = useState(false);
 
   // Received TinyGS points (sampled for perf)
   const rx = useMemo(() => {
@@ -232,42 +234,13 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             maxZoom={19}
           />
 
-          {/* ── НИК СПбПУ — приёмная станция с фото и описанием ───── */}
-          <Marker position={[POLYTECH_COORDS.lat, POLYTECH_COORDS.lon]} icon={POLYTECH_ICON}>
-            <Popup maxWidth={360} minWidth={320}>
-              <div style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: 12, width: 320 }}>
-                <img
-                  src="/nik-spbpu.png"
-                  alt="НИК СПбПУ"
-                  style={{
-                    width: "100%", borderRadius: 8, marginBottom: 10,
-                    border: "1px solid rgba(114,71,150,0.45)",
-                    boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
-                  }}
-                />
-                <div style={{ fontWeight: 700, color: "#9460b8", fontSize: 14, marginBottom: 4, letterSpacing: 0.3 }}>
-                  Приёмная станция НИК СПбПУ
-                </div>
-                <div style={{ fontSize: 11, color: "#cbb98c", marginBottom: 8, fontStyle: "italic" }}>
-                  Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
-                </div>
-                <div style={{ fontSize: 11.5, color: "#ede8f5", lineHeight: 1.55, marginBottom: 8 }}>
-                  Здесь установлена наземная LoRa-станция, которая принимает
-                  телеметрию и AIS-пакеты со спутников программы
-                  <strong style={{ color: "#f39768" }}> Polytech Universe</strong> в моменты пролёта
-                  над Санкт-Петербургом.
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px", fontSize: 11, fontFamily: "'Space Mono', monospace", color: "#c2b5d4" }}>
-                  <span style={{ color: "#8aa090" }}>Адрес:</span>
-                  <span>ул. Политехническая, 29АФ</span>
-                  <span style={{ color: "#8aa090" }}>Координаты:</span>
-                  <span>{POLYTECH_COORDS.lat.toFixed(4)}° N · {POLYTECH_COORDS.lon.toFixed(4)}° E</span>
-                  <span style={{ color: "#8aa090" }}>Диапазон:</span>
-                  <span>437.0–437.5 МГц UHF</span>
-                </div>
-              </div>
-            </Popup>
-          </Marker>
+          {/* ── НИК СПбПУ — клик открывает модальный оверлей (рендерится в body) ── */}
+          <Marker
+            position={[POLYTECH_COORDS.lat, POLYTECH_COORDS.lon]}
+            icon={POLYTECH_ICON}
+            eventHandlers={{ click: () => setNikOverlayOpen(true) }}
+          />
+
 
           {/* ── Past orbit — solid orange ────────────────────── */}
           {pastSegs.map((seg, i) => (
@@ -465,6 +438,78 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           <span><span style={{ color: "#724796" }}>◯</span> Coverage ≈ 2 200 km</span>
         )}
       </div>
+
+      {/* Модальный оверлей карточки приёмной станции НИК (поверх шапки) */}
+      {nikOverlayOpen && createPortal(
+        <div
+          onClick={() => setNikOverlayOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(8,5,18,0.78)",
+            backdropFilter: "blur(6px)", zIndex: 100000,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              width: "min(440px, 100%)", background: "#130e22",
+              border: "1px solid #724796", borderRadius: 14, overflow: "hidden",
+              boxShadow: "0 24px 64px rgba(0,0,0,.85)",
+              fontFamily: "'Inter', system-ui, sans-serif", color: "#ede8f5",
+              animation: "nik-card-in 0.18s ease",
+            }}
+          >
+            <button
+              onClick={() => setNikOverlayOpen(false)}
+              style={{
+                position: "absolute", top: 12, right: 12, zIndex: 2,
+                background: "rgba(19,14,34,0.85)", border: "1px solid rgba(243,151,104,0.6)",
+                color: "#f39768", borderRadius: 8, width: 30, height: 30,
+                cursor: "pointer", fontSize: 16, lineHeight: 1,
+              }}
+              aria-label="Закрыть"
+            >×</button>
+            <img
+              src="/nik-spbpu.png" alt="НИК СПбПУ"
+              style={{
+                display: "block", width: "100%", height: 220, objectFit: "cover",
+                borderBottom: "1px solid rgba(114,71,150,0.45)",
+              }}
+            />
+            <div style={{ padding: "14px 18px 18px" }}>
+              <div style={{ fontWeight: 700, color: "#9460b8", fontSize: 16, marginBottom: 4, letterSpacing: 0.3 }}>
+                Приёмная станция НИК СПбПУ
+              </div>
+              <div style={{ fontSize: 12, color: "#cbb98c", marginBottom: 12, fontStyle: "italic" }}>
+                Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
+              </div>
+              <div style={{ fontSize: 13, color: "#ede8f5", lineHeight: 1.6, marginBottom: 12 }}>
+                Здесь установлена наземная LoRa-станция, которая принимает
+                телеметрию и AIS-пакеты со спутников программы&nbsp;
+                <strong style={{ color: "#f39768" }}>Polytech Universe</strong> в моменты пролёта
+                над Санкт-Петербургом.
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: 12, fontFamily: "'Space Mono', monospace", color: "#c2b5d4" }}>
+                <span style={{ color: "#8aa090" }}>Адрес:</span>
+                <span>ул. Политехническая, 29АФ</span>
+                <span style={{ color: "#8aa090" }}>Координаты:</span>
+                <span>{POLYTECH_COORDS.lat.toFixed(4)}° N · {POLYTECH_COORDS.lon.toFixed(4)}° E</span>
+                <span style={{ color: "#8aa090" }}>Диапазон:</span>
+                <span>437.0–437.5 МГц UHF</span>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes nik-card-in {
+              from { opacity: 0; transform: translateY(8px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

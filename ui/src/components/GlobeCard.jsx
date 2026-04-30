@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 
@@ -271,6 +272,9 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
   const [countryLabels, setCountryLabels] = useState([]);
   const [showCountryLabels, setShowCountryLabels] = useState(false);
+  // Состояние и ref'ы для модального оверлея НИКа
+  const [nikOverlayOpen, setNikOverlayOpen] = useState(false);
+
   const polytechHtmlElFn = useCallback((d) => {
     const wrapper = document.createElement("div");
     wrapper.style.cssText = "position:relative;cursor:pointer;";
@@ -280,44 +284,9 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
     icon.style.cssText = "width:30px;height:30px;border-radius:6px;display:block;box-shadow:0 0 12px rgba(114,71,150,0.7);";
     wrapper.appendChild(icon);
 
-    const popup = document.createElement("div");
-    popup.style.cssText =
-      "display:none;position:absolute;bottom:42px;left:50%;transform:translateX(-50%);" +
-      "background:#130e22;border:1px solid #724796;border-radius:10px;padding:0;overflow:hidden;" +
-      "box-shadow:0 12px 32px rgba(0,0,0,.75);font-family:'Inter',system-ui,sans-serif;" +
-      "font-size:12px;color:#ede8f5;z-index:1000;pointer-events:auto;width:320px;";
-
-    popup.innerHTML = `
-      <img src="/nik-spbpu.png" alt="НИК СПбПУ"
-           style="display:block;width:100%;height:160px;object-fit:cover;border-bottom:1px solid rgba(114,71,150,0.45);" />
-      <div style="padding:12px 14px 14px;">
-        <div style="font-weight:700;color:#9460b8;font-size:14px;margin-bottom:4px;letter-spacing:0.3px;">
-          Приёмная станция НИК СПбПУ
-        </div>
-        <div style="font-size:11px;color:#cbb98c;margin-bottom:10px;font-style:italic;">
-          Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
-        </div>
-        <div style="font-size:11.5px;color:#ede8f5;line-height:1.55;margin-bottom:10px;">
-          Наземная LoRa-станция приёма телеметрии и AIS-пакетов со спутников
-          программы <span style="color:#f39768;font-weight:600">Polytech Universe</span>
-          в моменты пролёта над Санкт-Петербургом.
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;font-family:'Space Mono',monospace;color:#c2b5d4;">
-          <span style="color:#8aa090">Адрес:</span>
-          <span>Политехническая, 29АФ</span>
-          <span style="color:#8aa090">Коорд.:</span>
-          <span>60.01° N · 30.38° E</span>
-          <span style="color:#8aa090">Диапазон:</span>
-          <span>437.0–437.5 МГц UHF</span>
-        </div>
-      </div>
-    `;
-    wrapper.appendChild(popup);
-
     wrapper.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isVisible = popup.style.display !== "none";
-      popup.style.display = isVisible ? "none" : "block";
+      setNikOverlayOpen((v) => !v);
     });
 
     return wrapper;
@@ -555,8 +524,12 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       const lat = Number(current.lat);
       const lng = Number(current.lon);
 
+      // Высоту иконки спутника намеренно держим минимальной, чтобы
+      // 2D-карта (точка на поверхности) и 3D-глобус отображали аппарат
+      // в одной и той же географической точке без заметного «сдвига»
+      // от перспективной проекции 3D-сферы.
       const rSurface = R0 * 1.01;
-      const rSat = R0 * 1.11;
+      const rSat = R0 * 1.022;
 
       const satPos = llToXyz(lat, lng, rSat);
       const groundPos = llToXyz(lat, lng, rSurface);
@@ -649,10 +622,10 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
       const extraCur = oData?.current;
       if (extraCur && validLatLon(extraCur.lat, extraCur.lon)) {
-        // ВАЖНО: используем тот же радиус (R0 * 1.11), что и для основного спутника,
-        // и для 2D-карты (которая берёт чистые lat/lon). Иначе позиция на 2D и 3D
-        // не совпадает.
-        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.11);
+        // Используем ту же низкую «над-поверхностную» высоту, что и для
+        // основного спутника. Так 2D-карта и 3D-глобус отображают аппарат
+        // в одной и той же географической точке без перспективного сдвига.
+        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.022);
         const eSpr = makeSatelliteSprite(R0, {
           scale: isDead ? 0.12 : 0.14,
           glow: isDead ? "rgba(218,73,39,0.30)" : `rgba(114,71,150,0.35)`,
@@ -772,6 +745,77 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
           }}
         />
       </div>
+
+      {/* Модальный оверлей карточки приёмной станции НИК СПбПУ —
+          рендерится в <body>, чтобы поверх шапки и карты */}
+      {nikOverlayOpen && createPortal(
+        <div
+          onClick={() => setNikOverlayOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(8,5,18,0.78)",
+            backdropFilter: "blur(6px)", zIndex: 100000,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(440px, 100%)", background: "#130e22",
+              border: "1px solid #724796", borderRadius: 14, overflow: "hidden",
+              boxShadow: "0 24px 64px rgba(0,0,0,.85)",
+              fontFamily: "'Inter', system-ui, sans-serif", color: "#ede8f5",
+              animation: "nik-card-in 0.18s ease",
+            }}
+          >
+            <button
+              onClick={() => setNikOverlayOpen(false)}
+              style={{
+                position: "absolute", top: 12, right: 18, zIndex: 2,
+                background: "rgba(19,14,34,0.85)", border: "1px solid rgba(243,151,104,0.6)",
+                color: "#f39768", borderRadius: 8, width: 30, height: 30,
+                cursor: "pointer", fontSize: 16, lineHeight: 1,
+              }}
+              aria-label="Закрыть"
+            >×</button>
+            <img
+              src="/nik-spbpu.png" alt="НИК СПбПУ"
+              style={{
+                display: "block", width: "100%", height: 220, objectFit: "cover",
+                borderBottom: "1px solid rgba(114,71,150,0.45)",
+              }}
+            />
+            <div style={{ padding: "14px 18px 18px" }}>
+              <div style={{ fontWeight: 700, color: "#9460b8", fontSize: 16, marginBottom: 4, letterSpacing: 0.3 }}>
+                Приёмная станция НИК СПбПУ
+              </div>
+              <div style={{ fontSize: 12, color: "#cbb98c", marginBottom: 12, fontStyle: "italic" }}>
+                Научно-исследовательский корпус СПбПУ Петра&nbsp;Великого
+              </div>
+              <div style={{ fontSize: 13, color: "#ede8f5", lineHeight: 1.6, marginBottom: 12 }}>
+                Наземная LoRa-станция приёма телеметрии и AIS-пакетов со спутников
+                программы <span style={{ color: "#f39768", fontWeight: 600 }}>Polytech Universe</span>
+                {" "}в моменты пролёта над Санкт-Петербургом.
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: 12, fontFamily: "'Space Mono',monospace", color: "#c2b5d4" }}>
+                <span style={{ color: "#8aa090" }}>Адрес:</span>
+                <span>ул. Политехническая, 29АФ</span>
+                <span style={{ color: "#8aa090" }}>Координаты:</span>
+                <span>60.0094° N · 30.3756° E</span>
+                <span style={{ color: "#8aa090" }}>Диапазон:</span>
+                <span>437.0–437.5 МГц UHF</span>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes nik-card-in {
+              from { opacity: 0; transform: translateY(8px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+          `}</style>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

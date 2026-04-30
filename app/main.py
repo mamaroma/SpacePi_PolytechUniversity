@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, Depends, Query, HTTPException
+from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
@@ -88,7 +88,18 @@ app.add_middleware(
 
 
 @app.get("/")
-def root() -> Dict[str, Any]:
+def root(request: Request):
+    """
+    Корневой эндпоинт.
+
+    Если запрос пришёл из браузера (Accept: text/html) — редиректим в SPA,
+    чтобы клик «Назад в сервис» из SDR/Docs не оставлял пользователя на JSON.
+    Иначе возвращаем JSON-метаданные.
+    """
+    accept = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/satellites", status_code=302)
     return {
         "service": "PolySpace API",
         "status": "ok",

@@ -10,9 +10,45 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <a href="/" class="back-btn" title="Вернуться в основной сервис">← Назад в сервис</a>
+                <a href="#" id="sdr-back-btn" class="back-btn" title="Вернуться в основной сервис">← Назад в сервис</a>
                 <h1>SDR Трансляция</h1>
             </div>
+            <script>
+              // Возвращаемся в frontend SPA, а не на JSON-эндпоинт FastAPI.
+              // 1) если браузер помнит, откуда мы пришли — туда
+              // 2) если history доступна и предыдущая страница того же origin — back()
+              // 3) иначе пробуем явный путь frontend (например, /, /satellites)
+              (function () {
+                document.addEventListener("DOMContentLoaded", function () {
+                  var btn = document.getElementById("sdr-back-btn");
+                  if (!btn) return;
+                  btn.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    try {
+                      var ref = document.referrer || "";
+                      var sameOrigin = ref && ref.indexOf(window.location.origin) === 0;
+                      var refPath = sameOrigin ? new URL(ref).pathname : "";
+                      if (sameOrigin && refPath && refPath.indexOf("/sdr") !== 0 && refPath !== "/api" && refPath !== "/api/") {
+                        window.location.href = ref;
+                        return;
+                      }
+                      if (window.history.length > 1) {
+                        window.history.back();
+                        // На случай, если back() приведёт обратно на /sdr (циклически),
+                        // через 600 мс принудительно переходим в /satellites
+                        setTimeout(function () {
+                          if (window.location.pathname.indexOf("/sdr") === 0) {
+                            window.location.href = "/satellites";
+                          }
+                        }, 600);
+                        return;
+                      }
+                    } catch (_) {}
+                    window.location.href = "/satellites";
+                  });
+                });
+              })();
+            </script>
             <div class="status">
                 <span id="connection-status" class="status-item">Отключено</span>
                 <span id="recording-status" class="status-item">Не записывается</span>

@@ -249,12 +249,7 @@ export default function DocsPage() {
           <h1 className="page-title">История проекта · Polytech Universe</h1>
           <p className="page-subtitle">
             Хронология аппаратов программы школьных и студенческих спутников
-            СПбПУ Петра&nbsp;Великого. Данные и фотографии — сайт
-            {" "}
-            <a href="https://spacepi.space" target="_blank" rel="noreferrer" style={{ color: "var(--orange)" }}>
-              spacepi.space
-            </a>
-            .
+            СПбПУ Петра&nbsp;Великого.
           </p>
         </div>
         {isEditor && (

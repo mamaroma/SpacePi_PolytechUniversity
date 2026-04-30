@@ -170,35 +170,6 @@ export default function EmiPage() {
             </div>
           </div>
 
-          <div className="controls-card">
-            <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
-              <span className="ctrl-label">Диапазон</span>
-              <input
-                type="range"
-                min={0}
-                max={Math.max(0, bandsAvailable.length - 1)}
-                value={bandIdx}
-                onChange={(e) => setBandIdx(Number(e.target.value))}
-                style={{ flex: 1, minWidth: 240, accentColor: "var(--orange)" }}
-              />
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "var(--orange)" }}>
-                {activeBand ? (BAND_LABELS[activeBand] || `${activeBand} МГц`) : "—"}
-              </span>
-            </div>
-            <div className="ctrl-row" style={{ flexWrap: "wrap" }}>
-              <span className="ctrl-label">Минимальная мощность приёма</span>
-              <select value={minPower} onChange={(e) => setMinPower(Number(e.target.value))} style={{ width: 120 }}>
-                <option value={-110}>Все</option>
-                <option value={-90}>≥ −90 дБм</option>
-                <option value={-70}>≥ −70 дБм</option>
-                <option value={-50}>≥ −50 дБм</option>
-                <option value={-30}>≥ −30 дБм</option>
-              </select>
-              <div className="ctrl-spacer" />
-              <span className="card-meta">{filtered.length} точек · демо-данные</span>
-            </div>
-          </div>
-
           <div className="metrics-row">
             <div className="metric-card col-cyan">
               <div className="metric-body">
@@ -232,6 +203,64 @@ export default function EmiPage() {
               <span className="card-title">Карта ЭМ-обстановки — тепловая карта</span>
               <span className="card-meta">{filtered.length} точек</span>
             </div>
+
+            {/* Компактный регулятор диапазона прямо над картой */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 10px",
+                marginBottom: 8,
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                flexWrap: "wrap",
+                fontSize: 12,
+              }}
+            >
+              <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>Диапазон</span>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, bandsAvailable.length - 1)}
+                value={bandIdx}
+                onChange={(e) => setBandIdx(Number(e.target.value))}
+                style={{
+                  flex: "1 1 180px",
+                  minWidth: 140,
+                  maxWidth: 320,
+                  accentColor: "var(--orange)",
+                  height: 4,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: 12,
+                  color: "var(--orange)",
+                  whiteSpace: "nowrap",
+                  minWidth: 130,
+                }}
+              >
+                {activeBand ? (BAND_LABELS[activeBand] || `${activeBand} МГц`) : "—"}
+              </span>
+              <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>·</span>
+              <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>Мощность ≥</span>
+              <select
+                value={minPower}
+                onChange={(e) => setMinPower(Number(e.target.value))}
+                style={{ width: 90, fontSize: 11, padding: "2px 4px" }}
+              >
+                <option value={-110}>все</option>
+                <option value={-90}>−90 дБм</option>
+                <option value={-70}>−70 дБм</option>
+                <option value={-50}>−50 дБм</option>
+                <option value={-30}>−30 дБм</option>
+              </select>
+              <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>{filtered.length} точек</span>
+            </div>
+
             <div className="globe-inner" style={{ height: 600 }}>
               <style>{`
                 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #231c3e !important; color: #ede8f5 !important; border: 1px solid rgba(114,71,150,0.55) !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }

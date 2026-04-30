@@ -89,6 +89,9 @@ function recentLabel(daysAgo) {
   return `${dd}.${mm}.${d.getUTCFullYear()} (≈${daysAgo} дн. назад)`;
 }
 
+// Только реально неактивные / сошедшие с орбиты аппараты.
+// PU-4 и PU-5 — действующие, телеметрия по ним собирается с TinyGS
+// и проходит обычный пайплайн загрузки орбиты SGP4.
 const DEAD_SATELLITES = {
   "Polytech_Universe-1": {
     current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
@@ -100,18 +103,6 @@ const DEAD_SATELLITES = {
     current: { lat: -15.7, lon: -42.3, ts_utc: "2023-10-05T08:00:00Z" },
     track: [],
     lastContact: "Октябрь 2023 (архивные данные)",
-    dead: true,
-  },
-  "Polytech_Universe-4": {
-    current: { lat: 10.0, lon: 20.0, ts_utc: "2023-06-12T10:30:00Z" },
-    track: [],
-    lastContact: "Июнь 2023 (архивные данные)",
-    dead: true,
-  },
-  "Polytech_Universe-5": {
-    current: { lat: -20.0, lon: 100.0, ts_utc: "2023-03-04T18:15:00Z" },
-    track: [],
-    lastContact: "Март 2023 (архивные данные)",
     dead: true,
   },
   "Polytech_Universe-6": {

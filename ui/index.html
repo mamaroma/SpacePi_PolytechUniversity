@@ -1,13 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#130e22" />
+    <meta name="description" content="PolySpace Ground Station — наземная станция приёма и визуализации данных со спутников Polytech Universe (СПбПУ)." />
     <title>PolySpace Ground Station</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰</text></svg>" />
+    <link rel="icon" type="image/png" href="/polyspace-logo.png" />
+
+    <!-- Pre-connect к карточным CDN, ускоряет первый рендер карты -->
+    <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossorigin />
+    <link rel="preconnect" href="https://b.basemaps.cartocdn.com" crossorigin />
+    <link rel="preconnect" href="https://storage.yandexcloud.net" crossorigin />
+    <!-- Pre-connect к S3 текстурам глобуса -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Простой плейсхолдер до загрузки JS, чтобы не было «белого экрана» -->
+      <div style="
+        display:flex;align-items:center;justify-content:center;
+        min-height:100vh;background:#0d0a18;color:#cbb98c;
+        font-family:'Inter',system-ui,sans-serif;font-size:14px;letter-spacing:.5px;
+      ">
+        Загрузка PolySpace…
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -690,6 +690,16 @@ tbody td:first-child { color: var(--text-dim); }
 }
 .leaflet-popup-tip { background: var(--surface-2) !important; }
 
+/* Поднимаем popup-pane Leaflet выше шапки (.header z-index=9999),
+   чтобы карточка НИКа и другие popup'ы не уезжали под верхнюю панель. */
+.leaflet-popup-pane,
+.leaflet-pane.leaflet-popup-pane {
+  z-index: 10500 !important;
+}
+.leaflet-tooltip-pane {
+  z-index: 10400 !important;
+}
+
 /* ─── Error Boundary ─────────────────────────────────────────── */
 .error-card {
   background: var(--surface-1);

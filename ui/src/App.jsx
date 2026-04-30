@@ -1,21 +1,25 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense, lazy } from "react";
 import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
 import NewsPage from "./pages/NewsPage";
-import NewsDetailPage from "./pages/NewsDetailPage";
-import SatellitesPage from "./pages/SatellitesPage";
-import ShipsPage from "./pages/ShipsPage";
-import EmiPage from "./pages/EmiPage";
-import DocsPage from "./pages/DocsPage";
-import CreatorsPage from "./pages/CreatorsPage";
-import AuthPage from "./pages/AuthPage";
-import AdminPage from "./pages/AdminPage";
-import ChallengePage from "./pages/ChallengePage";
-import StoragePage from "./pages/StoragePage";
-import SnapshotsPage from "./pages/SnapshotsPage";
-import IdentificationPage from "./pages/IdentificationPage";
 import Footer from "./components/Footer";
 import { API_BASE } from "./api";
+
+/* Code-splitting: тяжёлые страницы (Leaflet/three/recharts/zip) грузим
+ * только когда пользователь действительно перешёл в раздел.
+ * Это разгружает первый bundle и заметно ускоряет загрузку «Главной». */
+const NewsDetailPage    = lazy(() => import("./pages/NewsDetailPage"));
+const SatellitesPage    = lazy(() => import("./pages/SatellitesPage"));
+const ShipsPage         = lazy(() => import("./pages/ShipsPage"));
+const EmiPage           = lazy(() => import("./pages/EmiPage"));
+const DocsPage          = lazy(() => import("./pages/DocsPage"));
+const CreatorsPage      = lazy(() => import("./pages/CreatorsPage"));
+const AuthPage          = lazy(() => import("./pages/AuthPage"));
+const AdminPage         = lazy(() => import("./pages/AdminPage"));
+const ChallengePage     = lazy(() => import("./pages/ChallengePage"));
+const StoragePage       = lazy(() => import("./pages/StoragePage"));
+const SnapshotsPage     = lazy(() => import("./pages/SnapshotsPage"));
+const IdentificationPage = lazy(() => import("./pages/IdentificationPage"));
 
 const SDR_URL = `${API_BASE}/sdr`;
 
@@ -290,22 +294,31 @@ function AppInner() {
         )}
       </header>
 
-      <Routes>
-        <Route path="/" element={<NewsPage />} />
-        <Route path="/news/:id" element={<NewsDetailPage />} />
-        <Route path="/telemetry" element={<SatellitesPage />} />
-        <Route path="/ais" element={<ShipsPage />} />
-        <Route path="/emi" element={<EmiPage />} />
-        <Route path="/docs" element={<DocsPage />} />
-        <Route path="/creators" element={<CreatorsPage />} />
-        <Route path="/challenge" element={<ChallengePage />} />
-        <Route path="/storage" element={<StoragePage />} />
-        <Route path="/snapshots" element={<SnapshotsPage />} />
-        <Route path="/identification" element={<IdentificationPage />} />
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={
+        <div style={{
+          minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center",
+          color: "var(--text-muted)", fontSize: 14, gap: 10,
+        }}>
+          <span className="spinner" /> Загрузка раздела…
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<NewsPage />} />
+          <Route path="/news/:id" element={<NewsDetailPage />} />
+          <Route path="/telemetry" element={<SatellitesPage />} />
+          <Route path="/ais" element={<ShipsPage />} />
+          <Route path="/emi" element={<EmiPage />} />
+          <Route path="/docs" element={<DocsPage />} />
+          <Route path="/creators" element={<CreatorsPage />} />
+          <Route path="/challenge" element={<ChallengePage />} />
+          <Route path="/storage" element={<StoragePage />} />
+          <Route path="/snapshots" element={<SnapshotsPage />} />
+          <Route path="/identification" element={<IdentificationPage />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
 
       <Footer />
     </>
