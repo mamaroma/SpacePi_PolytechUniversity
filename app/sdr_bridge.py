@@ -71,29 +71,21 @@ def attach_sdr(app) -> None:
                 status_code=503,
             )
 
-        from fastapi import APIRouter as _APIRouter, WebSocket as _WebSocket
+        from fastapi import WebSocket as _WebSocket
 
         async def _ws_stub(websocket: _WebSocket):
             await websocket.accept()
             await websocket.close(code=1011, reason="SDR unavailable")
 
-        _ws_stub_router = _APIRouter()
-        _ws_stub_router.add_api_websocket_route("/ws/sdr", _ws_stub)
         app.include_router(stub)
-        app.include_router(_ws_stub_router, prefix="/sdr")
+        app.add_api_websocket_route("/sdr/ws/sdr", _ws_stub)
 
         logger.warning("SDR mounted as STUB (503) — check /sdr-status for details")
         return
 
     # ── real SDR routes ──────────────────────────────────────────────────────
     app.include_router(sdr_router, prefix="/sdr")
-
-    # Register WebSocket via add_api_websocket_route (more reliable than
-    # the app.websocket(path)(func) decorator pattern in some FastAPI versions)
-    from fastapi import APIRouter as _APIRouter
-    _ws_router = _APIRouter()
-    _ws_router.add_api_websocket_route("/ws/sdr", websocket_endpoint)
-    app.include_router(_ws_router, prefix="/sdr")
+    app.add_api_websocket_route("/sdr/ws/sdr", websocket_endpoint)
 
     if _SDR_FRONTEND.is_dir():
         app.mount(
