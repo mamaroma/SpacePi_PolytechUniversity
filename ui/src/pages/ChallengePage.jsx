@@ -1,9 +1,9 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, BarChart, Bar,
 } from "recharts";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   fetchTelemetry, isoDaysAgo,
@@ -60,17 +60,23 @@ function genDemo(sat) {
   const rng = (n) => { const x = Math.sin(n * seed * 9301 + 49297) * 233280; return x - Math.floor(x); };
   const now = Date.now();
   let temp = 15 + rng(0) * 20;
+  let bat = 70 + rng(1) * 25;        // %
+  let rssi = -95 + rng(2) * 18;      // dBm
   return Array.from({ length: 50 }, (_, i) => {
     const ts_ms = now - (49 - i) * 15 * 60 * 1000;
     temp += (rng(i + 1) - 0.48) * 6;
     temp = Math.max(-25, Math.min(55, temp));
+    bat = Math.max(5, Math.min(100, bat + (rng(i + 30) - 0.55) * 1.2));
+    rssi = Math.max(-120, Math.min(-55, rssi + (rng(i + 70) - 0.5) * 4));
     const d = new Date(ts_ms);
     return {
       id: i, ts_ms,
       label: `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`,
       date: d.toLocaleDateString("ru-RU"),
-      temp: +temp.toFixed(2),
-      volt: +(3.5 + rng(i + 100) * 0.9).toFixed(3),
+      temp:    +temp.toFixed(2),
+      volt:    +(3.5 + rng(i + 100) * 0.9).toFixed(3),
+      battery: +bat.toFixed(1),
+      rssi:    +rssi.toFixed(1),
     };
   });
 }
@@ -371,6 +377,12 @@ function GraphActivity() {
                   Нажимай <strong style={{ color: "var(--accent)" }}>+</strong> рядом с точками, чтобы построить график
                 </span>
               </div>
+            ) : plotted.filter(p => p[paramKey] != null && Number.isFinite(p[paramKey])).length === 0 ? (
+              <div style={{ height: 250, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                  В выбранных пакетах нет значений для «{param.label}». Попробуй другой параметр или другой источник данных.
+                </span>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={plotted} margin={{ top: 5, right: 8, left: -22, bottom: 5 }}>
@@ -476,25 +488,320 @@ const PACKETS = [
 ].map(p => ({ ...p, bytes: buildPacket(p.satId, p.tempC, p.voltV, p.unixTs) }));
 
 // ─── Activity 2: Packet Decoder ─────────────────────────────────────────────────
-const DECODE_FIELDS = [
-  { key: "sat_id",  label: "ID спутника",            field: "sat",  hint: "Число 1 или 2",           placeholder: "1" },
-  { key: "temp",    label: "Температура (°C)",        field: "temp", hint: "Пример: 23.45 или -12.30", placeholder: "0.00" },
-  { key: "volt",    label: "Напряжение (В)",          field: "volt", hint: "Пример: 3.750",            placeholder: "0.000" },
-  { key: "cs",      label: "Контрольная сумма (hex)", field: "cs",   hint: "Пример: A3 или 0xa3",      placeholder: "XX" },
+
+// Built-in field types for custom format
+const FIELD_TYPES = [
+  { key: "uint8",   label: "uint8  (1 байт, 8 бит)",    bytes: 1, signed: false },
+  { key: "int8",    label: "int8   (1 байт, 8 бит)",    bytes: 1, signed: true  },
+  { key: "uint16",  label: "uint16 (2 байта, 16 бит)",  bytes: 2, signed: false },
+  { key: "int16",   label: "int16  (2 байта, 16 бит)",  bytes: 2, signed: true  },
+  { key: "uint32",  label: "uint32 (4 байта, 32 бит)",  bytes: 4, signed: false },
+  { key: "int32",   label: "int32  (4 байта, 32 бит)",  bytes: 4, signed: true  },
+  { key: "uint64",  label: "uint64 (8 байт, 64 бит)",   bytes: 8, signed: false },
+  { key: "float32", label: "float  (4 байта, 32 бит)",  bytes: 4, signed: false },
+  { key: "bytes1",  label: "raw 1 байт",                bytes: 1, signed: false },
+  { key: "bytes2",  label: "raw 2 байта",               bytes: 2, signed: false },
+  { key: "bytes4",  label: "raw 4 байта",               bytes: 4, signed: false },
 ];
 
-function fieldOk(key, form, pkt) {
-  if (key === "sat_id") return Number(form.sat_id) === pkt.satId;
-  if (key === "temp") return Math.abs(parseFloat(form.temp) - pkt.tempC) < 0.01;
-  if (key === "volt") return Math.abs(parseFloat(form.volt) - pkt.voltV) < 0.005;
-  if (key === "cs") {
-    const expected = pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0");
-    return form.cs.trim().toUpperCase().replace(/^0X/, "") === expected;
+const ENDIAN_OPTS = [
+  { key: "LE", label: "LE (little-endian)" },
+  { key: "BE", label: "BE (big-endian)" },
+];
+
+const FIELD_PALETTE = [
+  "#f3cb68","#9460b8","#f39768","#da4927","#6cc77b","#cbb98c",
+  "#56965b","#8878a4","#b05c24","#5b8ab0","#c2b5d4","#7ac8b0",
+];
+
+function parseFieldValue(dv, offset, typeKey, endian) {
+  const le = endian === "LE";
+  try {
+    switch (typeKey) {
+      case "uint8":   return dv.getUint8(offset);
+      case "int8":    return dv.getInt8(offset);
+      case "uint16":  return dv.getUint16(offset, le);
+      case "int16":   return dv.getInt16(offset, le);
+      case "uint32":  return dv.getUint32(offset, le);
+      case "int32":   return dv.getInt32(offset, le);
+      case "uint64":  {
+        const hi = dv.getUint32(le ? offset + 4 : offset, le);
+        const lo = dv.getUint32(le ? offset : offset + 4, le);
+        return (BigInt(hi) << 32n | BigInt(lo)).toString();
+      }
+      case "float32": return dv.getFloat32(offset, le).toFixed(4);
+      case "bytes1":
+      case "bytes2":
+      case "bytes4": {
+        const ft = FIELD_TYPES.find(f => f.key === typeKey);
+        const arr = [];
+        for (let i = 0; i < ft.bytes; i++) arr.push(dv.getUint8(offset + i).toString(16).toUpperCase().padStart(2, "0"));
+        return arr.join(" ");
+      }
+      default: return "?";
+    }
+  } catch {
+    return "—";
   }
-  return false;
+}
+
+function parseCustomPacket(hexStr, fields) {
+  const clean = hexStr.replace(/\s+/g, "").replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]*$/.test(clean) || clean.length % 2 !== 0) return { error: "Неверный HEX (нечётное количество символов или недопустимые символы)" };
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  const dv = new DataView(bytes.buffer);
+  let offset = 0;
+  const parsed = [];
+  for (const f of fields) {
+    const ft = FIELD_TYPES.find(t => t.key === f.type) || FIELD_TYPES[0];
+    if (offset + ft.bytes > bytes.length) {
+      parsed.push({ ...f, value: "— (за пределами пакета)", offset, bytes: ft.bytes, outOfRange: true });
+      offset += ft.bytes;
+      continue;
+    }
+    const rawBytes = Array.from(bytes.slice(offset, offset + ft.bytes)).map(b => b.toString(16).toUpperCase().padStart(2, "0"));
+    const value = parseFieldValue(dv, offset, f.type, f.endian);
+    parsed.push({ ...f, value, offset, bytes: ft.bytes, rawBytes, outOfRange: false });
+    offset += ft.bytes;
+  }
+  return { parsed, totalBytes: bytes.length, usedBytes: offset, rawBytes: Array.from(bytes) };
+}
+
+const DEFAULT_CUSTOM_FIELDS = [
+  { id: 1, name: "sync",   type: "uint16",  endian: "LE" },
+  { id: 2, name: "sat_id", type: "uint8",   endian: "LE" },
+  { id: 3, name: "temp",   type: "int16",   endian: "LE" },
+  { id: 4, name: "volt",   type: "uint16",  endian: "LE" },
+  { id: 5, name: "crc",    type: "uint8",   endian: "LE" },
+];
+
+// ─── AIS sub-decoder (inside Packet Decoder) ───────────────────────────────────
+function AisDecodeSubTab() {
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const handle = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true); setError(""); setResult(null);
+    try {
+      const r = await decodeAisFile(file);
+      setResult(r);
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Точки с координатами — для карты-траектории
+  const geoPoints = useMemo(
+    () => (result?.decoded || []).filter(p => p.lat != null && p.lon != null),
+    [result]
+  );
+
+  // Гистограмма по типам сообщений (msg_type 1/2/3/5/...)
+  const msgTypeChart = useMemo(() => {
+    const counts = {};
+    for (const p of (result?.decoded || [])) {
+      const k = `msg ${p.msg_type ?? "?"}`;
+      counts[k] = (counts[k] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([k, v]) => ({ type: k, count: v }))
+      .sort((a, b) => b.count - a.count);
+  }, [result]);
+
+  // Распределение скоростей — для второго чарта
+  const speedChart = useMemo(() => {
+    const bins = [0, 0, 0, 0, 0, 0, 0]; // 0-5,5-10,10-15,15-20,20-25,25-30,30+
+    for (const p of (result?.decoded || [])) {
+      const v = Number(p.speed);
+      if (!Number.isFinite(v)) continue;
+      const i = Math.min(6, Math.floor(v / 5));
+      bins[i]++;
+    }
+    const labels = ["0–5", "5–10", "10–15", "15–20", "20–25", "25–30", "30+"];
+    return labels.map((label, i) => ({ label, count: bins[i] }));
+  }, [result]);
+
+  // Группируем подряд идущие точки по MMSI в треки (для Polyline)
+  const tracksByMmsi = useMemo(() => {
+    const map = new Map();
+    for (const p of geoPoints) {
+      if (p.mmsi == null) continue;
+      if (!map.has(p.mmsi)) map.set(p.mmsi, []);
+      map.get(p.mmsi).push([p.lat, p.lon]);
+    }
+    return [...map.entries()].filter(([, pts]) => pts.length >= 2);
+  }, [geoPoints]);
+
+  const center = geoPoints.length
+    ? [geoPoints[0].lat, geoPoints[0].lon]
+    : [55.0, 30.0];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, padding: 18 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 12 }}>
+          <strong style={{ color: "var(--orange)" }}>AIS-парсер.</strong>{" "}
+          Загрузите файл с пакетами NMEA-AIVDM (по строке на пакет).
+          Декодированные позиции автоматически появятся на карте-траектории,
+          а распределение типов сообщений и скоростей — на графиках ниже.
+        </div>
+        <pre style={{ padding: 10, background: "#130e22", borderRadius: 6, fontSize: 11, color: "var(--accent-2)", overflow: "auto", marginBottom: 12 }}>
+{`!AIVDM,1,1,,A,13lq2>002f0V3scdr8ATr40p8L07,0*6A
+!AIVDM,1,1,,B,15?dU2h0j710dfifFDumRTHr0<0=,0*33`}
+        </pre>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+            {busy ? "Декодирую…" : "↑ Загрузить AIS-файл"}
+            <input type="file" accept=".txt,.aivdm,.log" style={{ display: "none" }} onChange={handle} disabled={busy} />
+          </label>
+          {result && (
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <strong style={{ color: "var(--accent)" }}>{result.count}</strong> декодировано
+              {" · "}
+              <strong style={{ color: "var(--orange-2)" }}>{result.errors}</strong> ошибок
+              {" · "}
+              <strong style={{ color: "var(--accent-2)" }}>{geoPoints.length}</strong> с координатами
+            </span>
+          )}
+        </div>
+        {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
+      </div>
+
+      {result && (
+        <>
+          {/* Карта-траектория с MMSI-треками */}
+          {geoPoints.length > 0 && (
+            <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  Траектории · {tracksByMmsi.length} судов с маршрутом
+                </span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  Точки — отдельные AIS-репорты, линии — последовательные позиции одного MMSI
+                </span>
+              </div>
+              <div style={{ height: 380 }}>
+                <MapContainer center={center} zoom={4} style={{ height: "100%", width: "100%" }} preferCanvas>
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+                    attribution="&copy; CARTO"
+                  />
+                  {tracksByMmsi.map(([mmsi, pts]) => (
+                    <Polyline
+                      key={`trk-${mmsi}`}
+                      positions={pts}
+                      pathOptions={{ color: "#f39768", weight: 2, opacity: 0.55, dashArray: "4 4" }}
+                    />
+                  ))}
+                  {geoPoints.map((p, i) => (
+                    <CircleMarker
+                      key={`pt-${i}`}
+                      center={[p.lat, p.lon]}
+                      radius={5}
+                      pathOptions={{ color: "#9460b8", fillColor: "#9460b8", fillOpacity: 0.85, weight: 1 }}
+                    >
+                      <Popup>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: "#ede8f5" }}>
+                          <div style={{ color: "#f39768", fontWeight: 700, marginBottom: 4 }}>MMSI {p.mmsi}</div>
+                          msg {p.msg_type} · {typeof p.lat === "number" ? p.lat.toFixed(4) : "—"} / {typeof p.lon === "number" ? p.lon.toFixed(4) : "—"}<br />
+                          {p.speed != null && <>SOG: {p.speed} уз<br /></>}
+                          {p.course != null && <>COG: {p.course}°<br /></>}
+                          {p.heading != null && <>HDG: {p.heading}°<br /></>}
+                          {p.status != null && <span style={{ color: "var(--text-muted)" }}>{String(p.status)}</span>}
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  ))}
+                </MapContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Чарт: типы сообщений + распределение скоростей */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div style={{ ...S.card, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                Типы AIS-сообщений
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={msgTypeChart} margin={{ top: 5, right: 8, left: -22, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(114,71,150,0.18)" />
+                  <XAxis dataKey="type" tick={{ fontSize: 10, fill: "#8aa090" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#8aa090" }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "#231c3e", border: "1px solid rgba(114,71,150,0.55)", borderRadius: 8, fontSize: 12, color: "#ede8f5" }} />
+                  <Bar dataKey="count" fill="#9460b8" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ ...S.card, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                Распределение скоростей (узлы)
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={speedChart} margin={{ top: 5, right: 8, left: -22, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(114,71,150,0.18)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8aa090" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#8aa090" }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "#231c3e", border: "1px solid rgba(114,71,150,0.55)", borderRadius: 8, fontSize: 12, color: "#ede8f5" }} />
+                  <Bar dataKey="count" fill="#f39768" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Таблица с декодированными полями */}
+          <div style={{ ...S.card, padding: 0 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text)", fontWeight: 600 }}>Файл: {result.filename}</span>
+              <span style={{ color: "var(--accent-2)", fontFamily: "'Space Mono', monospace" }}>
+                ✓ {result.count} · ✗ {result.errors}
+              </span>
+            </div>
+            <div style={{ maxHeight: 380, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "'Space Mono', monospace" }}>
+                <thead style={{ position: "sticky", top: 0, background: "var(--surface-2)" }}>
+                  <tr>
+                    {["MMSI", "msg", "lat", "lon", "speed", "course", "heading", "status"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.decoded.map((p, i) => (
+                    <tr key={i} style={{ background: i % 2 ? "transparent" : "rgba(114,71,150,0.06)" }}>
+                      <td style={{ ...S.td, color: "var(--orange)", fontWeight: 600 }}>{p.mmsi}</td>
+                      <td style={S.td}>{p.msg_type}</td>
+                      <td style={S.td}>{typeof p.lat === "number" ? p.lat.toFixed(4) : "—"}</td>
+                      <td style={S.td}>{typeof p.lon === "number" ? p.lon.toFixed(4) : "—"}</td>
+                      <td style={S.td}>{p.speed ?? "—"}</td>
+                      <td style={S.td}>{p.course ?? "—"}</td>
+                      <td style={S.td}>{p.heading ?? "—"}</td>
+                      <td style={{ ...S.td, color: "var(--text-muted)" }}>{String(p.status ?? "")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function PacketDecodeActivity() {
+  // ── Tab: preset vs custom vs ais ────────────────────────────────────
+  const [tab, setTab] = useState("preset"); // "preset" | "custom" | "ais"
+
+  // ── Preset mode ──────────────────────────────────────────────────────
   const [packetId, setPacketId] = useState(1);
   const [form, setForm] = useState({ sat_id: "", temp: "", volt: "", cs: "" });
   const [submitted, setSubmitted] = useState(false);
@@ -511,191 +818,386 @@ function PacketDecodeActivity() {
   };
 
   const results = submitted
-    ? { sat_id: fieldOk("sat_id", form, pkt), temp: fieldOk("temp", form, pkt), volt: fieldOk("volt", form, pkt), cs: fieldOk("cs", form, pkt) }
+    ? {
+        sat_id: Number(form.sat_id) === pkt.satId,
+        temp: Math.abs(parseFloat(form.temp) - pkt.tempC) < 0.01,
+        volt: Math.abs(parseFloat(form.volt) - pkt.voltV) < 0.005,
+        cs: form.cs.trim().toUpperCase().replace(/^0X/, "") === pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0"),
+      }
     : null;
   const score = results ? Object.values(results).filter(Boolean).length : 0;
-
   const tsDate = new Date(pkt.unixTs * 1000).toUTCString();
+
+  // ── Custom mode ──────────────────────────────────────────────────────
+  const [customHex, setCustomHex] = useState("AA 55 01 91 09 48 65 00 BD 09 A6 0E C4");
+  const [customFields, setCustomFields] = useState(DEFAULT_CUSTOM_FIELDS);
+  const [nextId, setNextId] = useState(DEFAULT_CUSTOM_FIELDS.length + 1);
+  const [customResult, setCustomResult] = useState(null);
+  const [customError, setCustomError] = useState("");
+
+  const addField = () => {
+    setCustomFields(prev => [...prev, { id: nextId, name: `field_${nextId}`, type: "uint8", endian: "LE" }]);
+    setNextId(n => n + 1);
+    setCustomResult(null);
+  };
+
+  const removeField = (id) => {
+    setCustomFields(prev => prev.filter(f => f.id !== id));
+    setCustomResult(null);
+  };
+
+  const updateField = (id, key, val) => {
+    setCustomFields(prev => prev.map(f => f.id === id ? { ...f, [key]: val } : f));
+    setCustomResult(null);
+  };
+
+  const runDecode = () => {
+    setCustomError("");
+    if (!customHex.trim()) { setCustomError("Введите HEX-строку пакета"); return; }
+    if (customFields.length === 0) { setCustomError("Добавьте хотя бы одно поле"); return; }
+    const res = parseCustomPacket(customHex, customFields);
+    if (res.error) { setCustomError(res.error); setCustomResult(null); return; }
+    setCustomResult(res);
+  };
+
+  const tabStyle = (active) => ({
+    padding: "8px 20px", borderRadius: "8px 8px 0 0", cursor: "pointer", fontSize: 13,
+    fontWeight: active ? 700 : 400,
+    background: active ? "var(--surface-1)" : "transparent",
+    border: active ? "1px solid var(--border)" : "1px solid transparent",
+    borderBottom: active ? "1px solid var(--surface-1)" : "1px solid var(--border)",
+    color: active ? "var(--accent)" : "var(--text-muted)",
+    marginBottom: -1,
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* Packet selector */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <select value={packetId} onChange={e => changePacket(e.target.value)} style={S.select}>
-          {PACKETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
-        <button onClick={() => setShowFormat(v => !v)} style={S.btnSec}>
-          {showFormat ? "Скрыть" : "Показать"} формат пакета
-        </button>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)" }}>
+        <button onClick={() => setTab("preset")} style={tabStyle(tab === "preset")}>Встроенные пакеты</button>
+        <button onClick={() => setTab("custom")} style={tabStyle(tab === "custom")}>Свой пакет и формат</button>
+        <button onClick={() => setTab("ais")}    style={tabStyle(tab === "ais")}>AIS · парсер + траектории</button>
       </div>
 
-      {/* Format reference */}
-      {showFormat && (
-        <div style={S.card}>
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span>Формат телеметрического пакета · 13 байт</span>
-            <a
-              href="https://spacepi.space/satellites/politeh-yunivers-3/"
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontSize: 11, color: "var(--orange)", textDecoration: "none", padding: "3px 10px", border: "1px solid var(--orange)", borderRadius: 6 }}
-            >
-              ↗ Документация по полям
-            </a>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: "var(--surface-2)" }}>
-                  {["Поле", "Смещение", "Формат", "Описание"].map(h => (
-                    <th key={h} style={{ ...S.th, textAlign: "left" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {FORMAT_ROWS.map(row => (
-                  <tr
-                    key={row.field}
-                    style={{ background: highlightField === row.field ? `${FIELD_COLOR[row.field]}18` : "transparent", transition: "background 0.15s" }}
-                    onMouseEnter={() => setHighlightField(row.field)}
-                    onMouseLeave={() => setHighlightField(null)}
-                  >
-                    <td style={{ ...S.td, color: FIELD_COLOR[row.field], fontWeight: 700, whiteSpace: "nowrap" }}>■ {row.field.toUpperCase()}</td>
-                    <td style={{ ...S.td, fontFamily: "monospace" }}>{row.offset}</td>
-                    <td style={{ ...S.td, fontFamily: "monospace", whiteSpace: "nowrap" }}>{row.fmt}</td>
-                    <td style={{ ...S.td, color: "var(--text-muted)" }}>{row.desc}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Hex dump */}
-      <div style={{ background: "#130e22", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 18px" }}>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, letterSpacing: "0.5px" }}>
-          HEX DUMP &nbsp;·&nbsp; {hexArr.length} байт &nbsp;·&nbsp; наведи мышь на байт, чтобы узнать поле
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {hexArr.map((hex, i) => {
-            const f = byteField(i);
-            const isHl = highlightField === f;
-            return (
-              <span
-                key={i}
-                title={`[${i}] ${f.toUpperCase()}`}
-                onMouseEnter={() => setHighlightField(f)}
-                onMouseLeave={() => setHighlightField(null)}
-                style={{
-                  fontFamily: "monospace", fontSize: 14, fontWeight: 600,
-                  padding: "3px 8px", borderRadius: 6,
-                  background: isHl ? `${FIELD_COLOR[f]}33` : `${FIELD_COLOR[f]}16`,
-                  color: FIELD_COLOR[f],
-                  border: `1px solid ${isHl ? FIELD_COLOR[f] : FIELD_COLOR[f] + "44"}`,
-                  transition: "all 0.12s", cursor: "default",
-                  boxShadow: isHl ? `0 0 8px ${FIELD_COLOR[f]}55` : "none",
-                }}
-              >
-                {hex}
-              </span>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 12, fontSize: 11, color: "#8aa090" }}>
-          TS (справка): {tsDate}
-        </div>
-      </div>
-
-      {/* Decode form */}
-      <div style={{ ...S.card, padding: 18 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>Декодируй поля пакета</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          {DECODE_FIELDS.map(f => {
-            const ok = results ? results[f.key] : null;
-            return (
-              <div key={f.key} onMouseEnter={() => setHighlightField(f.field)} onMouseLeave={() => setHighlightField(null)}>
-                <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
-                  <span style={{ color: FIELD_COLOR[f.field], marginRight: 5 }}>■</span>
-                  {f.label}
-                </label>
-                <input
-                  type="text"
-                  value={form[f.key]}
-                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                  disabled={submitted}
-                  style={{
-                    ...S.input,
-                    borderColor: ok === true ? "#724796" : ok === false ? "#da4927" : "var(--border)",
-                  }}
-                />
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{f.hint}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {!submitted ? (
-          <button
-            onClick={() => setSubmitted(true)}
-            style={{ ...S.btnPrim, marginTop: 18, padding: "10px 24px" }}
-          >
-            ✅ Проверить
-          </button>
-        ) : (
-          <div style={{
-            marginTop: 18, padding: 16, borderRadius: 12,
-            background: score === 4 ? "rgba(114,71,150,0.12)" : "rgba(218,73,39,0.10)",
-            border: `1px solid ${score === 4 ? "rgba(114,71,150,0.45)" : "rgba(218,73,39,0.45)"}`,
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, color: score === 4 ? "#9460b8" : "#f39768" }}>
-              {score === 4 ? "Пакет полностью декодирован!" : `Верно ${score} из 4 полей`}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 13 }}>
-                <span style={{ color: results.sat_id ? "var(--accent)" : "var(--orange-2)" }}>{results.sat_id ? "✓" : "✗"}</span> ID спутника:&nbsp;
-                <span style={{ color: FIELD_COLOR.sat, fontWeight: 600 }}>{pkt.satId} ({pkt.sat})</span>
-              </div>
-              <div style={{ fontSize: 13 }}>
-                <span style={{ color: results.temp ? "var(--accent)" : "var(--orange-2)" }}>{results.temp ? "✓" : "✗"}</span> Температура:&nbsp;
-                <span style={{ color: FIELD_COLOR.temp, fontWeight: 600 }}>{pkt.tempC.toFixed(2)} °C</span>
-                {!results.temp && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
-                    Подсказка: байты 8–9 = {toHexArr(pkt.bytes).slice(8,10).join(" ")} → int16 LE = {Math.round(pkt.tempC * 100)} → делим на 100
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 13 }}>
-                <span style={{ color: results.volt ? "var(--accent)" : "var(--orange-2)" }}>{results.volt ? "✓" : "✗"}</span> Напряжение:&nbsp;
-                <span style={{ color: FIELD_COLOR.volt, fontWeight: 600 }}>{pkt.voltV.toFixed(3)} В</span>
-                {!results.volt && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
-                    Подсказка: байты 10–11 = {toHexArr(pkt.bytes).slice(10,12).join(" ")} → uint16 LE = {Math.round(pkt.voltV * 1000)} → делим на 1000
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 13 }}>
-                <span style={{ color: results.cs ? "var(--accent)" : "var(--orange-2)" }}>{results.cs ? "✓" : "✗"}</span> Контрольная сумма:&nbsp;
-                <span style={{ color: FIELD_COLOR.cs, fontWeight: 600 }}>
-                  {pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0")}
-                </span>
-                {!results.cs && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
-                    Подсказка: XOR всех 12 байт = {pkt.bytes[12].toString(16).toUpperCase().padStart(2,"0")}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => { setSubmitted(false); setForm({ sat_id: "", temp: "", volt: "", cs: "" }); }}
-              style={{ ...S.btnSec, marginTop: 14 }}
-            >
-              Попробовать снова
+      {/* ════════════════════ PRESET TAB ════════════════════ */}
+      {tab === "preset" && (
+        <>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <select value={packetId} onChange={e => changePacket(e.target.value)} style={S.select}>
+              {PACKETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+            <button onClick={() => setShowFormat(v => !v)} style={S.btnSec}>
+              {showFormat ? "Скрыть" : "Показать"} формат пакета
             </button>
           </div>
-        )}
-      </div>
+
+          {showFormat && (
+            <div style={S.card}>
+              <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>Формат телеметрического пакета · 13 байт</span>
+                <a href="https://spacepi.space/satellites/politeh-yunivers-3/" target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: "var(--orange)", textDecoration: "none", padding: "3px 10px", border: "1px solid var(--orange)", borderRadius: 6 }}>
+                  ↗ Документация
+                </a>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "var(--surface-2)" }}>
+                      {["Поле", "Смещение", "Формат", "Описание"].map(h => (
+                        <th key={h} style={{ ...S.th, textAlign: "left" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FORMAT_ROWS.map(row => (
+                      <tr key={row.field}
+                        style={{ background: highlightField === row.field ? `${FIELD_COLOR[row.field]}18` : "transparent", transition: "background 0.15s" }}
+                        onMouseEnter={() => setHighlightField(row.field)} onMouseLeave={() => setHighlightField(null)}>
+                        <td style={{ ...S.td, color: FIELD_COLOR[row.field], fontWeight: 700, whiteSpace: "nowrap" }}>■ {row.field.toUpperCase()}</td>
+                        <td style={{ ...S.td, fontFamily: "monospace" }}>{row.offset}</td>
+                        <td style={{ ...S.td, fontFamily: "monospace", whiteSpace: "nowrap" }}>{row.fmt}</td>
+                        <td style={{ ...S.td, color: "var(--text-muted)" }}>{row.desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div style={{ background: "#130e22", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 18px" }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, letterSpacing: "0.5px" }}>
+              HEX DUMP &nbsp;·&nbsp; {hexArr.length} байт &nbsp;·&nbsp; наведи мышь на байт
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {hexArr.map((hex, i) => {
+                const f = byteField(i);
+                const isHl = highlightField === f;
+                return (
+                  <span key={i} title={`[${i}] ${f.toUpperCase()}`}
+                    onMouseEnter={() => setHighlightField(f)} onMouseLeave={() => setHighlightField(null)}
+                    style={{
+                      fontFamily: "monospace", fontSize: 14, fontWeight: 600,
+                      padding: "3px 8px", borderRadius: 6,
+                      background: isHl ? `${FIELD_COLOR[f]}33` : `${FIELD_COLOR[f]}16`,
+                      color: FIELD_COLOR[f],
+                      border: `1px solid ${isHl ? FIELD_COLOR[f] : FIELD_COLOR[f] + "44"}`,
+                      transition: "all 0.12s", cursor: "default",
+                      boxShadow: isHl ? `0 0 8px ${FIELD_COLOR[f]}55` : "none",
+                    }}>{hex}</span>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: "#8aa090" }}>TS (справка): {tsDate}</div>
+          </div>
+
+          <div style={{ ...S.card, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>Декодируй поля пакета</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {[
+                { key: "sat_id",  label: "ID спутника",            field: "sat",  hint: "Число 1 или 2",           placeholder: "1" },
+                { key: "temp",    label: "Температура (°C)",        field: "temp", hint: "Пример: 23.45 или -12.30", placeholder: "0.00" },
+                { key: "volt",    label: "Напряжение (В)",          field: "volt", hint: "Пример: 3.750",            placeholder: "0.000" },
+                { key: "cs",      label: "Контрольная сумма (hex)", field: "cs",   hint: "Пример: A3 или 0xa3",      placeholder: "XX" },
+              ].map(f => {
+                const ok = results ? results[f.key] : null;
+                return (
+                  <div key={f.key} onMouseEnter={() => setHighlightField(f.field)} onMouseLeave={() => setHighlightField(null)}>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
+                      <span style={{ color: FIELD_COLOR[f.field], marginRight: 5 }}>■</span>{f.label}
+                    </label>
+                    <input type="text" value={form[f.key]}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder} disabled={submitted}
+                      style={{ ...S.input, borderColor: ok === true ? "#724796" : ok === false ? "#da4927" : "var(--border)" }} />
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{f.hint}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {!submitted ? (
+              <button onClick={() => setSubmitted(true)} style={{ ...S.btnPrim, marginTop: 18, padding: "10px 24px" }}>
+                ✅ Проверить
+              </button>
+            ) : (
+              <div style={{
+                marginTop: 18, padding: 16, borderRadius: 12,
+                background: score === 4 ? "rgba(114,71,150,0.12)" : "rgba(218,73,39,0.10)",
+                border: `1px solid ${score === 4 ? "rgba(114,71,150,0.45)" : "rgba(218,73,39,0.45)"}`,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, color: score === 4 ? "#9460b8" : "#f39768" }}>
+                  {score === 4 ? "Пакет полностью декодирован!" : `Верно ${score} из 4 полей`}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: results.sat_id ? "var(--accent)" : "var(--orange-2)" }}>{results.sat_id ? "✓" : "✗"}</span> ID спутника:&nbsp;
+                    <span style={{ color: FIELD_COLOR.sat, fontWeight: 600 }}>{pkt.satId} ({pkt.sat})</span>
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: results.temp ? "var(--accent)" : "var(--orange-2)" }}>{results.temp ? "✓" : "✗"}</span> Температура:&nbsp;
+                    <span style={{ color: FIELD_COLOR.temp, fontWeight: 600 }}>{pkt.tempC.toFixed(2)} °C</span>
+                    {!results.temp && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
+                        Подсказка: байты 8–9 = {toHexArr(pkt.bytes).slice(8,10).join(" ")} → int16 LE = {Math.round(pkt.tempC * 100)} → делим на 100
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: results.volt ? "var(--accent)" : "var(--orange-2)" }}>{results.volt ? "✓" : "✗"}</span> Напряжение:&nbsp;
+                    <span style={{ color: FIELD_COLOR.volt, fontWeight: 600 }}>{pkt.voltV.toFixed(3)} В</span>
+                    {!results.volt && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
+                        Подсказка: байты 10–11 = {toHexArr(pkt.bytes).slice(10,12).join(" ")} → uint16 LE = {Math.round(pkt.voltV * 1000)} → делим на 1000
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    <span style={{ color: results.cs ? "var(--accent)" : "var(--orange-2)" }}>{results.cs ? "✓" : "✗"}</span> Контрольная сумма:&nbsp;
+                    <span style={{ color: FIELD_COLOR.cs, fontWeight: 600 }}>{pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0")}</span>
+                    {!results.cs && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
+                        Подсказка: XOR всех 12 байт = {pkt.bytes[12].toString(16).toUpperCase().padStart(2, "0")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => { setSubmitted(false); setForm({ sat_id: "", temp: "", volt: "", cs: "" }); }}
+                  style={{ ...S.btnSec, marginTop: 14 }}>Попробовать снова</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ════════════════════ CUSTOM TAB ════════════════════ */}
+      {tab === "custom" && (
+        <>
+          {/* HEX input */}
+          <div style={S.card}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+              Введите HEX-пакет
+            </div>
+            <div style={{ padding: 16 }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+                Байты разделяются пробелами или без — например: <code style={{ color: "var(--accent-2)" }}>AA 55 01 91 09 48 65 00 BD 09 A6 0E C4</code>
+              </div>
+              <textarea
+                value={customHex}
+                onChange={e => { setCustomHex(e.target.value); setCustomResult(null); setCustomError(""); }}
+                placeholder="AA 55 01 ..."
+                rows={3}
+                style={{
+                  ...S.input, fontFamily: "'Space Mono', 'Courier New', monospace",
+                  fontSize: 13, resize: "vertical", lineHeight: 1.6,
+                }}
+              />
+              {customError && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#da4927" }}>{customError}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Format builder */}
+          <div style={S.card}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>Формат пакета</span>
+              <button onClick={addField} style={{ ...S.btnAdd, width: "auto", padding: "4px 12px", fontSize: 12, lineHeight: 1.4 }}>
+                + Добавить поле
+              </button>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {customFields.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>
+                  Нет полей — нажмите «+ Добавить поле»
+                </div>
+              )}
+              {customFields.map((f, idx) => {
+                const color = FIELD_PALETTE[idx % FIELD_PALETTE.length];
+                return (
+                  <div key={f.id} style={{
+                    display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+                    padding: "10px 12px", borderRadius: 8,
+                    background: `${color}0d`, border: `1px solid ${color}33`,
+                  }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-muted)", minWidth: 26, textAlign: "right" }}>
+                      {idx + 1}.
+                    </span>
+                    <input
+                      type="text"
+                      value={f.name}
+                      onChange={e => updateField(f.id, "name", e.target.value)}
+                      placeholder="имя поля"
+                      style={{ ...S.input, width: 130, fontSize: 12, color }}
+                    />
+                    <select
+                      value={f.type}
+                      onChange={e => updateField(f.id, "type", e.target.value)}
+                      style={{ ...S.select, fontSize: 12, minWidth: 200 }}
+                    >
+                      {FIELD_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                    </select>
+                    <select
+                      value={f.endian}
+                      onChange={e => updateField(f.id, "endian", e.target.value)}
+                      style={{ ...S.select, fontSize: 12, minWidth: 120 }}
+                    >
+                      {ENDIAN_OPTS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                    </select>
+                    <button onClick={() => removeField(f.id)} style={S.btnDanger} title="Удалить поле">−</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "0 16px 16px", display: "flex", gap: 10, alignItems: "center" }}>
+              <button onClick={runDecode} style={{ ...S.btnPrim, padding: "9px 22px" }}>
+                ⚡ Декодировать
+              </button>
+              <button onClick={() => { setCustomFields(DEFAULT_CUSTOM_FIELDS); setNextId(DEFAULT_CUSTOM_FIELDS.length + 1); setCustomResult(null); setCustomError(""); }}
+                style={S.btnSec}>
+                Сброс формата
+              </button>
+            </div>
+          </div>
+
+          {/* Result */}
+          {customResult && (
+            <div style={S.card}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>Результат декодирования</span>
+                <span style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-muted)" }}>
+                  {customResult.totalBytes} байт в пакете · использовано {customResult.usedBytes} байт
+                </span>
+                {customResult.usedBytes > customResult.totalBytes && (
+                  <span style={{ fontSize: 12, color: "#da4927" }}>⚠ Формат шире пакета</span>
+                )}
+                {customResult.usedBytes < customResult.totalBytes && (
+                  <span style={{ fontSize: 12, color: "#cbb98c" }}>ℹ {customResult.totalBytes - customResult.usedBytes} байт не описаны форматом</span>
+                )}
+              </div>
+
+              {/* Hex dump with field coloring */}
+              <div style={{ padding: "14px 18px", background: "#0d0a18", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, letterSpacing: "0.5px" }}>HEX DUMP</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {customResult.rawBytes.map((b, i) => {
+                    const fieldIdx = customResult.parsed.findIndex(f => i >= f.offset && i < f.offset + f.bytes);
+                    const color = fieldIdx >= 0 ? FIELD_PALETTE[fieldIdx % FIELD_PALETTE.length] : "#666";
+                    const fieldName = fieldIdx >= 0 ? customResult.parsed[fieldIdx].name : "?";
+                    return (
+                      <span key={i} title={`[${i}] ${fieldName}`} style={{
+                        fontFamily: "monospace", fontSize: 13, fontWeight: 600,
+                        padding: "2px 6px", borderRadius: 5,
+                        background: `${color}1a`, color,
+                        border: `1px solid ${color}44`,
+                      }}>
+                        {b.toString(16).toUpperCase().padStart(2, "0")}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fields table */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "var(--surface-2)" }}>
+                      {["#", "Поле", "Тип", "Порядок", "Смещение", "Байты (hex)", "Значение"].map(h => (
+                        <th key={h} style={S.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customResult.parsed.map((f, idx) => {
+                      const color = FIELD_PALETTE[idx % FIELD_PALETTE.length];
+                      return (
+                        <tr key={f.id} style={{ background: idx % 2 ? "transparent" : `${color}08` }}>
+                          <td style={{ ...S.td, color: "var(--text-muted)" }}>{idx + 1}</td>
+                          <td style={{ ...S.td, color, fontWeight: 700 }}>{f.name}</td>
+                          <td style={{ ...S.td, fontFamily: "monospace", color: "var(--text-muted)" }}>{f.type}</td>
+                          <td style={{ ...S.td, fontFamily: "monospace", color: "var(--text-muted)" }}>{f.endian}</td>
+                          <td style={{ ...S.td, fontFamily: "monospace" }}>{f.offset}–{f.offset + f.bytes - 1}</td>
+                          <td style={{ ...S.td, fontFamily: "monospace", color: f.outOfRange ? "#da4927" : "var(--text-muted)", fontSize: 11 }}>
+                            {f.rawBytes ? f.rawBytes.join(" ") : "—"}
+                          </td>
+                          <td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, color: f.outOfRange ? "#da4927" : color }}>
+                            {f.value}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ════════════════════ AIS TAB ════════════════════ */}
+      {tab === "ais" && <AisDecodeSubTab />}
     </div>
   );
 }
@@ -924,9 +1426,9 @@ function IqDemodActivity() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ ...S.card, padding: 18 }}>
         <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 14 }}>
-          Имитация пайплайна <code>gm.py</code> — демодулятора сырой IQ-записи (LoRa).
-          Загрузите файл <code>raw.iq</code> (complex float32, c флешки SDR)
-          и задайте параметры приёма из комментариев в коде <code>gm.py</code>:
+          Демодулятор сырой IQ-записи (LoRa).
+          Загрузите файл <code>raw.iq</code> (complex float32, с флешки SDR)
+          и задайте параметры приёма:
         </div>
 
         <div style={{
@@ -1056,7 +1558,7 @@ const ACTIVITIES = [
     title: "Демодуляция сырой записи",
     difficulty: "Средне",
     diffColor: "#f39768",
-    desc: "Загрузи raw.iq запись с SDR, задай параметры приёма (sample rate, freq shift, SF, bandwidth) и пропусти через тот же пайплайн, что в gm.py — до получения data.bin.",
+    desc: "Загрузи raw.iq запись с SDR, задай параметры приёма (sample rate, freq shift, SF, bandwidth) и пропусти через демодулятор LoRa — до получения data.bin.",
     skills: ["LoRa SDR", "GNU Radio params", "FFT demod"],
   },
 ];

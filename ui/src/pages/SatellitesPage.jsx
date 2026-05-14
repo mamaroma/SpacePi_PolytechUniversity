@@ -21,9 +21,17 @@ import Hint, { GuideBanner } from "../components/Hint";
    «странно пустой». */
 
 function lastContactToTs(label) {
+  if (!label) return Date.now() - 24 * 3600 * 1000;
+  // "≈N дн. назад" — относительная метка, парсим первой
+  const rel = label.match(/≈\s*(\d+)\s*дн/);
+  if (rel) return Date.now() - Number(rel[1]) * 24 * 3600 * 1000;
+  // "DD.MM.YYYY" — численная дата
+  const dot = label.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (dot) return Date.UTC(Number(dot[3]), Number(dot[2]) - 1, Number(dot[1]));
+  // "Месяц YYYY"
   const month = { "Январь": 0, "Февраль": 1, "Март": 2, "Апрель": 3, "Май": 4, "Июнь": 5,
                   "Июль": 6, "Август": 7, "Сентябрь": 8, "Октябрь": 9, "Ноябрь": 10, "Декабрь": 11 };
-  const m = label?.match(/(\S+)\s+(\d{4})/);
+  const m = label.match(/(\S+)\s+(\d{4})/);
   if (m && month[m[1]] != null) return Date.UTC(Number(m[2]), month[m[1]], 15);
   return Date.UTC(2023, 0, 1);
 }
@@ -105,13 +113,24 @@ const DEAD_SATELLITES = {
     lastContact: "Октябрь 2023 (архивные данные)",
     dead: true,
   },
+  // PU-6 — последний контакт «вчера», поэтому в карточке свежие
+  // данные, и иконка не выпадает из ленты живых спутников. Короткий
+  // фейковый трек показывает «направление движения» на момент потери связи.
   "Polytech_Universe-6": {
     current: {
       lat: 35.0, lon: -100.0,
-      ts_utc: new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString(),
+      ts_utc: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
     },
-    track: [],
-    lastContact: recentLabel(14),
+    track: Array.from({ length: 24 }, (_, i) => {
+      const lat = 35.0 + Math.sin(i * 0.18) * 22;
+      const lon = -100.0 + (i - 12) * 6;
+      return {
+        ts_utc: new Date(Date.now() - (24 - i) * 12 * 60 * 1000).toISOString(),
+        lat: Math.max(-85, Math.min(85, lat)),
+        lon: ((lon + 540) % 360) - 180,
+      };
+    }),
+    lastContact: recentLabel(1),
     dead: true,
   },
 };
@@ -320,8 +339,6 @@ export default function SatellitesPage() {
   const [updating, setUpdating] = useState(false);
   const [collectMsg, setCollectMsg] = useState("");
 
-  const [token, setToken] = useState("");
-  const [showToken, setShowToken] = useState(false);
   const bootstrapDoneRef = useRef(false);
 
   const connStatus = err ? "err" : loading ? "loading" : rows.length > 0 ? "live" : "idle";
@@ -331,14 +348,18 @@ export default function SatellitesPage() {
     fetchFleet()
       .then((list) => {
         setFleet(list);
-        // User selects satellites manually — no auto-selection
+        // По умолчанию показываем сразу все 6 аппаратов — пользователь видит
+        // полную картину флота и при необходимости снимает галки.
+        setMapSats(new Set(list.map((s) => s.name)));
         if (list.length && !list.find(s => s.name === dataSat)) {
           const first = list.find(s => s.active) || list[0];
           setDataSat(first.name);
         }
       })
       .catch(() => {
-        setFleet([{ name: "Polytech_Universe-3", active: true, color: "#724796" }]);
+        const fallback = [{ name: "Polytech_Universe-3", active: true, color: "#9460b8" }];
+        setFleet(fallback);
+        setMapSats(new Set(fallback.map((s) => s.name)));
       });
   }, []);
 
@@ -445,7 +466,7 @@ export default function SatellitesPage() {
       const toCollect = activeSats.length ? activeSats : [sat];
       let totalInserted = 0;
       for (const s of toCollect) {
-        const res = await runCollect({ sat: s, token });
+        const res = await runCollect({ sat: s });
         totalInserted += res?.inserted ?? 0;
       }
       setCollectMsg(`Inserted ${totalInserted} packets across ${toCollect.length} satellite(s)`);
@@ -457,12 +478,11 @@ export default function SatellitesPage() {
     } catch (e) {
       const msg = String(e?.message ?? e);
       setErr(msg);
-      if (msg.toLowerCase().includes("token")) setShowToken(true);
     } finally {
       setUpdating(false);
       setTimeout(() => setCollectMsg(""), 8000);
     }
-  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, token, loadTelemetry, loadAllOrbits]);
+  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadAllOrbits]);
 
   const handleSatelliteClick = useCallback((satName) => {
     setSelectedSat(satName);
@@ -583,20 +603,7 @@ export default function SatellitesPage() {
             </button>
           )}
 
-          {collectEnabled && (
-            <button className="btn btn-sm" onClick={() => setShowToken((v) => !v)} title="Token">🔑</button>
-          )}
         </div>
-
-        {collectEnabled && showToken && (
-          <div className="ctrl-row" style={{ marginTop: 8 }}>
-            <span className="ctrl-label">Token</span>
-            <div className="token-row">
-              <input type="password" className="token-input" placeholder="COLLECT_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} />
-              <button className="btn btn-sm" onClick={() => setShowToken(false)}>Скрыть</button>
-            </div>
-          </div>
-        )}
 
         {collectMsg && (
           <div style={{ fontSize: 12, color: "var(--accent-2)", paddingTop: 6 }}>{collectMsg}</div>

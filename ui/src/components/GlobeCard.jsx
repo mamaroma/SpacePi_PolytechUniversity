@@ -612,10 +612,14 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       if (!mapSats.has(satName)) continue;
       if (satName === sat) continue;
       const isDead = !!deadSatellites[satName];
-      const color = isDead ? "#5e4d78" : (fleetColorMap[satName] || "#724796");
+      // Используем цвет из реестра флота — он уже учитывает «архив vs живой»
+      // (приглушённые тона для inactive, насыщенные для активных).
+      const color = fleetColorMap[satName] || (isDead ? "#5e4d78" : "#9460b8");
 
-      if (!isDead) {
-        const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
+      // Рисуем трек и для архивных аппаратов, если у них есть точки —
+      // PU-6 хранит свой последний наблюдённый ground-track в DEAD_SATELLITES.
+      const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
+      if (extraTrack.length >= 2) {
         const extraSegs = splitByDateline(extraTrack.map(p => ({ lat: Number(p.lat), lng: Number(p.lon), ts_utc: p.ts_utc })));
         for (const seg of extraSegs) grp.add(makeDashedLine(seg, trackR, color));
       }
@@ -628,7 +632,9 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
         const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.022);
         const eSpr = makeSatelliteSprite(R0, {
           scale: isDead ? 0.12 : 0.14,
-          glow: isDead ? "rgba(218,73,39,0.30)" : `rgba(114,71,150,0.35)`,
+          // Без рыжего свечения для архивных аппаратов — оставляем общую
+          // фиолетовую палитру, чтобы карта читалась как единый флот.
+          glow: isDead ? "rgba(94,77,120,0.40)" : "rgba(148,96,184,0.45)",
         });
         eSpr.position.copy(ePos);
         eSpr.userData = { satName, clickable: true };

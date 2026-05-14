@@ -131,7 +131,11 @@ function buildShipFleet() {
       const mmsi = baseMmsi + Math.floor(rng() * 999000) + 1;
       ships.push({
         id: id++, mmsi, name, type, lat, lon, course, speed,
+        // Запоминаем bounding-box зоны и центр — нужно, чтобы при перемотке
+        // времени корабль не «выкатывался» из своей акватории на сушу.
         zone: z.name,
+        zoneLat: z.lat, zoneLon: z.lon,
+        zoneRLat: z.rLat, zoneRLon: z.rLon,
       });
     }
   }
@@ -158,14 +162,41 @@ function buildAisPacket(ship, ts, rng) {
   };
 }
 
-/** Сдвинуть корабль вперёд по курсу за `minutes` минут. */
+/** Сдвинуть корабль вперёд по курсу за `minutes` минут.
+ *
+ *  Линейная экстраполяция позиции, но с двумя ограничителями:
+ *    1) демо-демпфер — слайдер показывает «архивные данные», судно может
+ *       только колыхаться вокруг своей реальной позиции, а не уплывать на
+ *       сотни морских миль.
+ *    2) clamp в bounding-box зоны (lat ± rLat, lon ± rLon) — корабль не
+ *       выскакивает из своей акватории на сушу, даже если слайдер
+ *       прокручен на максимум.
+ */
 function advance(ship, minutes) {
-  const dist_nm = (ship.speed * minutes) / 60;       // морских миль
-  const dist_deg = dist_nm / 60;                      // 1 mile ≈ 1/60°
-  const course = (ship.course * Math.PI) / 180;
-  const dLat = dist_deg * Math.cos(course);
-  const dLon = (dist_deg * Math.sin(course)) / Math.max(0.05, Math.cos((ship.lat * Math.PI) / 180));
-  return { lat: ship.lat + dLat, lon: ship.lon + dLon };
+  // Демпфирующий коэффициент: на полном размахе бегунка (-360 мин) корабль
+  // смещается всего на ~3% от своего часового пути. Этого хватает, чтобы
+  // визуально «дышала» сцена, но судно не уплывало на сушу.
+  const dampened = (ship.speed * minutes * 0.03) / 60;
+  const courseRad = (ship.course * Math.PI) / 180;
+  const dLat = (dampened / 60) * Math.cos(courseRad);
+  const dLon =
+    (dampened / 60) * Math.sin(courseRad) /
+    Math.max(0.05, Math.cos((ship.lat * Math.PI) / 180));
+
+  let lat = ship.lat + dLat;
+  let lon = ship.lon + dLon;
+
+  // Clamp к bounding-box зоны (если он задан) — судно остаётся в акватории.
+  if (ship.zoneLat != null) {
+    const minLat = ship.zoneLat - ship.zoneRLat;
+    const maxLat = ship.zoneLat + ship.zoneRLat;
+    const minLon = ship.zoneLon - ship.zoneRLon;
+    const maxLon = ship.zoneLon + ship.zoneRLon;
+    lat = Math.max(minLat, Math.min(maxLat, lat));
+    lon = Math.max(minLon, Math.min(maxLon, lon));
+  }
+
+  return { lat, lon };
 }
 
 const FLEET = buildShipFleet();

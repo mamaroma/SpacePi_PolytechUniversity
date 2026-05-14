@@ -1,43 +1,33 @@
 # app/collect_api.py
 from __future__ import annotations
 
-import traceback
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, HTTPException, Query
 from telemetry_config import settings
 from .collector import collect_last_month
+
+_executor = ThreadPoolExecutor(max_workers=1)
 
 router = APIRouter(prefix="/api/collect", tags=["collect"])
 
 
-def _check_token(token: str | None):
-    need = (getattr(settings, "collect_token", "") or "").strip()
-    if not need:
-        return  # COLLECT_TOKEN not configured → open access
-    provided = (token or "").strip()
-    if not provided:
-        raise HTTPException(
-            status_code=401,
-            detail="Token required — press 🔑 in the UI and enter your COLLECT_TOKEN",
-        )
-    if provided != need:
-        raise HTTPException(status_code=401, detail="Bad token")
-
-
 @router.post("/run")
 async def run_collect(
-    token: str | None = Query(default=None),
-    x_collect_token: str | None = Header(default=None),
     sat: str | None = Query(default=None),
     days: int | None = Query(default=None, ge=1, le=3650),
 ):
-    _check_token(token or x_collect_token)
 
     sat = sat or settings.default_satellite
     days = int(days or settings.default_days)
 
     try:
-        n = await collect_last_month(sat, days=days)
+        loop = asyncio.get_event_loop()
+        n = await loop.run_in_executor(
+            _executor,
+            lambda: asyncio.run(collect_last_month(sat, days=days)),
+        )
     except Exception as exc:
         detail = f"{type(exc).__name__}: {exc}"
         hint = ""

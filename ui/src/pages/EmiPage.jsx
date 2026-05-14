@@ -23,22 +23,30 @@ function fmtFreq(mhz) {
   return `${mhz} МГц`;
 }
 
-const BAND_LABELS = {
-  145.8:  "VHF · 145.8 МГц (любительский)",
-  433.0:  "UHF · 433 МГц (ISM)",
-  437.5:  "UHF · 437.5 МГц (CubeSat)",
-  868.0:  "UHF · 868 МГц (LoRa EU)",
-  915.0:  "UHF · 915 МГц (LoRa US)",
-  2400.0: "SHF · 2.4 ГГц (Wi-Fi / ISM)",
-  5800.0: "SHF · 5.8 ГГц (Wi-Fi / Drones)",
-};
+/* Группируем дискретные точки демо-датасета в осмысленные радиодиапазоны.
+   Слайдер «прыгает» от диапазона к диапазону, показывая окно «от — до». */
+const BAND_RANGES = [
+  { id: "all",       label: "Весь спектр",         from: 0,     to: 100000, hint: "все наблюдаемые источники" },
+  { id: "vhf-ham",   label: "VHF · любительский",  from: 140,   to: 150,    hint: "≈ 144–146 МГц, EME / спутники" },
+  { id: "uhf-ism",   label: "UHF · 433 МГц ISM",   from: 430,   to: 440,    hint: "433–437 МГц, CubeSat / ISM" },
+  { id: "lora-eu",   label: "LoRa EU · 868 МГц",   from: 860,   to: 880,    hint: "EU 863–870 МГц, LoRaWAN" },
+  { id: "lora-us",   label: "LoRa US · 915 МГц",   from: 902,   to: 928,    hint: "US 902–928 МГц, LoRaWAN" },
+  { id: "shf-24",    label: "SHF · 2.4 ГГц",       from: 2300,  to: 2500,   hint: "Wi-Fi / Bluetooth / промышленный ISM" },
+  { id: "shf-58",    label: "SHF · 5.8 ГГц",       from: 5700,  to: 5900,   hint: "Wi-Fi 5 ГГц / БПЛА" },
+];
+
+function formatBandRange(b) {
+  if (b.id === "all") return "—";
+  const fmt = (mhz) => mhz >= 1000 ? `${(mhz / 1000).toFixed(2)} ГГц` : `${mhz} МГц`;
+  return `${fmt(b.from)} — ${fmt(b.to)}`;
+}
 
 export default function EmiPage() {
   const [tab, setTab] = useState("real");
 
   const [allPoints, setAllPoints] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [bandIdx, setBandIdx] = useState(0); // индекс активного диапазона в slider
+  const [bandIdx, setBandIdx] = useState(0); // индекс активного диапазона в BAND_RANGES
   const [minPower, setMinPower] = useState(-110);
 
   useEffect(() => {
@@ -48,17 +56,15 @@ export default function EmiPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const bandsAvailable = useMemo(() => {
-    const set = new Set(allPoints.map((p) => p.freq_mhz));
-    return [...set].sort((a, b) => a - b);
-  }, [allPoints]);
-
-  const activeBand = bandsAvailable[bandIdx] ?? null;
+  const activeBand = BAND_RANGES[bandIdx] ?? BAND_RANGES[0];
 
   const filtered = useMemo(() => {
-    if (!activeBand) return [];
+    if (!allPoints.length) return [];
     return allPoints.filter(
-      (d) => d.freq_mhz === activeBand && d.power_dbm >= minPower
+      (d) =>
+        d.freq_mhz >= activeBand.from &&
+        d.freq_mhz <= activeBand.to &&
+        d.power_dbm >= minPower
     );
   }, [allPoints, activeBand, minPower]);
 
@@ -132,14 +138,14 @@ export default function EmiPage() {
 
           <div className="globe-card">
             <div className="card-header">
-              <span className="card-title">Комплексный анализ спутниковых данных — ЭМ излучение</span>
+              <span className="card-title">Спутниковый мониторинг — комплексный анализ ЭМ-обстановки</span>
               <span className="card-meta">архивные данные · тепловая карта + зоны покрытия</span>
             </div>
-            <div style={{ width: "100%", height: 680, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+            <div style={{ width: "100%", height: 720, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
               <iframe
-                src="/satellite_analysis.html"
-                title="Satellite EMI Analysis"
-                style={{ width: "100%", height: "100%", border: "none" }}
+                src="/satellite_monitor.html"
+                title="Satellite EMI Monitor"
+                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
                 loading="lazy"
               />
             </div>
@@ -147,7 +153,7 @@ export default function EmiPage() {
               <span><span style={{ color: "#9460b8" }}>●</span> Низкий уровень ЭМИ</span>
               <span><span style={{ color: "#724796" }}>●</span> Средний уровень ЭМИ</span>
               <span><span style={{ color: "#da4927" }}>●</span> Высокий уровень ЭМИ</span>
-              <span style={{ marginLeft: "auto" }}>Источник: спутник Polytech Universe · СПбПУ · архивные данные</span>
+              <span style={{ marginLeft: "auto" }}>Источник: Polytech Universe · СПбПУ · архивные данные</span>
             </div>
           </div>
         </>
@@ -165,8 +171,8 @@ export default function EmiPage() {
               <a href="/storage" style={{ color: "var(--accent-2)" }}>«Хранилище → демоЭМИ»</a>{" "}
               в формате <code style={{ background: "var(--surface-2)", padding: "1px 6px", borderRadius: 4 }}>
                 demo_emi_packets.json
-              </code>. Каждая точка несёт частоту, мощность приёма (дБм),
-              предполагаемый источник, координаты и метку времени.
+              </code>. Используйте ползунок ниже, чтобы переключаться между
+              осмысленными окнами частот (VHF любительский → 2.4 ГГц → 5.8 ГГц).
             </div>
           </div>
 
@@ -204,13 +210,15 @@ export default function EmiPage() {
               <span className="card-meta">{filtered.length} точек</span>
             </div>
 
-            {/* Компактный регулятор диапазона прямо над картой */}
+            {/* Регулятор диапазона: ползунок прыгает по «окнам от-до».
+               Так пользователь видит не отдельную частоту, а целый
+               радиодиапазон с его реальными границами. */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                padding: "8px 10px",
+                padding: "10px 12px",
                 marginBottom: 8,
                 background: "var(--surface-2)",
                 border: "1px solid var(--border)",
@@ -219,38 +227,40 @@ export default function EmiPage() {
                 fontSize: 12,
               }}
             >
-              <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>Диапазон</span>
-              <input
-                type="range"
-                min={0}
-                max={Math.max(0, bandsAvailable.length - 1)}
-                value={bandIdx}
-                onChange={(e) => setBandIdx(Number(e.target.value))}
-                style={{
-                  flex: "1 1 180px",
-                  minWidth: 140,
-                  maxWidth: 320,
-                  accentColor: "var(--orange)",
-                  height: 4,
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: 12,
-                  color: "var(--orange)",
-                  whiteSpace: "nowrap",
-                  minWidth: 130,
-                }}
-              >
-                {activeBand ? (BAND_LABELS[activeBand] || `${activeBand} МГц`) : "—"}
-              </span>
-              <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>·</span>
+              <div style={{ display: "flex", flexDirection: "column", flex: "2 1 320px", minWidth: 240, gap: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.6, fontSize: 10 }}>
+                    Окно частот · {activeBand.label}
+                  </span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", color: "var(--orange)", fontSize: 12 }}>
+                    {formatBandRange(activeBand)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={BAND_RANGES.length - 1}
+                  step={1}
+                  value={bandIdx}
+                  onChange={(e) => setBandIdx(Number(e.target.value))}
+                  list="band-ticks"
+                  style={{ width: "100%", accentColor: "var(--orange)", height: 4 }}
+                />
+                <datalist id="band-ticks">
+                  {BAND_RANGES.map((b, i) => <option key={b.id} value={i} label={b.label} />)}
+                </datalist>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)" }}>
+                  <span>{BAND_RANGES[0].label}</span>
+                  <span style={{ color: "var(--text-dim)" }}>{activeBand.hint}</span>
+                  <span>{BAND_RANGES[BAND_RANGES.length - 1].label}</span>
+                </div>
+              </div>
+
               <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>Мощность ≥</span>
               <select
                 value={minPower}
                 onChange={(e) => setMinPower(Number(e.target.value))}
-                style={{ width: 90, fontSize: 11, padding: "2px 4px" }}
+                style={{ width: 92, fontSize: 11, padding: "2px 4px" }}
               >
                 <option value={-110}>все</option>
                 <option value={-90}>−90 дБм</option>

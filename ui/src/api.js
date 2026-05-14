@@ -1,5 +1,4 @@
 export const API_BASE = import.meta.env.VITE_API_BASE || "";
-const COLLECT_TOKEN = import.meta.env.VITE_COLLECT_TOKEN || "";
 
 export function isoDaysAgo(days) {
   const to = new Date();
@@ -55,13 +54,10 @@ export async function fetchOrbitTrack({ sat, at, minutes = 180, step_sec = 20 })
   return fetchJson(`${API_BASE}/api/orbit/track?${qs.toString()}`);
 }
 
-export async function runCollect({ sat, days, token } = {}) {
+export async function runCollect({ sat, days } = {}) {
   const qs = new URLSearchParams();
   if (sat) qs.set("sat", sat);
   if (days) qs.set("days", String(days));
-
-  const tok = (token ?? COLLECT_TOKEN ?? "").trim();
-  if (tok) qs.set("token", tok);
 
   const r = await fetch(`${API_BASE}/api/collect/run?` + qs.toString(), {
     method: "POST",
@@ -69,9 +65,6 @@ export async function runCollect({ sat, days, token } = {}) {
   if (!r.ok) {
     let detail = "";
     try { detail = (await r.json()).detail ?? ""; } catch { detail = await r.text().catch(() => ""); }
-    if (r.status === 401) {
-      throw new Error(`Token required — press 🔑 and enter your COLLECT_TOKEN`);
-    }
     throw new Error(`Collect failed HTTP ${r.status}: ${String(detail).slice(0, 200)}`);
   }
   return await r.json();
@@ -217,4 +210,34 @@ export async function fetchStorageSecretKey(authHeader = {}) {
 
 export async function fetchDemoEmiPackets() {
   return fetchJson(`${API_BASE}/api/storage/_demo_emi`);
+}
+
+/* ── CNN Gallery ─────────────────────────────────────── */
+
+export async function fetchGallery() {
+  return fetchJson(`${API_BASE}/api/gallery`);
+}
+
+export async function uploadGalleryPhoto(file, authHeader = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(`${API_BASE}/api/gallery`, {
+    method: "POST",
+    headers: { ...authHeader },
+    body: fd,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+export async function deleteGalleryPhoto(filename, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/gallery/${encodeURIComponent(filename)}`, {
+    method: "DELETE",
+    headers: { ...authHeader },
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
 }

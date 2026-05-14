@@ -9,6 +9,11 @@ export default function SpaceBackground() {
   const canvasRef = useRef(null);
 
   useEffect(() => {
+    document.body.classList.add("has-space-bg");
+    return () => document.body.classList.remove("has-space-bg");
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -157,7 +162,7 @@ export default function SpaceBackground() {
         inset: 0,
         width: "100%",
         height: "100%",
-        zIndex: 0,
+        zIndex: -1,
         pointerEvents: "none",
         display: "block",
       }}

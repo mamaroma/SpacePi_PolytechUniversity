@@ -64,6 +64,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* When SpaceBackground canvas is mounted, let it shine through.
+   Canvas is fixed at z-index: -1 and paints its own dark backdrop. */
+body.has-space-bg { background: transparent; }
+html:has(body.has-space-bg) { background: var(--bg); }
+
 /* ─── Custom Scrollbar ───────────────────────────────────────── */
 ::-webkit-scrollbar             { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track       { background: var(--surface-1); }
@@ -1247,11 +1252,11 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 }
 
 /* ─── News Page with space background ───────────────── */
-/* The canvas is fixed behind content, so everything above it needs
-   a transparent or semi-transparent background to let stars show */
+/* The canvas is fixed at z-index: -1 (below body), and body becomes
+   transparent while it is mounted (see .has-space-bg above).
+   Cards stay semi-transparent so stars show through. */
 .news-page-body {
   position: relative;
-  z-index: 1;
 }
 .news-page-body .card,
 .news-page-body .news-card {

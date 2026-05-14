@@ -252,16 +252,19 @@ def seed_demo_storage() -> None:
             ("Vladivostok",        43.13, 131.91),
         ]
         FREQS = [145.8, 433.0, 437.5, 868.0, 915.0, 2400.0, 5800.0]
+        # Только спутниковые / эфирные источники, без мелких наземных
+        # излучателей (WiFi/микроволновки/сотовые) — карта про космический
+        # сегмент, а не про бытовую RF-засветку.
         SOURCES = [
-            "Industrial RF",
-            "ISM band interference",
             "Satellite downlink noise",
+            "CubeSat beacon (UHF)",
+            "Atmospheric ducting",
+            "Ionospheric scintillation",
             "VHF broadcast interference",
-            "LoRa interference",
-            "WiFi / microwave leak",
             "UHF uplink noise",
-            "Cellular base station",
-            "Power line emission",
+            "LoRa satellite uplink",
+            "Solar radio burst",
+            "Industrial RF",
         ]
 
         out = []

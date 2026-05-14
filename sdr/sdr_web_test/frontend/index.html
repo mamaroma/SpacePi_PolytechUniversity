@@ -5,6 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SDR Трансляция</title>
     <link rel="stylesheet" href="/sdr/static/style.css">
+    <style>
+/* ── Fallback styles (inlined so the page looks correct even if /sdr/static/style.css doesn't load) ── */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#0a0a0a;color:#e0e0e0;line-height:1.5}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;padding-bottom:15px;border-bottom:1px solid #333;flex-wrap:wrap;gap:14px}
+.header-left{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.back-btn{display:inline-flex;align-items:center;padding:8px 16px;background:linear-gradient(135deg,rgba(243,151,104,.15),rgba(114,71,150,.15));border:1px solid rgba(243,151,104,.55);border-radius:8px;color:#f39768;font-size:13px;font-weight:600;text-decoration:none;transition:background .18s,border-color .18s,transform .18s;letter-spacing:.3px}
+.back-btn:hover{background:linear-gradient(135deg,rgba(243,151,104,.30),rgba(114,71,150,.25));border-color:#f39768;transform:translateX(-3px)}
+h1{color:#f39768;font-size:1.6em;font-weight:300;letter-spacing:1px}
+.msk-clock{font-family:'Courier New',monospace;font-size:13px;color:#9460b8;padding:6px 14px;border:1px solid rgba(114,71,150,.45);border-radius:8px;background:rgba(114,71,150,.08);letter-spacing:.5px;white-space:nowrap}
+.sdr-info-card{margin-bottom:22px;padding:0;background:linear-gradient(135deg,rgba(114,71,150,.07),rgba(243,151,104,.05));border:1px solid rgba(114,71,150,.35);border-radius:10px;overflow:hidden}
+.sdr-info-card details{padding:0}
+.sdr-info-card summary{padding:14px 18px;cursor:pointer;color:#9460b8;font-size:14px;font-weight:600;letter-spacing:.4px;user-select:none;background:rgba(13,10,24,.4)}
+.sdr-info-card summary::marker{color:#f39768}
+.sdr-info-card summary:hover{color:#f39768}
+.sdr-info-body{padding:8px 22px 18px;color:#cbb98c;font-size:13px;line-height:1.65}
+.sdr-info-body p{margin-bottom:10px}
+.sdr-info-body ol{margin-left:22px;margin-bottom:10px}
+.sdr-info-body ol li{margin-bottom:6px;color:#e0e0e0}
+.sdr-info-body code{background:#130e22;color:#f3cb68;padding:1px 7px;border-radius:4px;font-family:'Space Mono','Courier New',monospace;font-size:12px}
+.sdr-info-tip{color:#9460b8;font-style:italic;border-left:2px solid #9460b8;padding-left:10px;margin-top:12px}
+.status{display:flex;gap:15px}
+.status-item{padding:6px 12px;border-radius:4px;background-color:#1a1a1a;color:#888;font-size:.85em;border:1px solid #333}
+.status-item.connected{background-color:#00ff88;color:#000;border-color:#00ff88}
+.status-item.recording{background-color:#ff4444;color:#fff;border-color:#ff4444}
+main{display:flex;flex-direction:column;gap:20px}
+.spectrum-section{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222;position:relative}
+.spectrum-line-wrap{margin-bottom:14px;padding:12px 14px 14px;background-color:#0d0a18;border:1px solid rgba(114,71,150,.30);border-radius:6px}
+.spectrum-line-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#9460b8;margin-bottom:8px}
+#spectrum-line-canvas{display:block;width:100%;height:160px;border-radius:4px}
+.pass-status{position:absolute;top:10px;right:20px;background-color:#00ff88;color:#000;padding:8px 16px;border-radius:4px;font-weight:bold;font-size:.9em;display:none;z-index:10}
+.spectrum-container{margin-bottom:15px}
+#waterfall-canvas{width:100%;height:300px;border:1px solid #333;border-radius:4px;background-color:#000}
+.frequency-scale{margin-top:8px;height:20px;position:relative;font-size:11px;color:#666}
+.spectrum-controls{display:flex;gap:30px;align-items:center}
+.spectrum-controls label{display:flex;align-items:center;gap:10px;color:#aaa;font-size:.9em}
+.panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.panel{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222}
+.panel h2{color:#00ff88;margin-bottom:15px;font-size:1.1em;font-weight:400}
+.info-content{background-color:#0a0a0a;padding:15px;border-radius:4px;border:1px solid #1a1a1a;font-size:.9em}
+.param-group{margin-bottom:15px}
+.param-group:last-child{margin-bottom:0}
+.param-group h3{color:#00ff88;font-size:.95em;margin-bottom:8px;font-weight:500}
+.param{margin-bottom:4px;color:#ccc;font-family:'Courier New',monospace;font-size:.85em}
+.param.satellite-name{font-size:1.1em;color:#00ff88;font-weight:bold;font-family:inherit;text-align:center;padding:8px;background-color:#1a1a1a;border-radius:4px;border:1px solid #00ff88}
+.pass-item{margin-bottom:12px;padding:12px;background-color:#1a1a1a;border-radius:4px;border-left:3px solid #00ff88}
+.pass-item:last-child{margin-bottom:0}
+.pass-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pass-header strong{color:#00ff88;font-size:1em}
+.elevation{background-color:#00ff88;color:#000;padding:2px 6px;border-radius:3px;font-size:.8em;font-weight:bold}
+.pass-times{font-size:.85em;color:#aaa;margin-bottom:4px}
+.pass-freq{font-size:.85em;color:#00ff88;font-family:'Courier New',monospace}
+.pass-notes{font-size:.8em;color:#888;font-style:italic;margin-top:4px}
+.controls{margin-bottom:15px}
+.btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:.9em;font-weight:500;margin-right:10px;transition:all .2s ease}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-start{background-color:#00ff88;color:#000}
+.btn-start:hover:not(:disabled){background-color:#00cc6a}
+.btn-stop{background-color:#ff4444;color:#fff}
+.btn-stop:hover:not(:disabled){background-color:#cc3333}
+input[type="range"]{-webkit-appearance:none;appearance:none;width:100px;height:4px;background:#333;border-radius:2px;outline:none}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:#00ff88;border-radius:50%;cursor:pointer}
+.timeline-section{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222;margin-top:20px}
+.timeline-section h3{color:#00ff88;margin-bottom:15px;font-size:1.1em;font-weight:400}
+.timeline-canvas{width:100%;height:60px;border:1px solid #333;border-radius:4px;background-color:#000;cursor:pointer;display:block}
+.timeline-controls-container{margin-top:15px}
+.timeline-controls{display:flex;align-items:center;gap:15px;flex-wrap:wrap;justify-content:center}
+.timeline-controls .btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:.9em;font-weight:500;background-color:#333;color:#fff;transition:all .2s ease}
+.timeline-controls .btn:hover{background-color:#444}
+.timeline-controls .btn-live{background-color:#ff4444;color:#fff;font-weight:bold}
+.timeline-controls .btn-live:hover{background-color:#cc3333}
+#current-time-display{font-family:'Courier New',monospace;color:#00ff88;font-size:.9em;font-weight:bold;padding:6px 12px;background-color:#1a1a1a;border-radius:4px;border:1px solid #333;min-width:220px;text-align:center}
+@media(max-width:900px){.timeline-controls{flex-direction:column;align-items:stretch;gap:10px}.panels{grid-template-columns:1fr}.spectrum-controls{flex-direction:column;align-items:stretch;gap:15px}.spectrum-controls label{justify-content:space-between}}
+@media(max-width:600px){.container{padding:15px}header{flex-direction:column;gap:15px;text-align:center}.status{justify-content:center}h1{font-size:1.5em}}
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,10 +90,6 @@
                 <h1>SDR Трансляция</h1>
             </div>
             <script>
-              // Возвращаемся в frontend SPA, а не на JSON-эндпоинт FastAPI.
-              // 1) если браузер помнит, откуда мы пришли — туда
-              // 2) если history доступна и предыдущая страница того же origin — back()
-              // 3) иначе пробуем явный путь frontend (например, /, /satellites)
               (function () {
                 document.addEventListener("DOMContentLoaded", function () {
                   var btn = document.getElementById("sdr-back-btn");
@@ -34,24 +106,25 @@
                       }
                       if (window.history.length > 1) {
                         window.history.back();
-                        // На случай, если back() приведёт обратно на /sdr (циклически),
-                        // через 600 мс принудительно переходим в /satellites
                         setTimeout(function () {
                           if (window.location.pathname.indexOf("/sdr") === 0) {
-                            window.location.href = "/satellites";
+                            window.location.href = "/";
                           }
                         }, 600);
                         return;
                       }
                     } catch (_) {}
-                    window.location.href = "/satellites";
+                    window.location.href = "/";
                   });
                 });
               })();
             </script>
-            <div class="status">
-                <span id="connection-status" class="status-item">Отключено</span>
-                <span id="recording-status" class="status-item">Не записывается</span>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <span id="msk-clock" class="msk-clock">——.——.———— ——:——:—— МСК</span>
+                <div class="status">
+                    <span id="connection-status" class="status-item">Отключено</span>
+                    <span id="recording-status" class="status-item">Не записывается</span>
+                </div>
             </div>
         </header>
 
@@ -74,7 +147,7 @@
                         <li>График <em>«АЧХ»</em> сверху показывает амплитудно-частотную характеристику принимаемого сигнала в реальном времени.</li>
                         <li>Снизу — водопад (waterfall) и временная шкала за последние 48 часов.</li>
                         <li>Записанные <code>.iq</code>-файлы можно загрузить в раздел
-                            <em>Challenge → Демодуляция сырой записи</em> для расшифровки протоколом LoRa (gm.py).</li>
+                            <em>Challenge → Демодуляция сырой записи</em> для дальнейшей обработки.</li>
                     </ol>
                     <p class="sdr-info-tip">
                         Регуляторы <em>Яркость</em> и <em>Контраст</em> подстраивают
@@ -151,6 +224,24 @@
         let waterfallRenderer = null;
         let timelinePlayer = null;
 
+        // ── Московские часы ──────────────────────────────────────────────────────
+        function updateMskClock() {
+            var el = document.getElementById('msk-clock');
+            if (!el) return;
+            var now = new Date();
+            var msk = new Date(now.getTime() + 3 * 3600 * 1000);
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            el.textContent =
+                pad(msk.getUTCDate()) + '.' +
+                pad(msk.getUTCMonth() + 1) + '.' +
+                msk.getUTCFullYear() + '  ' +
+                pad(msk.getUTCHours()) + ':' +
+                pad(msk.getUTCMinutes()) + ':' +
+                pad(msk.getUTCSeconds()) + ' МСК';
+        }
+        updateMskClock();
+        setInterval(updateMskClock, 1000);
+
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
         });
@@ -178,7 +269,6 @@
             websocket.onopen = function() {
                 document.getElementById('connection-status').textContent = 'Подключено';
                 document.getElementById('connection-status').className = 'status-item connected';
-                // Обновляем данные при подключении
                 loadSignalInfo();
                 loadSatellitePasses();
             };
@@ -194,15 +284,12 @@
                 if (data.type === 'fft_frame') {
                     waterfallRenderer.addFFTFrame(data.fft_data, data.center_frequency, data.sample_rate);
                 } else if (data.type === 'auto_recording_stopped') {
-                    console.log('Auto-recording stopped:', data.filename);
-                    // Auto-download the completed auto-recording
                     const link = document.createElement('a');
                     link.href = `/sdr/api/download/${data.filename}`;
                     link.download = data.filename;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    console.log('Auto-downloaded:', data.filename);
                 }
             };
             
@@ -214,8 +301,7 @@
         async function loadSystemInfo() {
             try {
                 const response = await fetch('/sdr/api/info');
-                const info = await response.json();
-                // System info loaded
+                await response.json();
             } catch (error) {
                 console.error('Failed to load system info:', error);
             }
@@ -228,11 +314,9 @@
                     const signalInfo = await response.json();
                     displaySignalInfo(signalInfo);
                 } else {
-                    console.log('No signal info available:', response.status);
-                    document.getElementById('signal-info').innerHTML = '<p>Нет данных о сигнале. Отправьте пролеты и параметры спектра.</p>';
+                    document.getElementById('signal-info').innerHTML = '<p>Нет данных о сигнале.</p>';
                 }
             } catch (error) {
-                console.error('Failed to load signal info:', error);
                 document.getElementById('signal-info').innerHTML = '<p>Ошибка загрузки данных о сигнале</p>';
             }
         }
@@ -360,15 +444,12 @@
             try {
                 const response = await fetch('/sdr/api/record/start', { method: 'POST' });
                 const result = await response.json();
-                
                 if (response.ok) {
-                    console.log('Recording started:', result.filename);
                     await loadRecordingState();
                 } else {
                     alert('Ошибка начала записи: ' + result.detail);
                 }
             } catch (error) {
-                console.error('Error starting recording:', error);
                 alert('Ошибка начала записи');
             }
         }
@@ -377,14 +458,9 @@
             try {
                 const response = await fetch('/sdr/api/record/stop', { method: 'POST' });
                 const result = await response.json();
-                
                 if (response.ok) {
-                    console.log('Recording stopped');
                     await loadRecordingState();
-                    
-                    // Auto-download the stopped recording
                     if (result.filename) {
-                        console.log('Auto-downloading stopped recording:', result.filename);
                         const link = document.createElement('a');
                         link.href = `/sdr/api/download/${result.filename}`;
                         link.download = result.filename;
@@ -396,14 +472,13 @@
                     alert('Ошибка остановки записи: ' + result.detail);
                 }
             } catch (error) {
-                console.error('Error stopping recording:', error);
                 alert('Ошибка остановки записи');
             }
         }
 
         async function updateStatus() {
             await loadRecordingState();
-            await loadSignalInfo(); // Добавляем обновление данных о сигнале
+            await loadSignalInfo();
         }
     </script>
 </body>
