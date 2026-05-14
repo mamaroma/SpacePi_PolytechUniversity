@@ -6,11 +6,16 @@ from telemetry_config import settings
 
 logger = logging.getLogger(__name__)
 
+_is_sqlite = settings.database_url.startswith("sqlite")
+
 engine = create_engine(
     settings.database_url,
     echo=False,
-    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False, "timeout": 30} if _is_sqlite else {},
     pool_pre_ping=True,
+    # SQLite: serialize writes through a single connection to avoid "database is locked"
+    pool_size=1 if _is_sqlite else 5,
+    max_overflow=0 if _is_sqlite else 10,
 )
 
 def init_db(retries: int = 5, delay: float = 2.0):
@@ -23,6 +28,10 @@ def init_db(retries: int = 5, delay: float = 2.0):
                 url = str(engine.url)
 
                 if url.startswith("sqlite"):
+                    # WAL-mode: readers don't block writers and vice versa
+                    conn.exec_driver_sql("PRAGMA journal_mode=WAL")
+                    conn.exec_driver_sql("PRAGMA busy_timeout=30000")
+
                     def _sqlite_cols(table: str) -> set:
                         rows = conn.exec_driver_sql(f"PRAGMA table_info('{table}')").fetchall()
                         return {c[1] for c in rows}

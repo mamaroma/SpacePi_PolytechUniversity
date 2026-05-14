@@ -49,4 +49,7 @@ desktop.ini
 # ─── MATLAB generated ─────────────────────────────────────────
 matlab/telemetry_data.mat
 data/processed/*.mat
-sdr/nothing.iq
+# ─── SDR large IQ data files ──────────────────────────────────
+*.iq
+sdr/sdr_web_test/data/recordings/
+sdr/sdr_web_test/data/silence/
