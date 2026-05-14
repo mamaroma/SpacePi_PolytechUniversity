@@ -18,11 +18,10 @@ COPY collect.py      .
 # Copy SDR sub-service
 COPY sdr/sdr_web_test/app/  ./sdr/sdr_web_test/app/
 COPY sdr/sdr_web_test/frontend/  ./sdr/sdr_web_test/frontend/
-COPY sdr/sdr_web_test/data/  ./sdr/sdr_web_test/data/
 # Ensure sdr package is importable
 RUN touch sdr/__init__.py sdr/sdr_web_test/__init__.py
 
-# Create data directory for SQLite, news, and session files
+# Create data directories — populated at runtime via Docker volume mount
 RUN mkdir -p /data \
     && mkdir -p sdr/sdr_web_test/data/recordings \
     && mkdir -p sdr/sdr_web_test/data/silence
