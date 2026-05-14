@@ -62,13 +62,23 @@ def attach_sdr(app) -> None:
             )
 
         @stub.get("/sdr/api/info")
-        async def sdr_info_stub():
+        @stub.get("/sdr/api/signal/info")
+        @stub.get("/sdr/api/passes")
+        @stub.get("/sdr/api/record/state")
+        async def sdr_api_stub():
             return JSONResponse(
                 {"detail": f"SDR unavailable: {_SDR_IMPORT_ERROR}"},
                 status_code=503,
             )
 
         app.include_router(stub)
+
+        # WebSocket stub — closes with code 1011 (server error) immediately
+        @app.websocket("/sdr/ws/sdr")
+        async def sdr_ws_stub(websocket):
+            await websocket.accept()
+            await websocket.close(code=1011, reason="SDR unavailable")
+
         logger.warning("SDR mounted as STUB (503) — check /sdr-status for details")
         return
 

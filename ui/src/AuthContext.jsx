@@ -11,7 +11,9 @@ async function apiFetch(path, opts = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Request failed");
+    const error = new Error(err.detail || "Request failed");
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -28,10 +30,14 @@ export function AuthProvider({ children }) {
     try {
       const me = await apiFetch("/api/auth/me", { headers: { Authorization: `Bearer ${t}` } });
       setUser(me);
-    } catch {
-      localStorage.removeItem("token");
-      setToken(null);
-      setUser(null);
+    } catch (err) {
+      // Only clear the token when the server explicitly rejects it (401).
+      // Network errors or server restarts (5xx) should not log the user out.
+      if (err.status === 401) {
+        localStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }

@@ -36,7 +36,12 @@ export default function AuthPage() {
     }}>
       <div className="card" style={{ width: 380, padding: "36px 32px" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🛰️</div>
+          <img
+            src="/spacepi-logo.svg"
+            alt="PolySpace"
+            style={{ height: 56, marginBottom: 12, display: "inline-block" }}
+            onError={e => { e.target.style.display = "none"; }}
+          />
           <h2 style={{ margin: 0, color: "var(--text)", fontSize: 20 }}>PolySpace</h2>
           <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 4 }}>
             {mode === "login" ? "Вход в систему" : "Регистрация"}
