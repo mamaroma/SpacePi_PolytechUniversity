@@ -1,6 +1,6 @@
 """Global state management for SDR streaming application."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from .models import SignalInfo, SatellitePass, RecordingState, SystemInfo, SpectrumParams
 
@@ -40,7 +40,7 @@ class SDRState:
         async with self._lock:
             self.recording_state.is_recording = True
             self.recording_state.filename = filename
-            self.recording_state.start_time = datetime.now()
+            self.recording_state.start_time = datetime.now(timezone.utc)
             self.recording_state.file_size_bytes = 0
     
     async def stop_recording(self):

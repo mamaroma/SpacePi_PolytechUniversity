@@ -1,7 +1,7 @@
 """Data models for SDR streaming application."""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SatelliteData(BaseModel):
@@ -43,7 +43,7 @@ class SignalInfo(BaseModel):
     crc_enabled: bool = True
     
     # Metadata
-    timestamp: datetime = datetime.now()
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class SatellitePass(BaseModel):

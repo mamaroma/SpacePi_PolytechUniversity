@@ -2,7 +2,7 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 import numpy as np
 from pathlib import Path
@@ -48,15 +48,20 @@ class PlaybackService:
 
     def _load_silence_data(self):
         """Load silence/nothing.iq file, or generate noise if not present."""
-        silence_samples = int(self.sample_rate * self.silence_duration)
         try:
             logger.info(f"Looking for silence file at: {self.silence_file}")
             if self.silence_file.exists():
                 file_size = self.silence_file.stat().st_size
                 logger.info(f"Found silence file, size: {file_size} bytes")
-                with open(self.silence_file, 'rb') as f:
-                    data = f.read()
-                    self.silence_data = np.frombuffer(data, dtype=np.complex64)
+                if file_size < np.dtype(np.complex64).itemsize:
+                    raise ValueError("silence file is too small")
+                if file_size % np.dtype(np.complex64).itemsize != 0:
+                    logger.warning(
+                        "Silence file size is not aligned to complex64 samples; trailing bytes will be ignored"
+                    )
+                # nothing.iq can be over 1 GB. Use a memory map so startup does
+                # not allocate the whole file and crash small production hosts.
+                self.silence_data = np.memmap(self.silence_file, dtype=np.complex64, mode="r")
                 duration = len(self.silence_data) / self.sample_rate
                 logger.info(f"Loaded {len(self.silence_data)} samples ({duration:.1f}s) from silence file")
             else:
@@ -230,9 +235,9 @@ class PlaybackService:
     def _find_recording_for_time(self, target_time: datetime) -> Optional[Dict]:
         """Find recording file that contains the target time."""
         try:
-            # Ensure target_time is timezone-naive for comparison
+            # Filenames are UTC timestamps. Compare as naive UTC internally.
             if target_time.tzinfo is not None:
-                target_time = target_time.replace(tzinfo=None)
+                target_time = target_time.astimezone(timezone.utc).replace(tzinfo=None)
             
             for file_path in self.recordings_dir.glob("*.iq"):
                 try:
@@ -272,11 +277,11 @@ class PlaybackService:
             filepath = recording["filepath"]
             recording_start = recording["start_time"]
             
-            # Ensure all datetime objects are timezone-naive
+            # Recording filenames are UTC timestamps. Compare as naive UTC internally.
             if start_time.tzinfo is not None:
-                start_time = start_time.replace(tzinfo=None)
+                start_time = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             if end_time.tzinfo is not None:
-                end_time = end_time.replace(tzinfo=None)
+                end_time = end_time.astimezone(timezone.utc).replace(tzinfo=None)
             
             # Calculate byte offset and length
             time_offset = (start_time - recording_start).total_seconds()

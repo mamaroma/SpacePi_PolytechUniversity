@@ -2,12 +2,13 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 import numpy as np
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+UTC_FILENAME_FORMAT = "%Y%m%d_%H%M%S"
 
 
 class AutoRecorder:
@@ -94,8 +95,8 @@ class AutoRecorder:
         
         try:
             # Генерируем имя файла с временной меткой
-            now = datetime.now()
-            filename = now.strftime("%Y%m%d_%H%M%S.iq")
+            now = datetime.now(timezone.utc)
+            filename = now.strftime(f"{UTC_FILENAME_FORMAT}.iq")
             filepath = self.recordings_dir / filename
             
             # Открываем файл для записи
@@ -122,7 +123,7 @@ class AutoRecorder:
             
             if self.current_file:
                 file_size = os.path.getsize(self.current_file)
-                duration = (datetime.now() - self.recording_start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - self.recording_start_time).total_seconds()
                 filename = os.path.basename(self.current_file)
                 logger.info(f"Stopped auto-recording: {filename}, "
                            f"size: {file_size/1024/1024:.1f} MB, duration: {duration:.1f}s")
@@ -154,13 +155,13 @@ class AutoRecorder:
     async def cleanup_old_recordings(self, max_age_hours: int = 48):
         """Remove recordings older than specified hours."""
         try:
-            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
             removed_count = 0
             
             for file_path in self.recordings_dir.glob("*.iq"):
                 try:
                     # Получаем время создания файла
-                    file_time = datetime.fromtimestamp(file_path.stat().st_ctime)
+                    file_time = self._get_recording_start_time(file_path)
                     
                     if file_time < cutoff_time:
                         file_path.unlink()
@@ -179,13 +180,13 @@ class AutoRecorder:
     def get_recordings_timeline(self, hours_back: int = 48) -> List[Dict]:
         """Get timeline of recordings for the last N hours."""
         try:
-            cutoff_time = datetime.now() - timedelta(hours=hours_back)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
             recordings = []
             
             for file_path in self.recordings_dir.glob("*.iq"):
                 try:
                     stat = file_path.stat()
-                    start_time = datetime.fromtimestamp(stat.st_ctime)
+                    start_time = self._get_recording_start_time(file_path)
                     
                     if start_time >= cutoff_time:
                         # Примерная длительность на основе размера файла
@@ -198,8 +199,8 @@ class AutoRecorder:
                         
                         recordings.append({
                             "filename": file_path.name,
-                            "start_time": start_time.isoformat(),
-                            "end_time": end_time.isoformat(),
+                            "start_time": self._iso_z(start_time),
+                            "end_time": self._iso_z(end_time),
                             "duration_seconds": duration_seconds,
                             "file_size_bytes": file_size
                         })
@@ -214,6 +215,19 @@ class AutoRecorder:
         except Exception as e:
             logger.error(f"Error getting timeline: {e}")
             return []
+
+    def _get_recording_start_time(self, file_path: Path) -> datetime:
+        """Return recording start as a timezone-aware UTC datetime."""
+        try:
+            filename_time = datetime.strptime(file_path.stem, UTC_FILENAME_FORMAT)
+            return filename_time.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return datetime.fromtimestamp(file_path.stat().st_ctime, tz=timezone.utc)
+
+    @staticmethod
+    def _iso_z(value: datetime) -> str:
+        """Serialize UTC datetimes in a format JavaScript parses as UTC."""
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # Global auto-recorder instance — absolute path so CWD doesn't matter.

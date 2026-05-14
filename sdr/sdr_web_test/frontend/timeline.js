@@ -7,10 +7,11 @@ class TimelinePlayer {
         this.ctx = this.canvas.getContext('2d');
         this.controlsContainer = document.getElementById(controlsId);
         
+        this.serverTimeOffsetMs = 0;
         this.recordings = [];
-        this.currentTime = new Date();
-        this.startTime = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
-        this.endTime = new Date();
+        this.currentTime = this.getNow();
+        this.startTime = new Date(this.currentTime.getTime() - 48 * 60 * 60 * 1000); // 48 hours ago
+        this.endTime = this.currentTime;
         
         this.isPlaying = false;
         this.isLiveMode = true;
@@ -22,10 +23,33 @@ class TimelinePlayer {
         
         // Update timeline more frequently to catch new recordings
         setInterval(() => this.updateTimeline(), 5000); // Every 5 seconds instead of 30
+        setInterval(() => this.syncServerTime(), 60000);
+        this.syncServerTime();
         this.updateTimeline();
         
         // Start live time updates
         this.startLiveTimeUpdate();
+    }
+
+    getNow() {
+        return new Date(Date.now() + this.serverTimeOffsetMs);
+    }
+
+    async syncServerTime() {
+        try {
+            const response = await fetch('/sdr/api/time', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            if (typeof data.server_timestamp_ms === 'number') {
+                this.serverTimeOffsetMs = data.server_timestamp_ms - Date.now();
+            } else if (data.server_time_utc) {
+                this.serverTimeOffsetMs = new Date(data.server_time_utc).getTime() - Date.now();
+            }
+        } catch (error) {
+            console.warn('Failed to sync server time, using browser clock:', error);
+        }
     }
     
     setupCanvas() {
@@ -72,6 +96,9 @@ class TimelinePlayer {
     
     async updateTimeline() {
         try {
+            if (this.isLiveMode) {
+                this.updateLiveWindow();
+            }
             const response = await fetch('/sdr/api/timeline?hours_back=48');
             const data = await response.json();
             const newRecordings = data.recordings || [];
@@ -95,6 +122,9 @@ class TimelinePlayer {
     }
     
     draw() {
+        if (this.isLiveMode) {
+            this.updateLiveWindow();
+        }
         const ctx = this.ctx;
         const width = this.canvas.offsetWidth;
         const height = this.canvas.offsetHeight;
@@ -310,7 +340,9 @@ class TimelinePlayer {
             
             // Return to live mode
             this.isLiveMode = true;
-            this.currentTime = new Date();
+            await this.syncServerTime();
+            this.currentTime = this.getNow();
+            this.updateLiveWindow();
             
             // Start real-time clock update
             this.startLiveTimeUpdate();
@@ -318,7 +350,10 @@ class TimelinePlayer {
             // Update UI
             document.getElementById('play-pause-btn').textContent = 'Пауза';
             document.getElementById('live-mode-btn').classList.add('btn-live');
-            document.getElementById('download-btn').style.display = 'none';
+            const downloadBtn = document.getElementById('download-btn');
+            if (downloadBtn) {
+                downloadBtn.style.display = 'none';
+            }
             
             this.draw();
             
@@ -336,7 +371,8 @@ class TimelinePlayer {
         // Update current time every second in live mode
         this.liveTimeTimer = setInterval(() => {
             if (this.isLiveMode) {
-                this.currentTime = new Date();
+                this.currentTime = this.getNow();
+                this.updateLiveWindow();
                 this.draw();
             }
         }, 1000);
@@ -355,11 +391,8 @@ class TimelinePlayer {
     }
     
     updateTimeDisplay() {
-        // Convert to Moscow time (UTC+3)
-        const moscowTime = new Date(this.currentTime.getTime() + (3 * 60 * 60 * 1000) - (this.currentTime.getTimezoneOffset() * 60 * 1000));
-        const timeStr = moscowTime.toLocaleTimeString('ru');
-        const dateStr = moscowTime.toLocaleDateString('ru');
-        document.getElementById('current-time-display').textContent = `${dateStr} ${timeStr} МСК`;
+        const formattedMskTime = this.formatMoscowTime(this.currentTime);
+        document.getElementById('current-time-display').textContent = `${formattedMskTime} МСК`;
         
         // Update pass status
         const isRecording = this.isTimeInRecording(this.currentTime);
@@ -390,6 +423,25 @@ class TimelinePlayer {
         }
     }
     
+    updateLiveWindow() {
+        const now = this.getNow();
+        this.endTime = now;
+        this.startTime = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    }
+
+    formatMoscowTime(date) {
+        return new Intl.DateTimeFormat('ru-RU', {
+            timeZone: 'Europe/Moscow',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(date).replace(',', '');
+    }
+
     async checkAutoRecordingStatus() {
         try {
             const response = await fetch('/sdr/api/auto-record/state');
@@ -457,7 +509,7 @@ class TimelinePlayer {
             downloadBtn.onclick = () => {
                 console.log(`Downloading: ${recordingToDownload.filename}`);
                 const link = document.createElement('a');
-                link.href = `/api/download/${recordingToDownload.filename}`;
+                link.href = `/sdr/api/download/${recordingToDownload.filename}`;
                 link.download = recordingToDownload.filename;
                 document.body.appendChild(link);
                 link.click();
@@ -493,7 +545,7 @@ class TimelinePlayer {
         if (latestRecording) {
             console.log(`Downloading latest: ${latestRecording.filename}`);
             const link = document.createElement('a');
-            link.href = `/api/download/${latestRecording.filename}`;
+            link.href = `/sdr/api/download/${latestRecording.filename}`;
             link.download = latestRecording.filename;
             document.body.appendChild(link);
             link.click();
@@ -516,7 +568,7 @@ class TimelinePlayer {
         if (currentRecording) {
             console.log(`Downloading: ${currentRecording.filename}`);
             const link = document.createElement('a');
-            link.href = `/api/download/${currentRecording.filename}`;
+            link.href = `/sdr/api/download/${currentRecording.filename}`;
             link.download = currentRecording.filename;
             document.body.appendChild(link);
             link.click();
