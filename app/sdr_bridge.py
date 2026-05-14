@@ -72,20 +72,23 @@ def attach_sdr(app) -> None:
             )
 
         from fastapi import WebSocket as _WebSocket
+        from starlette.routing import WebSocketRoute as _WSRoute
 
         async def _ws_stub(websocket: _WebSocket):
             await websocket.accept()
             await websocket.close(code=1011, reason="SDR unavailable")
 
         app.include_router(stub)
-        app.add_api_websocket_route("/sdr/ws/sdr", _ws_stub)
+        app.router.routes.append(_WSRoute("/sdr/ws/sdr", _ws_stub))
 
         logger.warning("SDR mounted as STUB (503) — check /sdr-status for details")
         return
 
     # ── real SDR routes ──────────────────────────────────────────────────────
+    from starlette.routing import WebSocketRoute as _WSRoute
     app.include_router(sdr_router, prefix="/sdr")
-    app.add_api_websocket_route("/sdr/ws/sdr", websocket_endpoint)
+    app.router.routes.append(_WSRoute("/sdr/ws/sdr", websocket_endpoint))
+    logger.info("SDR WebSocket registered at /sdr/ws/sdr")
 
     if _SDR_FRONTEND.is_dir():
         app.mount(
