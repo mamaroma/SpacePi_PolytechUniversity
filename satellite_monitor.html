@@ -257,11 +257,11 @@
         var satLayers = {};
         
         // Инициализация карты
-        var map = L.map('map').setView(center, 3);
+        var map = L.map('map', { attributionControl: false }).setView(center, 3);
         
         // Тёмная подложка
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org">OSM</a> &copy; CartoDB',
+            attribution: '',
             subdomains: 'abcd'
         }).addTo(map);
         

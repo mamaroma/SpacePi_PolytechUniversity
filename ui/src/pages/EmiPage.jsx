@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, AttributionControl } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { fetchDemoEmiPackets } from "../api";
 import { GuideBanner } from "../components/Hint";
@@ -281,9 +281,8 @@ export default function EmiPage() {
                 .leaflet-control-attribution a { color: #f39768 !important; }
               `}</style>
               <MapContainer center={[30, 30]} zoom={2} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas={true}>
-                <AttributionControl position="bottomright" prefix={false} />
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  attribution=""
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                   subdomains="abcd"
                   maxZoom={19}
