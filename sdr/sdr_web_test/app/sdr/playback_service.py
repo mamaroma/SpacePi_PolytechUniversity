@@ -38,36 +38,35 @@ class PlaybackService:
         # Load silence data
         self._load_silence_data()
     
+    def _generate_noise(self, num_samples: int) -> np.ndarray:
+        """Generate realistic thermal noise (AWGN) as a placeholder signal."""
+        # Amplitude chosen so the noise floor sits around -90 dBFS on the waterfall
+        noise_amplitude = 0.005
+        i = np.random.normal(0, noise_amplitude, num_samples).astype(np.float32)
+        q = np.random.normal(0, noise_amplitude, num_samples).astype(np.float32)
+        return (i + 1j * q).astype(np.complex64)
+
     def _load_silence_data(self):
-        """Load silence/nothing.iq file."""
+        """Load silence/nothing.iq file, or generate noise if not present."""
+        silence_samples = int(self.sample_rate * self.silence_duration)
         try:
             logger.info(f"Looking for silence file at: {self.silence_file}")
             if self.silence_file.exists():
                 file_size = self.silence_file.stat().st_size
                 logger.info(f"Found silence file, size: {file_size} bytes")
-                
                 with open(self.silence_file, 'rb') as f:
                     data = f.read()
                     self.silence_data = np.frombuffer(data, dtype=np.complex64)
-                    
-                    logger.info(f"Loaded {len(self.silence_data)} samples from silence file")
-                    
-                    # Calculate duration based on sample rate
-                    duration = len(self.silence_data) / self.sample_rate
-                    logger.info(f"Silence duration: {duration:.1f}s at {self.sample_rate} Hz")
-                    
+                duration = len(self.silence_data) / self.sample_rate
+                logger.info(f"Loaded {len(self.silence_data)} samples ({duration:.1f}s) from silence file")
             else:
-                # Generate silence if file doesn't exist
-                logger.warning(f"Silence file not found at {self.silence_file}")
-                silence_samples = int(self.sample_rate * self.silence_duration)
-                self.silence_data = np.zeros(silence_samples, dtype=np.complex64)
-                logger.warning(f"Generated {silence_samples} zero samples at {self.sample_rate} Hz")
+                # No .iq file — generate AWGN noise placeholder
+                logger.info("Silence file not found — generating AWGN noise placeholder")
+                self.silence_data = self._generate_noise(silence_samples)
+                logger.info(f"Generated {silence_samples} noise samples at {self.sample_rate} Hz")
         except Exception as e:
-            logger.error(f"Error loading silence data: {e}")
-            # Fallback to generated silence
-            silence_samples = int(self.sample_rate * self.silence_duration)
-            self.silence_data = np.zeros(silence_samples, dtype=np.complex64)
-            logger.error(f"Using fallback: generated {silence_samples} zero samples")
+            logger.error(f"Error loading silence data: {e} — falling back to noise")
+            self.silence_data = self._generate_noise(silence_samples)
     
     def set_sample_callback(self, callback):
         """Set callback for processed samples."""
