@@ -60,13 +60,15 @@ class PlaybackService:
                 duration = len(self.silence_data) / self.sample_rate
                 logger.info(f"Loaded {len(self.silence_data)} samples ({duration:.1f}s) from silence file")
             else:
-                # No .iq file — generate AWGN noise placeholder
-                logger.info("Silence file not found — generating AWGN noise placeholder")
-                self.silence_data = self._generate_noise(silence_samples)
-                logger.info(f"Generated {silence_samples} noise samples at {self.sample_rate} Hz")
+                # No .iq file — generate a short AWGN noise loop (10 s) that
+                # gets cycled by _get_silence_samples(); keeps memory usage low.
+                short_samples = int(self.sample_rate * 10)
+                logger.info("Silence file not found — generating 10 s AWGN noise loop")
+                self.silence_data = self._generate_noise(short_samples)
+                logger.info(f"Generated {short_samples} noise samples ({short_samples/self.sample_rate:.1f}s loop)")
         except Exception as e:
             logger.error(f"Error loading silence data: {e} — falling back to noise")
-            self.silence_data = self._generate_noise(silence_samples)
+            self.silence_data = self._generate_noise(int(self.sample_rate * 10))
     
     def set_sample_callback(self, callback):
         """Set callback for processed samples."""
