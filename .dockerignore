@@ -26,6 +26,10 @@ processed_data/
 matlab/
 chromedriver/
 
+# Large SDR data files — mounted via volume, never baked into image
+*.iq
+sdr/sdr_web_test/data/
+
 # Secrets
 .env
 

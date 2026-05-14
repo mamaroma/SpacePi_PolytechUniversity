@@ -21,6 +21,8 @@ services:
       - telemetry_data:/data
       # Persist Telethon session file (re-use existing session)
       - ./telemetry_session.session:/app/telemetry_session.session
+      # Mount SDR data directory (contains nothing.iq and recordings)
+      - ./sdr/sdr_web_test/data:/app/sdr/sdr_web_test/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/api/satellites"]
       interval: 30s
