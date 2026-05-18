@@ -1,6 +1,6 @@
 """FastAPI routes for SDR streaming application."""
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 from fastapi import APIRouter, HTTPException, status
 from .models import SignalInfo, PassList, SatellitePass, RecordingState, SystemInfo, SpectrumParams, SatelliteData
@@ -20,6 +20,17 @@ router = APIRouter(prefix="/api", tags=["sdr"])
 async def get_system_info():
     """Get system information and status."""
     return await sdr_state.get_system_info()
+
+
+@router.get("/time")
+async def get_server_time():
+    """Get authoritative server time for timeline live mode."""
+    now_utc = datetime.now(timezone.utc)
+    return {
+        "server_time_utc": now_utc.isoformat().replace("+00:00", "Z"),
+        "server_timestamp_ms": int(now_utc.timestamp() * 1000),
+        "timezone": "UTC",
+    }
 
 
 @router.get("/satellites", response_model=Dict[str, SatelliteData])

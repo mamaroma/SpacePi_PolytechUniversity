@@ -21,13 +21,13 @@ def _try_import_sdr():
     global _SDR_IMPORT_ERROR
     try:
         from sdr.sdr_web_test.app.sdr.routes import router as sdr_router
-        from sdr.sdr_web_test.app.sdr.websocket import websocket_endpoint
+        from sdr.sdr_web_test.app.sdr.websocket import iq_ingest_endpoint, websocket_endpoint
         _SDR_IMPORT_ERROR = None
-        return sdr_router, websocket_endpoint
+        return sdr_router, websocket_endpoint, iq_ingest_endpoint
     except Exception as exc:
         _SDR_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
         logger.error("SDR import failed: %s", _SDR_IMPORT_ERROR, exc_info=True)
-        return None, None
+        return None, None, None
 
 
 def attach_sdr(app) -> None:
@@ -35,7 +35,7 @@ def attach_sdr(app) -> None:
     from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
     from fastapi.staticfiles import StaticFiles
 
-    sdr_router, websocket_endpoint = _try_import_sdr()
+    sdr_router, websocket_endpoint, iq_ingest_endpoint = _try_import_sdr()
 
     # ── diagnostic endpoint (always available) ──────────────────────────────
     @app.get("/sdr-status", include_in_schema=False)
@@ -80,6 +80,7 @@ def attach_sdr(app) -> None:
 
         app.include_router(stub)
         app.router.routes.append(_WSRoute("/sdr/ws/sdr", _ws_stub))
+        app.router.routes.append(_WSRoute("/sdr/ws/iq-ingest", _ws_stub))
 
         logger.warning("SDR mounted as STUB (503) — check /sdr-status for details")
         return
@@ -88,7 +89,9 @@ def attach_sdr(app) -> None:
     from starlette.routing import WebSocketRoute as _WSRoute
     app.include_router(sdr_router, prefix="/sdr")
     app.router.routes.append(_WSRoute("/sdr/ws/sdr", websocket_endpoint))
+    app.router.routes.append(_WSRoute("/sdr/ws/iq-ingest", iq_ingest_endpoint))
     logger.info("SDR WebSocket registered at /sdr/ws/sdr")
+    logger.info("SDR IQ ingest WebSocket registered at /sdr/ws/iq-ingest")
 
     if _SDR_FRONTEND.is_dir():
         app.mount(
@@ -127,7 +130,6 @@ async def sdr_startup() -> dict:
 
     async def _zmq_callback(samples):
         await fft_service.process_samples(samples)
-        await auto_recorder.process_samples(samples)
 
     try:
         await zmq_receiver.connect()

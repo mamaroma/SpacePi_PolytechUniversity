@@ -1,7 +1,7 @@
 """IQ recording functionality."""
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import numpy as np
@@ -21,7 +21,7 @@ class IQRecorder:
     
     def generate_filename(self) -> str:
         """Generate recording filename based on current datetime."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         return f"{now.strftime('%Y%m%d_%H%M%S')}.iq"
     
     async def start_recording(self) -> str:

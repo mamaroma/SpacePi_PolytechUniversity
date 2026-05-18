@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .sdr.routes import router as sdr_router
-from .sdr.websocket import websocket_endpoint
+from .sdr.websocket import iq_ingest_endpoint, websocket_endpoint
 from .sdr.zmq_receiver import zmq_receiver
 from .sdr.fft_service import fft_service
 from .sdr.auto_recorder import auto_recorder
@@ -34,8 +34,6 @@ async def lifespan(app: FastAPI):
         async def zmq_callback_with_silence(samples):
             # Process real samples from GNU Radio
             await fft_service.process_samples(samples)
-            # Also send to auto-recorder (this updates last_data_time)
-            await auto_recorder.process_samples(samples)
         
         logger.info("Connecting to ZMQ...")
         try:
@@ -283,6 +281,7 @@ app.include_router(sdr_router)
 
 # WebSocket endpoint
 app.websocket("/ws/sdr")(websocket_endpoint)
+app.websocket("/ws/iq-ingest")(iq_ingest_endpoint)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")

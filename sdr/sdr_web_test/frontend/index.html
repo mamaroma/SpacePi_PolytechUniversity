@@ -218,16 +218,43 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:non
     </div>
 
     <script src="/sdr/static/waterfall.js"></script>
-    <script src="/sdr/static/timeline.js"></script>
+    <script src="/sdr/static/timeline.js?v=20260515-1"></script>
     <script>
         let websocket = null;
         let waterfallRenderer = null;
         let timelinePlayer = null;
 
         // ── Московские часы ──────────────────────────────────────────────────────
+        var mskClockOffsetMs = 0;
+
+        async function syncMskClock() {
+            try {
+                var response = await fetch('/sdr/api/time', { cache: 'no-store' });
+                if (!response.ok) return;
+                var data = await response.json();
+                if (typeof data.server_timestamp_ms === 'number') {
+                    mskClockOffsetMs = data.server_timestamp_ms - Date.now();
+                } else if (data.server_time_utc) {
+                    mskClockOffsetMs = new Date(data.server_time_utc).getTime() - Date.now();
+                }
+            } catch (_) {}
+        }
+
         function updateMskClock() {
             var el = document.getElementById('msk-clock');
             if (!el) return;
+            var serverNow = new Date(Date.now() + mskClockOffsetMs);
+            el.textContent = new Intl.DateTimeFormat('ru-RU', {
+                timeZone: 'Europe/Moscow',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).format(serverNow).replace(',', '') + ' МСК';
+            return;
             var now = new Date();
             var msk = new Date(now.getTime() + 3 * 3600 * 1000);
             var pad = function(n) { return String(n).padStart(2, '0'); };
@@ -239,8 +266,10 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:non
                 pad(msk.getUTCMinutes()) + ':' +
                 pad(msk.getUTCSeconds()) + ' МСК';
         }
+        syncMskClock();
         updateMskClock();
         setInterval(updateMskClock, 1000);
+        setInterval(syncMskClock, 60000);
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
