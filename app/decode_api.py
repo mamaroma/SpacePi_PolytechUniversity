@@ -1,11 +1,15 @@
 """
 Challenge decoders — used by the «Challenge» section of the UI.
 
-* /api/decode/ais   — accepts a text file with !AIVDM lines, returns parsed JSON.
+* /api/decode/ais      — accepts a text file with !AIVDM lines, returns parsed JSON.
 * /api/decode/telemetry — accepts a binary packet (LoRa-style), returns fields.
-* /api/decode/iq    — accepts a raw IQ recording, returns a (mock) demodulated
-                      payload using the same parameters that have to be set in
-                      `gm.py` (sample rate, decimation, freq shift, …).
+* /api/decode/iq       — accepts a raw IQ recording, returns a (mock) demodulated
+                         payload using the same parameters that have to be set in
+                         `gm.py` (sample rate, decimation, freq shift, …).
+* /api/decode/binary   — custom bit-field decoder: user supplies a binary file and
+                         a JSON config describing named fields by bit offset + bit
+                         length; supports signed/unsigned, MSB/LSB bit order, scale
+                         factor and optional packet splitting.
 """
 from __future__ import annotations
 
@@ -278,4 +282,171 @@ async def demod_iq(
         "crc_ok": crc_ok,
         "payload_hex": payload_bytes.hex(" "),
         "decoded_payload": decoded_payload,
+    }
+
+
+# ─── Custom bit-field decoder ─────────────────────────────────────────────────
+
+def _extract_bits_msb(data: bytes, bit_offset: int, bit_length: int) -> int:
+    """Extract `bit_length` bits starting at `bit_offset` (MSB-first / big-endian bit order)."""
+    value = 0
+    for i in range(bit_length):
+        pos = bit_offset + i
+        byte_idx = pos // 8
+        bit_idx = 7 - (pos % 8)          # bit 7 is the most significant
+        if byte_idx < len(data):
+            if (data[byte_idx] >> bit_idx) & 1:
+                value |= 1 << (bit_length - 1 - i)
+    return value
+
+
+def _extract_bits_lsb(data: bytes, bit_offset: int, bit_length: int) -> int:
+    """Extract `bit_length` bits starting at `bit_offset` (LSB-first / little-endian bit order)."""
+    value = 0
+    for i in range(bit_length):
+        pos = bit_offset + i
+        byte_idx = pos // 8
+        bit_idx = pos % 8                 # bit 0 is the least significant
+        if byte_idx < len(data):
+            if (data[byte_idx] >> bit_idx) & 1:
+                value |= 1 << i
+    return value
+
+
+def _decode_bit_fields(buf: bytes, fields: list[dict]) -> dict:
+    """Decode a list of bit-field definitions against a byte buffer."""
+    result: dict[str, Any] = {}
+    errors: list[str] = []
+
+    for f in fields:
+        name        = str(f.get("name", "?"))
+        bit_offset  = int(f.get("bit_offset", 0))
+        bit_length  = int(f.get("bit_length", 8))
+        signed      = bool(f.get("signed", False))
+        scale       = float(f.get("scale", 1.0))
+        bit_order   = str(f.get("bit_order", "MSB")).upper()
+
+        if bit_length <= 0 or bit_length > 64:
+            errors.append(f"{name}: bit_length must be 1..64")
+            result[name] = None
+            continue
+
+        if bit_offset < 0:
+            errors.append(f"{name}: bit_offset must be ≥ 0")
+            result[name] = None
+            continue
+
+        end_bit = bit_offset + bit_length
+        if end_bit > len(buf) * 8:
+            errors.append(
+                f"{name}: bits {bit_offset}–{end_bit - 1} exceed packet size "
+                f"({len(buf)} bytes = {len(buf) * 8} bits)"
+            )
+            result[name] = None
+            continue
+
+        raw = (
+            _extract_bits_lsb(buf, bit_offset, bit_length)
+            if bit_order == "LSB"
+            else _extract_bits_msb(buf, bit_offset, bit_length)
+        )
+
+        if signed and raw >= (1 << (bit_length - 1)):
+            raw -= 1 << bit_length
+
+        value = raw * scale if scale != 1.0 else raw
+        result[name] = round(value, 10) if isinstance(value, float) else value
+
+    return {"fields": result, "errors": errors}
+
+
+@router.post("/binary")
+async def decode_binary(
+    file: UploadFile = File(...),
+    config: str = Form(...),
+):
+    """
+    Custom bit-field decoder for arbitrary binary files.
+
+    `config` — JSON string with the following schema:
+
+    ```json
+    {
+      "packet_len": 32,
+      "fields": [
+        {
+          "name":       "sync",
+          "bit_offset": 0,
+          "bit_length": 16,
+          "signed":     false,
+          "scale":      1.0,
+          "bit_order":  "MSB"
+        },
+        ...
+      ]
+    }
+    ```
+
+    * `packet_len`  — size of one packet in bytes; 0 (default) = entire file as
+                      a single packet; capped at 10 000 packets.
+    * `bit_order`   — `"MSB"` (default, big-endian bit numbering) or `"LSB"`
+                      (little-endian bit numbering as used in LoRa/Bluetooth LE).
+    * `scale`       — raw integer is multiplied by this factor before returning.
+    """
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "empty file")
+
+    try:
+        cfg = json.loads(config)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, f"invalid JSON config: {exc}") from exc
+
+    fields: list[dict] = cfg.get("fields", [])
+    if not isinstance(fields, list) or len(fields) == 0:
+        raise HTTPException(400, "config.fields must be a non-empty array")
+    if len(fields) > 128:
+        raise HTTPException(400, "too many fields (max 128)")
+
+    packet_len = int(cfg.get("packet_len", 0))
+
+    if packet_len <= 0:
+        # Whole file = one packet
+        chunks = [raw]
+    else:
+        if packet_len > len(raw):
+            raise HTTPException(
+                400,
+                f"packet_len ({packet_len} B) > file size ({len(raw)} B)"
+            )
+        chunks = [
+            raw[i: i + packet_len]
+            for i in range(0, len(raw), packet_len)
+            if i + packet_len <= len(raw)
+        ]
+
+    if len(chunks) > 10_000:
+        chunks = chunks[:10_000]
+
+    packets = []
+    for idx, chunk in enumerate(chunks):
+        decoded = _decode_bit_fields(chunk, fields)
+        packets.append({
+            "index":  idx,
+            "offset": idx * (packet_len or len(raw)),
+            "hex":    chunk.hex(" "),
+            **decoded,
+        })
+
+    all_errors: list[str] = []
+    for p in packets:
+        all_errors.extend(p.get("errors", []))
+
+    return {
+        "filename":   file.filename,
+        "size_bytes": len(raw),
+        "packet_len": packet_len or len(raw),
+        "count":      len(packets),
+        "packets":    packets,
+        "config_errors": list(dict.fromkeys(all_errors)),  # deduplicate
     }

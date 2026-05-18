@@ -7,7 +7,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-le
 import "leaflet/dist/leaflet.css";
 import {
   fetchTelemetry, isoDaysAgo,
-  decodeAisFile, decodeTelemetryFile, demodulateIqFile,
+  decodeAisFile, decodeTelemetryFile, demodulateIqFile, decodeBinaryFile,
 } from "../api";
 
 // ─── Shared styles ─────────────────────────────────────────────────────────────
@@ -1290,8 +1290,406 @@ function AisDecodeActivity() {
   );
 }
 
+// ─── Bit-level decoder ─────────────────────────────────────────────────────────
+const BIT_ORDERS = [
+  { key: "MSB", label: "MSB (big-endian бит)" },
+  { key: "LSB", label: "LSB (little-endian бит)" },
+];
+
+const BIT_PALETTE = [
+  "#f3cb68","#9460b8","#f39768","#da4927","#6cc77b","#cbb98c",
+  "#56965b","#8878a4","#b05c24","#5b8ab0","#c2b5d4","#7ac8b0",
+];
+
+const DEFAULT_BIT_FIELDS = [
+  { id: 1, name: "sync",    bit_offset: 0,  bit_length: 16, signed: false, scale: "1",    bit_order: "MSB" },
+  { id: 2, name: "sat_id",  bit_offset: 16, bit_length: 8,  signed: false, scale: "1",    bit_order: "MSB" },
+  { id: 3, name: "pkt_type",bit_offset: 24, bit_length: 8,  signed: false, scale: "1",    bit_order: "MSB" },
+  { id: 4, name: "temp",    bit_offset: 80, bit_length: 16, signed: true,  scale: "0.01", bit_order: "MSB" },
+  { id: 5, name: "volt",    bit_offset: 96, bit_length: 16, signed: false, scale: "0.001",bit_order: "MSB" },
+];
+
+function NumStepper({ value, onChange, min = 0, max = 65535, label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+      {label && <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 2 }}>{label}</span>}
+      <button
+        onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ ...S.btnDanger, width: 20, height: 20, fontSize: 13, lineHeight: "18px", flexShrink: 0 }}
+      >−</button>
+      <input
+        type="number"
+        value={value}
+        min={min} max={max}
+        onChange={e => {
+          const v = parseInt(e.target.value, 10);
+          if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)));
+        }}
+        style={{
+          ...S.input, width: 58, textAlign: "center", padding: "4px 4px",
+          fontSize: 12, fontFamily: "'Space Mono', monospace",
+        }}
+      />
+      <button
+        onClick={() => onChange(Math.min(max, value + 1))}
+        style={{ ...S.btnAdd, width: 20, height: 20, fontSize: 15, lineHeight: "18px", flexShrink: 0 }}
+      >+</button>
+    </div>
+  );
+}
+
+function BitDecoderTab() {
+  const [fields, setFields]         = useState(DEFAULT_BIT_FIELDS);
+  const [nextId, setNextId]         = useState(DEFAULT_BIT_FIELDS.length + 1);
+  const [packetLen, setPacketLen]   = useState(13);
+  const [result, setResult]         = useState(null);
+  const [busy, setBusy]             = useState(false);
+  const [error, setError]           = useState("");
+  const [configError, setConfigError] = useState("");
+
+  const addField = () => {
+    const last = fields[fields.length - 1];
+    const nextOffset = last ? last.bit_offset + last.bit_length : 0;
+    setFields(prev => [...prev, {
+      id: nextId, name: `field_${nextId}`,
+      bit_offset: nextOffset, bit_length: 8,
+      signed: false, scale: "1", bit_order: "MSB",
+    }]);
+    setNextId(n => n + 1);
+    setResult(null);
+  };
+
+  const removeField = (id) => { setFields(prev => prev.filter(f => f.id !== id)); setResult(null); };
+
+  const updateField = (id, key, val) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, [key]: val } : f));
+    setResult(null);
+  };
+
+  const handle = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (fields.length === 0) { setConfigError("Добавьте хотя бы одно поле"); return; }
+    setBusy(true); setError(""); setConfigError(""); setResult(null);
+    try {
+      const config = {
+        packet_len: packetLen,
+        fields: fields.map(f => ({
+          name:       f.name || "?",
+          bit_offset: f.bit_offset,
+          bit_length: f.bit_length,
+          signed:     f.signed,
+          scale:      parseFloat(f.scale) || 1,
+          bit_order:  f.bit_order,
+        })),
+      };
+      const r = await decodeBinaryFile(file, config);
+      setResult(r);
+      if (r.config_errors?.length) setConfigError(r.config_errors.join(" · "));
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Визуализация битовой карты одного пакета (первого)
+  const firstPkt = result?.packets?.[0];
+  const totalBits = packetLen * 8;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* ── Описание ── */}
+      <div style={{ ...S.card, padding: 16 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.65, color: "var(--text-dim)" }}>
+          <strong style={{ color: "var(--orange)" }}>Бит-декодер.</strong>{" "}
+          Загрузите любой бинарный файл и опишите его структуру на уровне битов:
+          задайте смещение и длину каждого поля в битах, знаковость, масштаб и порядок битов.
+          Сервер разобьёт файл на пакеты и вернёт декодированные значения.
+        </div>
+      </div>
+
+      {/* ── Настройки пакета ── */}
+      <div style={{ ...S.card, padding: "14px 18px" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.6 }}>
+          Размер пакета
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <NumStepper
+            value={packetLen}
+            onChange={v => { setPacketLen(v); setResult(null); }}
+            min={1} max={65535}
+            label="байт/пакет"
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            0 = весь файл как один пакет
+          </span>
+          <button
+            onClick={() => setPacketLen(0)}
+            style={{ ...S.btnSec, padding: "4px 10px", fontSize: 11 }}
+          >
+            Весь файл
+          </button>
+        </div>
+      </div>
+
+      {/* ── Конструктор полей ── */}
+      <div style={S.card}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+            Поля пакета{" "}
+            <span style={{ color: "var(--text-muted)", fontWeight: 400, fontSize: 11 }}>
+              (смещение и длина — в битах)
+            </span>
+          </span>
+          <button onClick={addField} style={{ ...S.btnAdd, width: "auto", padding: "4px 12px", fontSize: 12, lineHeight: 1.4 }}>
+            + Добавить поле
+          </button>
+        </div>
+
+        {/* Заголовок колонок */}
+        {fields.length > 0 && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "24px 1fr 120px 120px 80px 80px 160px 24px",
+            gap: 6, padding: "8px 16px 4px",
+            fontSize: 10, color: "var(--text-muted)", fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: 0.6,
+          }}>
+            <div>#</div>
+            <div>Название</div>
+            <div>Бит-смещение</div>
+            <div>Кол-во бит</div>
+            <div>Знак</div>
+            <div>Масштаб</div>
+            <div>Порядок бит</div>
+            <div></div>
+          </div>
+        )}
+
+        <div style={{ padding: "6px 16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {fields.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>
+              Нет полей — нажмите «+ Добавить поле»
+            </div>
+          )}
+          {fields.map((f, idx) => {
+            const color = BIT_PALETTE[idx % BIT_PALETTE.length];
+            return (
+              <div key={f.id} style={{
+                display: "grid",
+                gridTemplateColumns: "24px 1fr 120px 120px 80px 80px 160px 24px",
+                gap: 6, alignItems: "center",
+                padding: "8px 10px", borderRadius: 8,
+                background: `${color}0d`, border: `1px solid ${color}33`,
+              }}>
+                {/* # */}
+                <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
+                  {idx + 1}
+                </span>
+                {/* Название */}
+                <input
+                  type="text" value={f.name}
+                  onChange={e => updateField(f.id, "name", e.target.value)}
+                  placeholder="имя поля"
+                  style={{ ...S.input, fontSize: 12, color, padding: "5px 8px" }}
+                />
+                {/* Бит-смещение */}
+                <NumStepper
+                  value={f.bit_offset}
+                  onChange={v => updateField(f.id, "bit_offset", v)}
+                  min={0} max={65535}
+                />
+                {/* Кол-во бит */}
+                <NumStepper
+                  value={f.bit_length}
+                  onChange={v => updateField(f.id, "bit_length", Math.max(1, v))}
+                  min={1} max={64}
+                />
+                {/* Знак */}
+                <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>
+                  <input
+                    type="checkbox" checked={f.signed}
+                    onChange={e => updateField(f.id, "signed", e.target.checked)}
+                    style={{ accentColor: color, width: 14, height: 14, cursor: "pointer" }}
+                  />
+                  знак.
+                </label>
+                {/* Масштаб */}
+                <input
+                  type="text" value={f.scale}
+                  onChange={e => updateField(f.id, "scale", e.target.value)}
+                  placeholder="1"
+                  title="Множитель (raw × scale = value). Напр.: 0.01 чтобы получить °C из значения × 100"
+                  style={{ ...S.input, fontSize: 12, padding: "5px 6px", fontFamily: "'Space Mono', monospace" }}
+                />
+                {/* Порядок бит */}
+                <select
+                  value={f.bit_order}
+                  onChange={e => updateField(f.id, "bit_order", e.target.value)}
+                  style={{ ...S.select, fontSize: 11 }}
+                >
+                  {BIT_ORDERS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+                {/* Удалить */}
+                <button onClick={() => removeField(f.id)} style={S.btnDanger} title="Удалить поле">−</button>
+              </div>
+            );
+          })}
+        </div>
+
+        {configError && (
+          <div style={{ padding: "0 16px 12px", fontSize: 12, color: "#da4927" }}>
+            ⚠ {configError}
+          </div>
+        )}
+
+        <div style={{ padding: "0 16px 16px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ ...S.btnPrim, cursor: "pointer", display: "inline-block" }}>
+            {busy ? "Декодирую…" : "↑ Загрузить бинарный файл"}
+            <input type="file" accept=".bin,.dat,.tlm,.iq,.cf32" style={{ display: "none" }} onChange={handle} disabled={busy} />
+          </label>
+          <button
+            onClick={() => { setFields(DEFAULT_BIT_FIELDS); setNextId(DEFAULT_BIT_FIELDS.length + 1); setResult(null); setError(""); setConfigError(""); }}
+            style={S.btnSec}
+          >
+            Сброс полей
+          </button>
+          {error && <span style={{ fontSize: 12, color: "#da4927", flex: "1 0 100%" }}>Ошибка: {error}</span>}
+        </div>
+      </div>
+
+      {/* ── Результат ── */}
+      {result && (
+        <>
+          {/* Сводка */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {[
+              ["Файл", result.filename],
+              ["Размер", `${result.size_bytes} B`],
+              ["Пакетов", result.count],
+              ["Байт/пакет", result.packet_len],
+            ].map(([label, val]) => (
+              <div key={label} style={{
+                background: "var(--surface-1)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: "8px 14px", minWidth: 100,
+              }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono', monospace" }}>{val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Битовая карта первого пакета */}
+          {firstPkt && packetLen > 0 && packetLen <= 128 && (
+            <div style={{ ...S.card, padding: "14px 18px" }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                Битовая карта пакета #0 ({packetLen} байт = {totalBits} бит)
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                {Array.from({ length: totalBits }, (_, bitIdx) => {
+                  const fi = fields.findIndex(f =>
+                    bitIdx >= f.bit_offset && bitIdx < f.bit_offset + f.bit_length
+                  );
+                  const color = fi >= 0 ? BIT_PALETTE[fi % BIT_PALETTE.length] : "#333";
+                  const fieldName = fi >= 0 ? fields[fi].name : null;
+                  // Get the actual bit value from the hex dump
+                  const byteIdx = Math.floor(bitIdx / 8);
+                  const bitInByte = 7 - (bitIdx % 8);
+                  const hexBytes = firstPkt.hex?.split(" ") || [];
+                  const byteVal = hexBytes[byteIdx] ? parseInt(hexBytes[byteIdx], 16) : 0;
+                  const bitVal = (byteVal >> bitInByte) & 1;
+                  return (
+                    <span
+                      key={bitIdx}
+                      title={fieldName ? `бит ${bitIdx} · ${fieldName}` : `бит ${bitIdx}`}
+                      style={{
+                        display: "inline-block", width: 12, height: 20,
+                        lineHeight: "20px", textAlign: "center",
+                        fontSize: 9, fontFamily: "monospace", fontWeight: 700,
+                        borderRadius: 2,
+                        background: fi >= 0 ? `${color}25` : "#1a1520",
+                        color: fi >= 0 ? color : "#444",
+                        border: `1px solid ${fi >= 0 ? color + "44" : "#2a2530"}`,
+                        cursor: "default",
+                      }}
+                    >
+                      {bitVal}
+                    </span>
+                  );
+                })}
+              </div>
+              {/* Легенда */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {fields.map((f, idx) => (
+                  <span key={f.id} style={{ fontSize: 10, color: BIT_PALETTE[idx % BIT_PALETTE.length], display: "flex", alignItems: "center", gap: 3 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: BIT_PALETTE[idx % BIT_PALETTE.length], display: "inline-block" }}/>
+                    {f.name} [{f.bit_offset}:{f.bit_offset + f.bit_length - 1}]
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Таблица пакетов */}
+          <div style={{ ...S.card, padding: 0 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                Декодированные пакеты
+              </span>
+              <span style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-muted)" }}>
+                {result.count} пакетов
+              </span>
+            </div>
+            <div style={{ overflowX: "auto", maxHeight: 460 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "'Space Mono', monospace" }}>
+                <thead style={{ position: "sticky", top: 0, background: "var(--surface-2)" }}>
+                  <tr>
+                    <th style={S.th}>#</th>
+                    <th style={S.th}>offset</th>
+                    {fields.map((f, idx) => (
+                      <th key={f.id} style={{ ...S.th, color: BIT_PALETTE[idx % BIT_PALETTE.length] }}>
+                        {f.name}
+                        <div style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)" }}>
+                          [{f.bit_offset}:{f.bit_offset + f.bit_length - 1}]
+                        </div>
+                      </th>
+                    ))}
+                    <th style={S.th}>hex</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.packets.map((pkt, i) => (
+                    <tr key={i} style={{ background: i % 2 ? "transparent" : "rgba(114,71,150,0.06)" }}>
+                      <td style={{ ...S.td, color: "var(--text-muted)" }}>{pkt.index}</td>
+                      <td style={{ ...S.td, color: "var(--text-muted)" }}>{pkt.offset}</td>
+                      {fields.map((f, idx) => {
+                        const v = pkt.fields?.[f.name];
+                        return (
+                          <td key={f.id} style={{ ...S.td, color: v == null ? "#da4927" : BIT_PALETTE[idx % BIT_PALETTE.length], fontWeight: 600 }}>
+                            {v == null ? "—" : typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v)}
+                          </td>
+                        );
+                      })}
+                      <td style={{ ...S.td, color: "var(--text-muted)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {pkt.hex}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Activity 4: Telemetry decoding ────────────────────────────────────────────
-function TelemetryDecodeActivity() {
+function TelemetryStandardTab() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1389,6 +1787,36 @@ bytes 30..31 CRC-16   CCITT-FALSE, big-endian`}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TelemetryDecodeActivity() {
+  const [tab, setTab] = useState("standard");
+
+  const tabStyle = (active) => ({
+    padding: "8px 20px", borderRadius: "8px 8px 0 0", cursor: "pointer", fontSize: 13,
+    fontWeight: active ? 700 : 400,
+    background: active ? "var(--surface-1)" : "transparent",
+    border: active ? "1px solid var(--border)" : "1px solid transparent",
+    borderBottom: active ? "1px solid var(--surface-1)" : "1px solid var(--border)",
+    color: active ? "var(--accent)" : "var(--text-muted)",
+    marginBottom: -1,
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)" }}>
+        <button onClick={() => setTab("standard")} style={tabStyle(tab === "standard")}>
+          Стандартный формат PU
+        </button>
+        <button onClick={() => setTab("bits")} style={tabStyle(tab === "bits")}>
+          ⚙ Бит-декодер (кастомный)
+        </button>
+      </div>
+
+      {tab === "standard" && <TelemetryStandardTab />}
+      {tab === "bits"     && <BitDecoderTab />}
     </div>
   );
 }

@@ -162,6 +162,23 @@ export const decodeAisFile      = (file) => _uploadFile("/api/decode/ais", file)
 export const decodeTelemetryFile = (file) => _uploadFile("/api/decode/telemetry", file);
 export const demodulateIqFile   = (file, params = {}) => _uploadFile("/api/decode/iq", file, params);
 
+/**
+ * Custom bit-field decoder.
+ * @param {File} file  — binary file to decode
+ * @param {object} config — { packet_len: number, fields: [{name, bit_offset, bit_length, signed, scale, bit_order}] }
+ */
+export async function decodeBinaryFile(file, config) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("config", JSON.stringify(config));
+  const r = await fetch(`${API_BASE}/api/decode/binary`, { method: "POST", body: fd });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
 /* ── Storage ────────────────────────────────────────── */
 export async function fetchStorageList(authHeader = {}, unlockKey = null) {
   const qs = unlockKey ? `?unlock_key=${encodeURIComponent(unlockKey)}` : "";
