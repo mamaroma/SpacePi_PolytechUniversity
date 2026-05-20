@@ -113,6 +113,8 @@ class FFTService:
             # Auto-record samples (always active for live data)
             await auto_recorder.process_samples(samples)
         
+        frame_to_broadcast = None
+
         # Add samples to buffer
         async with self._lock:
             self.sample_buffer = np.concatenate([self.sample_buffer, samples])
@@ -132,18 +134,21 @@ class FFTService:
             if should_process:
                 # Process FFT frames while we have enough samples
                 if len(self.sample_buffer) >= self.fft_size:
-                    await self._process_fft_frame()
+                    frame_to_broadcast = self._process_fft_frame()
                     self.last_update_time = current_time
                     # Debug info every 100 frames
                     if hasattr(self, '_frame_count'):
                         self._frame_count += 1
                     else:
                         self._frame_count = 1
-                    
+
                     if self._frame_count % 100 == 0:
                         logger.info(f"Processed {self._frame_count} FFT frames, {len(self.websocket_clients)} clients connected")
-    
-    async def _process_fft_frame(self):
+
+        if frame_to_broadcast:
+            await self._broadcast_fft_frame(frame_to_broadcast)
+
+    def _process_fft_frame(self):
         """Process one FFT frame from buffer."""
         # Extract FFT_SIZE samples from buffer (with overlap for better display)
         overlap = self.fft_size // 4  # 25% overlap
@@ -168,9 +173,8 @@ class FFTService:
             sample_rate=self.sample_rate,
             center_frequency=self.center_frequency
         )
-        
-        # Broadcast to WebSocket clients
-        await self._broadcast_fft_frame(fft_frame)
+
+        return fft_frame
     
     async def _broadcast_fft_frame(self, fft_frame: FFTFrame):
         """Broadcast FFT frame to all connected WebSocket clients."""
