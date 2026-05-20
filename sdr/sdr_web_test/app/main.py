@@ -1,6 +1,7 @@
 """Main FastAPI application for SDR streaming."""
 import asyncio
 import logging
+import numpy as np
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI

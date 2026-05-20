@@ -12,7 +12,8 @@ ZMQ_TIMEOUT = int(os.getenv("ZMQ_TIMEOUT", "1000"))  # milliseconds
 
 # Signal defaults
 DEFAULT_SAMPLE_RATE = int(os.getenv("DEFAULT_SAMPLE_RATE", "625000"))  # 625 kHz
-DEFAULT_CENTER_FREQUENCY = int(os.getenv("DEFAULT_CENTER_FREQUENCY", "433060000"))  # 433.06 MHz
+DEFAULT_CENTER_FREQUENCY = int(os.getenv("DEFAULT_CENTER_FREQUENCY", "436610000"))  # 436.55 MHz + 60 kHz
+CENTER_FREQUENCY_OFFSET_HZ = int(os.getenv("CENTER_FREQUENCY_OFFSET_HZ", "60000"))
 
 # File paths
 BASE_DIR = Path(__file__).parent.parent.parent
