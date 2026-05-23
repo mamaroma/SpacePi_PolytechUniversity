@@ -2,6 +2,7 @@
 import os
 import asyncio
 import logging
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 import numpy as np
@@ -34,6 +35,8 @@ class PlaybackService:
         # Playback state
         self._playback_task: Optional[asyncio.Task] = None
         self._sample_callback = None
+        self._silence_sample_offset = 0
+        self._silence_anchor_time: Optional[datetime] = None
         
         # Load silence data
         self._load_silence_data()
@@ -84,6 +87,27 @@ class PlaybackService:
         self.last_pass_center_frequency = center_frequency
         self.last_pass_sample_rate = sample_rate
         logger.info(f"Updated last pass params: center={center_frequency/1e6:.3f} MHz, rate={sample_rate}")
+
+    def _randomize_silence_offset(self, target_time: Optional[datetime], reason: str):
+        """Choose a new random position in nothing.iq for an empty timeline target."""
+        if self.silence_data is None or len(self.silence_data) == 0:
+            self._silence_sample_offset = 0
+            self._silence_anchor_time = target_time
+            return
+
+        if self._silence_anchor_time == target_time:
+            return
+
+        sample_count = len(self.silence_data)
+        self._silence_sample_offset = random.randrange(sample_count)
+        self._silence_anchor_time = target_time
+        logger.info(
+            "Silence playback random offset: %.2fs / %.2fs (%s, target=%s)",
+            self._silence_sample_offset / self.sample_rate,
+            sample_count / self.sample_rate,
+            reason,
+            target_time.isoformat() if target_time else None,
+        )
     
     def _get_recording_params_for_time(self, target_time: datetime) -> Dict:
         """Get recording parameters (frequency, sample_rate) for specific time."""
@@ -113,6 +137,10 @@ class PlaybackService:
             await self.stop_playback()
         
         self.current_time = start_time
+        if self._find_recording_for_time(start_time):
+            self._silence_anchor_time = None
+        else:
+            self._randomize_silence_offset(start_time, "start")
         self.is_playing = True
         
         self._playback_task = asyncio.create_task(self._playback_loop())
@@ -144,11 +172,13 @@ class PlaybackService:
         # Check if we're seeking to a recording or silence
         recording = self._find_recording_for_time(target_time)
         if recording:
+            self._silence_anchor_time = None
             logger.info(f"Seeked to recording at {target_time}")
             # Update parameters for this recording
             recording_params = self._get_recording_params_for_time(target_time)
             logger.info(f"Recording params: {recording_params}")
         else:
+            self._randomize_silence_offset(target_time, "seek")
             logger.info(f"Seeked to silence at {target_time}")
             # Will use silence parameters
         
@@ -219,9 +249,12 @@ class PlaybackService:
             if recording:
                 # Load samples from recording file
                 samples = await self._load_samples_from_recording(recording, start_time, end_time)
+                self._silence_anchor_time = None
                 logger.debug(f"Loaded {len(samples)} samples from recording for {start_time}")
                 return samples, False  # Real recording data
             else:
+                if self._silence_anchor_time is None:
+                    self._randomize_silence_offset(start_time, "gap")
                 # Use silence data for gaps
                 samples = self._get_silence_samples(start_time, end_time)
                 logger.debug(f"Generated {len(samples)} silence samples for {start_time}")
@@ -312,13 +345,30 @@ class PlaybackService:
         """Get silence samples for specified time range."""
         try:
             duration = (end_time - start_time).total_seconds()
-            sample_count = int(duration * self.sample_rate)
+            sample_count = max(0, int(duration * self.sample_rate))
+            if sample_count == 0:
+                return np.array([], dtype=np.complex64)
             
             if self.silence_data is not None and len(self.silence_data) > 0:
-                # Simple cycling through silence data
-                repeats = (sample_count // len(self.silence_data)) + 1
-                repeated_silence = np.tile(self.silence_data, repeats)
-                return repeated_silence[:sample_count]
+                silence_len = len(self.silence_data)
+                start = self._silence_sample_offset % silence_len
+                end = start + sample_count
+
+                if end <= silence_len:
+                    samples = np.asarray(self.silence_data[start:end], dtype=np.complex64)
+                else:
+                    chunks = [np.asarray(self.silence_data[start:], dtype=np.complex64)]
+                    remaining = sample_count - len(chunks[0])
+
+                    while remaining > 0:
+                        take = min(remaining, silence_len)
+                        chunks.append(np.asarray(self.silence_data[:take], dtype=np.complex64))
+                        remaining -= take
+
+                    samples = np.concatenate(chunks)
+
+                self._silence_sample_offset = (start + sample_count) % silence_len
+                return samples
             else:
                 # Generate zeros if no silence data
                 return np.zeros(sample_count, dtype=np.complex64)

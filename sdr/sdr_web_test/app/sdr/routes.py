@@ -10,6 +10,7 @@ from .satellite_service import satellite_service
 from .auto_recorder import auto_recorder
 from .playback_service import playback_service
 from .fft_service import fft_service
+from .config import DEFAULT_FFT_SIZE, DEFAULT_FFT_UPDATE_RATE, DEFAULT_SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +51,14 @@ async def get_satellite(satellite_name: str):
 
 @router.post("/spectrum/params", status_code=status.HTTP_201_CREATED)
 async def update_spectrum_params(params: SpectrumParams):
-    """Update spectrum parameters for FFT display."""
+    """Optionally override spectrum parameters for FFT display."""
     try:
         await sdr_state.update_spectrum_params(params)
         
         # Update last pass frequency for silence playback
         fft_service.update_last_pass_frequency(params.center_frequency)
         
-        logger.info(f"Updated spectrum params: center={params.center_frequency/1e6:.3f} MHz, FFT={params.fft_size}, FPS={params.fps}")
+        logger.info(f"Updated spectrum override: center={params.center_frequency/1e6:.3f} MHz")
         return {"message": "Spectrum parameters updated successfully"}
     except Exception as e:
         logger.error(f"Failed to update spectrum params: {e}")
@@ -68,34 +69,29 @@ async def update_spectrum_params(params: SpectrumParams):
 async def get_signal_info():
     """Get current signal info (combines next satellite data + spectrum params)."""
     try:
-        # Get next satellite pass
-        next_pass = satellite_service.get_next_pass()
-        if not next_pass:
+        pass_info = satellite_service.get_active_or_next_pass()
+        if not pass_info:
             raise HTTPException(status_code=404, detail="No upcoming satellite passes")
         
         # Get satellite data
-        satellite_data = satellite_service.get_satellite(next_pass.satellite_name)
+        satellite_data = satellite_service.get_satellite(pass_info.satellite_name)
         if not satellite_data:
-            raise HTTPException(status_code=404, detail=f"Satellite data not found for {next_pass.satellite_name}")
+            raise HTTPException(status_code=404, detail=f"Satellite data not found for {pass_info.satellite_name}")
         
-        # Get current spectrum params
-        spectrum_params = await sdr_state.get_spectrum_params()
-        if not spectrum_params:
-            # Use defaults
-            spectrum_params = SpectrumParams(
-                center_frequency=satellite_service.calculate_center_frequency(satellite_data.frequency),
-                sample_rate=312500,
-                fft_size=1024,
-                fps=30
-            )
+        spectrum_override = await sdr_state.get_spectrum_params()
+        center_frequency = (
+            spectrum_override.center_frequency
+            if spectrum_override
+            else satellite_service.get_center_frequency_for_pass(pass_info)
+        )
         
         # Combine into SignalInfo
         signal_info = SignalInfo(
             # Spectrum parameters
-            center_frequency=spectrum_params.center_frequency,
-            sample_rate=spectrum_params.sample_rate,
-            fft_size=spectrum_params.fft_size,
-            fps=spectrum_params.fps,
+            center_frequency=center_frequency,
+            sample_rate=DEFAULT_SAMPLE_RATE,
+            fft_size=DEFAULT_FFT_SIZE,
+            fps=DEFAULT_FFT_UPDATE_RATE,
             # Satellite parameters
             satellite_name=satellite_data.name,
             frequency=satellite_data.frequency,
@@ -123,6 +119,10 @@ async def update_satellite_passes(pass_list: PassList):
         await sdr_state.update_satellite_passes(pass_list.passes)
         # Also update satellite service cache
         satellite_service.set_passes(pass_list.passes)
+        pass_info = satellite_service.get_active_or_next_pass()
+        if pass_info:
+            center_frequency = satellite_service.get_center_frequency_for_pass(pass_info)
+            fft_service.update_last_pass_frequency(center_frequency)
         logger.info(f"Updated {len(pass_list.passes)} satellite passes")
         return {"message": f"Updated {len(pass_list.passes)} satellite passes"}
     except Exception as e:
@@ -140,7 +140,7 @@ async def get_satellite_passes():
 @router.get("/passes/next", response_model=SatellitePass)
 async def get_next_pass():
     """Get the next upcoming satellite pass."""
-    next_pass = satellite_service.get_next_pass()
+    next_pass = satellite_service.get_active_or_next_pass()
     if not next_pass:
         raise HTTPException(status_code=404, detail="No upcoming satellite passes")
     return next_pass

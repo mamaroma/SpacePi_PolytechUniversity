@@ -10,6 +10,7 @@ from .models import FFTFrame
 from .state import sdr_state
 from .recorder import iq_recorder
 from .auto_recorder import auto_recorder
+from .satellite_service import satellite_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,33 +49,34 @@ class FFTService:
             logger.info(f"Removed WebSocket client. Total clients: {len(self.websocket_clients)}")
     
     async def update_parameters(self):
-        """Update FFT parameters from spectrum params."""
-        spectrum_params = await sdr_state.get_spectrum_params()
-        if spectrum_params:
-            async with self._lock:
-                # Update parameters if they changed
-                if (self.fft_size != spectrum_params.fft_size or 
-                    self.fps != spectrum_params.fps or
-                    self.sample_rate != spectrum_params.sample_rate or
-                    self.center_frequency != spectrum_params.center_frequency):
-                    
-                    self.fft_size = spectrum_params.fft_size
-                    self.fps = spectrum_params.fps
-                    self.sample_rate = spectrum_params.sample_rate
-                    self.center_frequency = spectrum_params.center_frequency
-                    
-                    # Recreate window function if FFT size changed
-                    self.fft_window = np.hanning(self.fft_size)
-                    
-                    # Clear buffer to avoid size mismatch
-                    self.sample_buffer = np.array([], dtype=np.complex64)
-                    
-                    logger.info(f"Updated FFT parameters: size={self.fft_size}, fps={self.fps}, center={self.center_frequency/1e6:.3f} MHz")
-        else:
+        """Update FFT parameters from satellite config or optional manual override."""
+        spectrum_override = await sdr_state.get_spectrum_params()
+        pass_info = satellite_service.get_active_or_next_pass()
+        target_center_frequency = (
+            spectrum_override.center_frequency
+            if spectrum_override
+            else satellite_service.get_center_frequency_for_pass(pass_info)
+        )
+
+        async with self._lock:
+            if (self.fft_size != DEFAULT_FFT_SIZE or
+                self.fps != DEFAULT_FFT_UPDATE_RATE or
+                self.sample_rate != DEFAULT_SAMPLE_RATE or
+                self.center_frequency != target_center_frequency):
+
+                self.fft_size = DEFAULT_FFT_SIZE
+                self.fps = DEFAULT_FFT_UPDATE_RATE
+                self.sample_rate = DEFAULT_SAMPLE_RATE
+                self.center_frequency = target_center_frequency
+
+                self.fft_window = np.hanning(self.fft_size)
+                self.sample_buffer = np.array([], dtype=np.complex64)
+
+                logger.info(
+                    f"Updated FFT parameters: size={self.fft_size}, fps={self.fps}, "
+                    f"rate={self.sample_rate}, center={self.center_frequency/1e6:.3f} MHz"
+                )
             # Если параметры спектра не заданы, используем значения по умолчанию (только один раз)
-            if not hasattr(self, '_default_warning_shown'):
-                logger.warning("No spectrum parameters found, using defaults")
-                self._default_warning_shown = True
     
     def update_last_pass_frequency(self, center_frequency: int):
         """Update last pass center frequency for silence playback."""
@@ -111,6 +113,8 @@ class FFTService:
             # Auto-record samples (always active for live data)
             await auto_recorder.process_samples(samples)
         
+        frame_to_broadcast = None
+
         # Add samples to buffer
         async with self._lock:
             self.sample_buffer = np.concatenate([self.sample_buffer, samples])
@@ -130,18 +134,21 @@ class FFTService:
             if should_process:
                 # Process FFT frames while we have enough samples
                 if len(self.sample_buffer) >= self.fft_size:
-                    await self._process_fft_frame()
+                    frame_to_broadcast = self._process_fft_frame()
                     self.last_update_time = current_time
                     # Debug info every 100 frames
                     if hasattr(self, '_frame_count'):
                         self._frame_count += 1
                     else:
                         self._frame_count = 1
-                    
+
                     if self._frame_count % 100 == 0:
                         logger.info(f"Processed {self._frame_count} FFT frames, {len(self.websocket_clients)} clients connected")
-    
-    async def _process_fft_frame(self):
+
+        if frame_to_broadcast:
+            await self._broadcast_fft_frame(frame_to_broadcast)
+
+    def _process_fft_frame(self):
         """Process one FFT frame from buffer."""
         # Extract FFT_SIZE samples from buffer (with overlap for better display)
         overlap = self.fft_size // 4  # 25% overlap
@@ -166,9 +173,8 @@ class FFTService:
             sample_rate=self.sample_rate,
             center_frequency=self.center_frequency
         )
-        
-        # Broadcast to WebSocket clients
-        await self._broadcast_fft_frame(fft_frame)
+
+        return fft_frame
     
     async def _broadcast_fft_frame(self, fft_frame: FFTFrame):
         """Broadcast FFT frame to all connected WebSocket clients."""

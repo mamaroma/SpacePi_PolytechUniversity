@@ -16,6 +16,8 @@ class TimelinePlayer {
         this.isPlaying = false;
         this.isLiveMode = true;
         this.isDragging = false;
+        this.seekPlaybackTimer = null;
+        this.seekPlaybackStartDelayMs = 400;
         
         this.setupCanvas();
         this.createControls();
@@ -274,14 +276,51 @@ class TimelinePlayer {
         this.draw();
         
         try {
+            if (this.isPlaying) {
+                await fetch('/sdr/api/playback/stop', { method: 'POST' });
+                this.isPlaying = false;
+            }
+
             await fetch('/sdr/api/playback/seek', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ target_time: targetTime.toISOString() })
             });
+            this.scheduleDelayedPlaybackStart();
         } catch (error) {
             console.error('Failed to seek:', error);
         }
+    }
+
+    scheduleDelayedPlaybackStart() {
+        if (this.isLiveMode) {
+            return;
+        }
+
+        if (this.seekPlaybackTimer) {
+            clearTimeout(this.seekPlaybackTimer);
+        }
+
+        this.seekPlaybackTimer = setTimeout(async () => {
+            this.seekPlaybackTimer = null;
+
+            if (this.isLiveMode) {
+                return;
+            }
+
+            try {
+                await fetch('/sdr/api/playback/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ start_time: this.currentTime.toISOString() })
+                });
+                this.isPlaying = true;
+                document.getElementById('play-pause-btn').textContent = 'Пауза';
+                this.startPlaybackTimer();
+            } catch (error) {
+                console.error('Failed to start delayed playback:', error);
+            }
+        }, this.seekPlaybackStartDelayMs);
     }
     
     async togglePlayPause() {
@@ -291,10 +330,18 @@ class TimelinePlayer {
         
         try {
             if (this.isPlaying) {
+                if (this.seekPlaybackTimer) {
+                    clearTimeout(this.seekPlaybackTimer);
+                    this.seekPlaybackTimer = null;
+                }
                 await fetch('/sdr/api/playback/stop', { method: 'POST' });
                 this.isPlaying = false;
                 document.getElementById('play-pause-btn').textContent = 'Воспроизвести';
             } else {
+                if (this.seekPlaybackTimer) {
+                    clearTimeout(this.seekPlaybackTimer);
+                    this.seekPlaybackTimer = null;
+                }
                 await fetch('/sdr/api/playback/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -336,6 +383,11 @@ class TimelinePlayer {
             if (this.playbackTimer) {
                 clearInterval(this.playbackTimer);
                 this.playbackTimer = null;
+            }
+
+            if (this.seekPlaybackTimer) {
+                clearTimeout(this.seekPlaybackTimer);
+                this.seekPlaybackTimer = null;
             }
             
             // Return to live mode

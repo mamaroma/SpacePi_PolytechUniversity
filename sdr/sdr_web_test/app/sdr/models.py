@@ -8,6 +8,7 @@ class SatelliteData(BaseModel):
     """Satellite signal characteristics stored on server."""
     name: str
     frequency: int  # Base satellite frequency
+    center_frequency: Optional[int] = None  # Receiver center frequency, if manually configured
     bandwidth: float  # in kHz
     spreading_factor: str = "SF8"
     coding_rate: str = "4/6"
@@ -17,20 +18,20 @@ class SatelliteData(BaseModel):
 
 
 class SpectrumParams(BaseModel):
-    """Spectrum parameters for FFT display."""
+    """Optional manual override for FFT display parameters."""
     center_frequency: int  # Always satellite_frequency + 60000
-    sample_rate: int = 312500  # Always 312.5 kHz
+    sample_rate: int = 625000
     fft_size: int = 1024
-    fps: int = 30
+    fps: int = 60
 
 
 class SignalInfo(BaseModel):
     """Combined signal info for display - satellite data + spectrum params."""
     # Spectrum parameters (calculated)
     center_frequency: int  # satellite_frequency + 60000
-    sample_rate: int = 312500  # Always 312.5 kHz
+    sample_rate: int = 625000
     fft_size: int = 1024
-    fps: int = 30
+    fps: int = 60
     
     # Satellite parameters (from server data)
     satellite_name: str
