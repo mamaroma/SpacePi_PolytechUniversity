@@ -83,41 +83,81 @@ function makeDashedLine(segment, r, color = "#724796") {
   return line;
 }
 
-function makeSatelliteSprite(r, opts = {}) {
-  const { glow = "rgba(114,71,150,0.35)", scale = 0.16 } = opts;
+// ── Текстура cubesat-снимка для 3D-спрайта ─────────────────────
+// Загружаем один раз и переиспользуем во всех инстансах. Если PNG не
+// загрузился (например, оффлайн-сборка), помечаем ref как «провален» и
+// откатываемся на старую emoji-рисовалку, чтобы карта не теряла маркер.
+const CUBESAT_TEXTURE_URL = "/cubesat-icon-256.png";
+let _cubesatTexture = null;
+let _cubesatTextureLoaded = false;
+let _cubesatTextureFailed = false;
+const _cubesatListeners = new Set();
+function _loadCubesatTexture() {
+  if (_cubesatTexture || _cubesatTextureFailed) return;
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    CUBESAT_TEXTURE_URL,
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      _cubesatTexture = tex;
+      _cubesatTextureLoaded = true;
+      for (const fn of _cubesatListeners) {
+        try { fn(); } catch {}
+      }
+    },
+    undefined,
+    () => { _cubesatTextureFailed = true; }
+  );
+}
+_loadCubesatTexture();
+
+function makeEmojiCanvasTexture(glow) {
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
-
-  ctx.clearRect(0, 0, size, size);
-
-  // мягкое радиальное свечение
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 16, size / 2, size / 2, size / 2);
   gradient.addColorStop(0, glow);
   gradient.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
-
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, 70, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(243,151,104,0.18)";
   ctx.fill();
-
   ctx.font = "138px system-ui, Apple Color Emoji, Segoe UI Emoji";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("🛰️", size / 2, size / 2 + 4);
-
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
+  return tex;
+}
 
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+/**
+ * Создаёт спутниковый спрайт. По умолчанию использует реальное фото
+ * cubesat-icon-256.png (с прозрачным фоном). Если текстура ещё не
+ * загрузилась — рисует emoji-фолбэк, а после загрузки сама заменяет
+ * текстуру на «настоящую» (через таймер ниже).
+ */
+function makeSatelliteSprite(r, opts = {}) {
+  const { glow = "rgba(114,71,150,0.35)", scale = 0.16 } = opts;
+  const useCubesat = _cubesatTextureLoaded || !_cubesatTextureFailed;
+  const texture = useCubesat && _cubesatTexture
+    ? _cubesatTexture
+    : makeEmojiCanvasTexture(glow);
+  const mat = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+  });
   const spr = new THREE.Sprite(mat);
-
   const s = r * scale;
   spr.scale.set(s, s, s);
+  spr.userData.__glow = glow;
+  spr.userData.__needsCubesat = useCubesat && !_cubesatTextureLoaded;
   return spr;
 }
 
@@ -265,6 +305,15 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
 
   const [orbitLocal, setOrbitLocal] = useState(null);
   const [err, setErr] = useState("");
+  // Текстура cubesat загружается асинхронно. Чтобы перерисовать
+  // спрайт, когда она появится, держим простой tick.
+  const [textureTick, setTextureTick] = useState(0);
+  useEffect(() => {
+    if (_cubesatTextureLoaded) return undefined;
+    const fn = () => setTextureTick((t) => t + 1);
+    _cubesatListeners.add(fn);
+    return () => { _cubesatListeners.delete(fn); };
+  }, []);
   // Use parent-supplied data when available, fall back to local fetch
   const orbit = orbitDataProp ?? orbitLocal;
   // true once the THREE.js scene is ready — guards the orbit drawing effect
@@ -612,14 +661,21 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       if (!mapSats.has(satName)) continue;
       if (satName === sat) continue;
       const isDead = !!deadSatellites[satName];
-      // Используем цвет из реестра флота — он уже учитывает «архив vs живой»
-      // (приглушённые тона для inactive, насыщенные для активных).
-      const color = fleetColorMap[satName] || (isDead ? "#5e4d78" : "#9460b8");
+      // «Тёплая» подгруппа: PU-1/2/6. Им оставляем рыжее свечение и
+      // полупрозрачный купол (по запросу пользователя — без отметки
+      // INACTIVE и не приглушённый).
+      const isWarm =
+        satName === "Polytech_Universe-1" ||
+        satName === "Polytech_Universe-2" ||
+        satName === "Polytech_Universe-6";
+      // Цвет купола/маркера. Для warm — рыжий, иначе — палитра флота.
+      const baseColor = fleetColorMap[satName] || (isDead ? "#5e4d78" : "#9460b8");
+      const color = isWarm ? "#f39768" : baseColor;
 
-      // Рисуем трек и для архивных аппаратов, если у них есть точки —
-      // PU-6 хранит свой последний наблюдённый ground-track в DEAD_SATELLITES.
+      // Рисуем трек: для активных и для warm; чистые «архивные не-warm»
+      // (если такие появятся) — без линии, только маркер.
       const extraTrack = (oData?.track ?? []).filter(p => validLatLon(p.lat, p.lon));
-      if (extraTrack.length >= 2) {
+      if (extraTrack.length >= 2 && (!isDead || isWarm)) {
         const extraSegs = splitByDateline(extraTrack.map(p => ({ lat: Number(p.lat), lng: Number(p.lon), ts_utc: p.ts_utc })));
         for (const seg of extraSegs) grp.add(makeDashedLine(seg, trackR, color));
       }
@@ -629,32 +685,53 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
         // Используем ту же низкую «над-поверхностную» высоту, что и для
         // основного спутника. Так 2D-карта и 3D-глобус отображают аппарат
         // в одной и той же географической точке без перспективного сдвига.
-        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.022);
+        const rSurface2 = R0 * 1.01;
+        const rSat2 = R0 * 1.022;
+        const ePos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), rSat2);
+        const groundPos2 = llToXyz(Number(extraCur.lat), Number(extraCur.lon), rSurface2);
         const eSpr = makeSatelliteSprite(R0, {
-          scale: isDead ? 0.12 : 0.14,
-          // Без рыжего свечения для архивных аппаратов — оставляем общую
-          // фиолетовую палитру, чтобы карта читалась как единый флот.
-          glow: isDead ? "rgba(94,77,120,0.40)" : "rgba(148,96,184,0.45)",
+          scale: isWarm ? 0.14 : (isDead ? 0.12 : 0.14),
+          glow: isWarm
+            ? "rgba(243,151,104,0.55)"
+            : (isDead ? "rgba(94,77,120,0.40)" : "rgba(148,96,184,0.45)"),
         });
         eSpr.position.copy(ePos);
         eSpr.userData = { satName, clickable: true };
-        if (isDead) eSpr.material.opacity = 0.65;
+        if (isDead && !isWarm) eSpr.material.opacity = 0.65;
         grp.add(eSpr);
 
-        // Зона покрытия для НЕ-основных спутников (тоже на 3D глобусе)
+        // Конус покрытия — рисуем для активных и для warm. Чисто
+        // архивные не-warm оставляем без конуса (только спрайт).
         const altKm = orbitAltKmForSat(satName);
         const groundFootprint = R0 * footprintScaleByAlt(altKm);
+        if (!isDead || isWarm) {
+          const height2 = Math.max(0.001, rSat2 - rSurface2);
+          const cone2 = makeBeamCone({
+            height: height2,
+            baseRadius: groundFootprint,
+            color,
+          });
+          // warm-аппараты — чуть прозрачнее, чтобы рыжий не «выжигал» сцену
+          cone2.material.opacity = isWarm ? 0.16 : 0.14;
+          const midPos2 = ePos.clone().add(groundPos2).multiplyScalar(0.5);
+          cone2.position.copy(midPos2);
+          const dirUp2 = ePos.clone().normalize();
+          cone2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirUp2);
+          grp.add(cone2);
+        }
+
+        // Кольцо проекции на поверхность — тонкая «обводка» зоны покрытия.
         const blindInner = groundFootprint * 0.38;
-        const groundPos = llToXyz(Number(extraCur.lat), Number(extraCur.lon), R0 * 1.005);
         const { mesh: ring2 } = makeFootprintAnnulus({
           radiusOuter: groundFootprint,
           radiusInner: blindInner,
           color,
         });
-        ring2.position.copy(groundPos.clone().multiplyScalar(1.002));
-        const outward2 = groundPos.clone().normalize();
+        ring2.position.copy(groundPos2.clone().multiplyScalar(1.002));
+        const outward2 = groundPos2.clone().normalize();
         ring2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward2);
-        if (isDead) ring2.material.opacity = 0.16;
+        if (isWarm) ring2.material.opacity = 0.38;
+        else if (isDead) ring2.material.opacity = 0.16;
         else ring2.material.opacity = 0.32;
         grp.add(ring2);
       }
@@ -694,7 +771,7 @@ export default function GlobeCard({ sat, atIso, minutes, stepSec, orbitData: orb
       if (cleanupRaf) cleanupRaf();
       if (canvas) canvas.removeEventListener("click", onClick);
     };
-  }, [segments, current, globeReady, multiOrbitData, mapSats, fleetColorMap, sat, deadSatellites]);
+  }, [segments, current, globeReady, multiOrbitData, mapSats, fleetColorMap, sat, deadSatellites, textureTick]);
 
   // -------------------------
   // UI sizing (вынесено в константы, чтобы проще править)

@@ -47,39 +47,77 @@ function seededRng(seed) {
  *  России, СНГ, Северной Европы, Китая, Юго-Восточной Азии и Арктики. */
 function buildShipFleet() {
   // Зоны: [centerLat, centerLon, radiusDeg, density, biasTypes]
-  // density — относительный вес, влияет на количество кораблей в зоне
+  // density — относительный вес, влияет на количество кораблей в зоне.
+  // Особый фокус — РФ и СНГ: расширенный набор морей и речных артерий.
   const ZONES = [
-    // Балтика, СПб
-    { name: "Балтика — СПб",      lat: 60.0, lon: 28.5,  rLat: 1.6, rLon: 4.2,  density: 36, types: ["cargo","tanker","passenger","tug","fishing"] },
-    { name: "Финский залив",      lat: 59.7, lon: 25.0,  rLat: 1.0, rLon: 5.0,  density: 28, types: ["cargo","tanker","passenger"] },
-    { name: "Балтика — центр",    lat: 56.5, lon: 18.0,  rLat: 2.0, rLon: 5.0,  density: 30, types: ["cargo","passenger","tanker"] },
-    // Чёрное море
-    { name: "Чёрное море",        lat: 43.5, lon: 35.0,  rLat: 2.5, rLon: 5.0,  density: 28, types: ["cargo","tanker","passenger","military"] },
-    { name: "Босфор",             lat: 41.05, lon: 29.0, rLat: 0.6, rLon: 0.8,  density: 22, types: ["cargo","tanker","passenger"] },
-    // Каспий
-    { name: "Каспий",             lat: 41.5, lon: 50.5,  rLat: 4.5, rLon: 2.5,  density: 16, types: ["cargo","tanker","fishing"] },
-    // Мурманск / Баренцево
-    { name: "Баренцево / Мурманск", lat: 69.5, lon: 35.0, rLat: 3.0, rLon: 9.0, density: 20, types: ["cargo","tanker","military","fishing"] },
-    // Северный морской путь
-    { name: "СМП — Карское",      lat: 73.0, lon: 65.0,  rLat: 3.0, rLon: 12.0, density: 14, types: ["cargo","tanker","fishing"] },
-    { name: "СМП — Лаптевых",     lat: 75.5, lon: 125.0, rLat: 2.5, rLon: 14.0, density: 10, types: ["cargo","tanker"] },
-    { name: "Чукотское / Берингово", lat: 64.0, lon: 178.0, rLat: 3.0, rLon: 10.0, density: 12, types: ["cargo","fishing","tanker"] },
-    // Дальний Восток
-    { name: "Японское море",      lat: 41.0, lon: 134.0, rLat: 4.5, rLon: 6.0,  density: 26, types: ["cargo","tanker","fishing","passenger"] },
-    { name: "Владивосток",        lat: 43.0, lon: 132.0, rLat: 1.5, rLon: 2.5,  density: 22, types: ["cargo","tanker","military","tug"] },
-    // Китай — побережье
-    { name: "Жёлтое море",        lat: 36.5, lon: 122.5, rLat: 3.0, rLon: 4.0,  density: 38, types: ["cargo","tanker","fishing"] },
-    { name: "Шанхай",             lat: 31.0, lon: 122.5, rLat: 2.0, rLon: 3.0,  density: 42, types: ["cargo","tanker","passenger"] },
-    { name: "Южный Китай",        lat: 23.0, lon: 116.0, rLat: 4.0, rLon: 5.5,  density: 36, types: ["cargo","tanker","fishing"] },
-    { name: "Тайваньский пролив", lat: 24.5, lon: 119.5, rLat: 2.5, rLon: 2.0,  density: 26, types: ["cargo","tanker","fishing"] },
-    { name: "Гонконг — устье",    lat: 22.4, lon: 114.0, rLat: 1.0, rLon: 1.5,  density: 28, types: ["cargo","passenger","tug"] },
-    // Юго-Восточная Азия
-    { name: "Малаккский пролив",  lat:  3.0, lon: 101.5, rLat: 2.0, rLon: 4.0,  density: 32, types: ["cargo","tanker"] },
-    { name: "Сингапур",           lat:  1.3, lon: 103.9, rLat: 0.6, rLon: 1.0,  density: 24, types: ["cargo","tanker","passenger"] },
-    // СНГ — Каспий + Чёрное море уже выше
-    { name: "Азовское море",      lat: 46.0, lon: 36.5,  rLat: 1.5, rLon: 2.0,  density: 14, types: ["cargo","fishing","tug"] },
-    // Дополнительно — Северное море
-    { name: "Северное море",      lat: 56.0, lon: 4.5,   rLat: 4.0, rLon: 4.5,  density: 22, types: ["cargo","tanker","fishing"] },
+    // ── РФ / СНГ — Балтика ─────────────────────────────────────────
+    { name: "Балтика — СПб",         lat: 60.0, lon: 28.5,  rLat: 1.6, rLon: 4.2,  density: 48, types: ["cargo","tanker","passenger","tug","fishing"] },
+    { name: "Финский залив",         lat: 59.7, lon: 25.0,  rLat: 1.0, rLon: 5.0,  density: 36, types: ["cargo","tanker","passenger"] },
+    { name: "Балтика — центр",       lat: 56.5, lon: 18.0,  rLat: 2.0, rLon: 5.0,  density: 32, types: ["cargo","passenger","tanker"] },
+    { name: "Калининград — Балтийск", lat: 54.7, lon: 19.9, rLat: 0.7, rLon: 1.5,  density: 22, types: ["cargo","tanker","military","tug","passenger"] },
+    { name: "Ладожское озеро",       lat: 60.8, lon: 31.5,  rLat: 1.4, rLon: 1.5,  density: 16, types: ["cargo","passenger","fishing","tug"] },
+    { name: "Онежское озеро",        lat: 61.7, lon: 35.6,  rLat: 1.5, rLon: 1.0,  density: 14, types: ["cargo","fishing","passenger"] },
+    { name: "Беломорско-Балтийский канал", lat: 64.7, lon: 34.9, rLat: 1.8, rLon: 0.7, density: 10, types: ["cargo","tug","tanker"] },
+
+    // ── РФ — Север ─────────────────────────────────────────────────
+    { name: "Баренцево / Мурманск",  lat: 69.5, lon: 35.0,  rLat: 3.0, rLon: 9.0,  density: 30, types: ["cargo","tanker","military","fishing"] },
+    { name: "Архангельск — Белое",   lat: 64.6, lon: 40.5,  rLat: 1.6, rLon: 3.5,  density: 22, types: ["cargo","tanker","fishing","tug"] },
+    { name: "Новая Земля — Печора",  lat: 70.0, lon: 53.0,  rLat: 2.5, rLon: 6.0,  density: 14, types: ["tanker","cargo","military"] },
+
+    // ── РФ — Северный морской путь ────────────────────────────────
+    { name: "СМП — Карское",         lat: 73.0, lon: 65.0,  rLat: 3.0, rLon: 12.0, density: 18, types: ["cargo","tanker","fishing"] },
+    { name: "СМП — Лаптевых",        lat: 75.5, lon: 125.0, rLat: 2.5, rLon: 14.0, density: 14, types: ["cargo","tanker"] },
+    { name: "Восточно-Сибирское",    lat: 73.5, lon: 160.0, rLat: 2.5, rLon: 14.0, density: 12, types: ["cargo","tanker","fishing"] },
+    { name: "Чукотское / Берингово", lat: 64.0, lon: 178.0, rLat: 3.0, rLon: 10.0, density: 14, types: ["cargo","fishing","tanker"] },
+
+    // ── РФ — Чёрное / Азовское ────────────────────────────────────
+    { name: "Чёрное море",           lat: 43.5, lon: 35.0,  rLat: 2.5, rLon: 5.0,  density: 38, types: ["cargo","tanker","passenger","military"] },
+    { name: "Новороссийск",          lat: 44.7, lon: 37.7,  rLat: 0.7, rLon: 1.2,  density: 22, types: ["tanker","cargo","tug","military"] },
+    { name: "Севастополь",           lat: 44.6, lon: 33.5,  rLat: 0.8, rLon: 1.4,  density: 22, types: ["military","cargo","tug","passenger"] },
+    { name: "Сочи / Туапсе",         lat: 43.9, lon: 39.4,  rLat: 0.7, rLon: 1.0,  density: 16, types: ["passenger","cargo","tug","tanker"] },
+    { name: "Азовское море",         lat: 46.0, lon: 36.5,  rLat: 1.5, rLon: 2.0,  density: 22, types: ["cargo","fishing","tug","tanker"] },
+    { name: "Керченский пролив",     lat: 45.2, lon: 36.5,  rLat: 0.5, rLon: 0.8,  density: 16, types: ["cargo","tanker","tug"] },
+
+    // ── СНГ — Каспий ───────────────────────────────────────────────
+    { name: "Каспий — Север",        lat: 45.5, lon: 49.5,  rLat: 2.0, rLon: 2.5,  density: 18, types: ["tanker","cargo","fishing"] },
+    { name: "Каспий — Центр",        lat: 41.5, lon: 50.5,  rLat: 4.5, rLon: 2.5,  density: 18, types: ["cargo","tanker","fishing"] },
+    { name: "Махачкала",             lat: 43.0, lon: 47.5,  rLat: 0.6, rLon: 1.0,  density: 12, types: ["cargo","tanker","tug"] },
+    { name: "Баку",                  lat: 40.4, lon: 50.0,  rLat: 0.5, rLon: 1.2,  density: 14, types: ["tanker","cargo","fishing"] },
+    { name: "Туркменбаши",           lat: 40.0, lon: 53.0,  rLat: 0.7, rLon: 1.2,  density: 12, types: ["tanker","cargo","fishing"] },
+
+    // ── РФ — Волга / Дон / Кама ───────────────────────────────────
+    { name: "Волга — Астрахань",     lat: 46.4, lon: 48.0,  rLat: 1.5, rLon: 1.5,  density: 18, types: ["cargo","tanker","fishing","tug"] },
+    { name: "Волга — Волгоград",     lat: 48.7, lon: 44.5,  rLat: 1.4, rLon: 1.0,  density: 14, types: ["cargo","tanker","passenger","tug"] },
+    { name: "Волга — Самара",        lat: 53.2, lon: 50.1,  rLat: 1.2, rLon: 1.0,  density: 12, types: ["cargo","passenger","tug"] },
+    { name: "Волга — Нижний Новг.",  lat: 56.3, lon: 44.0,  rLat: 1.2, rLon: 1.0,  density: 12, types: ["cargo","passenger","tug"] },
+    { name: "Волго-Балт — Рыбинск",  lat: 58.0, lon: 38.8,  rLat: 1.6, rLon: 1.2,  density: 12, types: ["cargo","tug","passenger"] },
+    { name: "Дон — Ростов",          lat: 47.2, lon: 39.6,  rLat: 0.7, rLon: 1.6,  density: 14, types: ["cargo","tanker","tug"] },
+
+    // ── РФ — Дальний Восток ───────────────────────────────────────
+    { name: "Японское море",         lat: 41.0, lon: 134.0, rLat: 4.5, rLon: 6.0,  density: 30, types: ["cargo","tanker","fishing","passenger"] },
+    { name: "Владивосток",           lat: 43.0, lon: 132.0, rLat: 1.5, rLon: 2.5,  density: 26, types: ["cargo","tanker","military","tug"] },
+    { name: "Находка",               lat: 42.8, lon: 132.9, rLat: 0.6, rLon: 1.0,  density: 16, types: ["tanker","cargo","tug"] },
+    { name: "Сахалин — Корсаков",    lat: 46.6, lon: 142.8, rLat: 1.5, rLon: 2.0,  density: 18, types: ["cargo","tanker","passenger","fishing"] },
+    { name: "Татарский пролив",      lat: 50.0, lon: 142.0, rLat: 3.0, rLon: 2.5,  density: 14, types: ["cargo","tanker","fishing"] },
+    { name: "Камчатка — Авача",      lat: 53.0, lon: 158.6, rLat: 1.5, rLon: 2.5,  density: 18, types: ["fishing","cargo","military","passenger"] },
+    { name: "Магадан",               lat: 59.6, lon: 150.8, rLat: 1.6, rLon: 4.0,  density: 14, types: ["cargo","tanker","fishing"] },
+
+    // ── СНГ — Чёрное море (Украина, Грузия, Молдова Дунай) ────────
+    { name: "Одесса",                lat: 46.4, lon: 30.7,  rLat: 0.8, rLon: 1.4,  density: 18, types: ["cargo","tanker","passenger","tug"] },
+    { name: "Поти / Батуми",         lat: 42.0, lon: 41.5,  rLat: 0.6, rLon: 1.2,  density: 14, types: ["cargo","tanker","passenger"] },
+
+    // ── ЕС соседи ─────────────────────────────────────────────────
+    { name: "Босфор",                lat: 41.05, lon: 29.0, rLat: 0.6, rLon: 0.8,  density: 24, types: ["cargo","tanker","passenger"] },
+    { name: "Северное море",         lat: 56.0, lon: 4.5,   rLat: 4.0, rLon: 4.5,  density: 24, types: ["cargo","tanker","fishing"] },
+
+    // ── Азия (для масштаба) ───────────────────────────────────────
+    { name: "Жёлтое море",           lat: 36.5, lon: 122.5, rLat: 3.0, rLon: 4.0,  density: 36, types: ["cargo","tanker","fishing"] },
+    { name: "Шанхай",                lat: 31.0, lon: 122.5, rLat: 2.0, rLon: 3.0,  density: 38, types: ["cargo","tanker","passenger"] },
+    { name: "Южный Китай",           lat: 23.0, lon: 116.0, rLat: 4.0, rLon: 5.5,  density: 32, types: ["cargo","tanker","fishing"] },
+    { name: "Тайваньский пролив",    lat: 24.5, lon: 119.5, rLat: 2.5, rLon: 2.0,  density: 24, types: ["cargo","tanker","fishing"] },
+    { name: "Гонконг — устье",       lat: 22.4, lon: 114.0, rLat: 1.0, rLon: 1.5,  density: 26, types: ["cargo","passenger","tug"] },
+    { name: "Малаккский пролив",     lat:  3.0, lon: 101.5, rLat: 2.0, rLon: 4.0,  density: 30, types: ["cargo","tanker"] },
+    { name: "Сингапур",              lat:  1.3, lon: 103.9, rLat: 0.6, rLon: 1.0,  density: 24, types: ["cargo","tanker","passenger"] },
   ];
 
   const NAMES = [

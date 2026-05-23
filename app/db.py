@@ -47,6 +47,19 @@ def init_db(retries: int = 5, delay: float = 2.0):
                     add_col("solar_voltage_mv", "solar_voltage_mv INTEGER")
                     add_col("images_json", "images_json TEXT", table="newsitem")
 
+                    # User profile fields (Макаров)
+                    add_col("last_name",  "last_name TEXT",  table="users")
+                    add_col("first_name", "first_name TEXT", table="users")
+                    add_col("patronymic", "patronymic TEXT", table="users")
+                    add_col("is_applicant", "is_applicant INTEGER DEFAULT 0", table="users")
+                    add_col("school_name", "school_name TEXT", table="users")
+                    add_col("phone", "phone TEXT", table="users")
+                    add_col(
+                        "consent_personal_data",
+                        "consent_personal_data INTEGER DEFAULT 0",
+                        table="users",
+                    )
+
                 else:
                     def _pg_cols(table: str) -> set:
                         rows = conn.execute(text("""
@@ -66,6 +79,19 @@ def init_db(retries: int = 5, delay: float = 2.0):
                     add_col("battery_capacity_pct", "battery_capacity_pct DOUBLE PRECISION")
                     add_col("solar_voltage_mv", "solar_voltage_mv INTEGER")
                     add_col("images_json", "images_json TEXT", table="newsitem")
+
+                    # User profile fields (Макаров)
+                    add_col("last_name",  "last_name TEXT",  table="users")
+                    add_col("first_name", "first_name TEXT", table="users")
+                    add_col("patronymic", "patronymic TEXT", table="users")
+                    add_col("is_applicant", "is_applicant BOOLEAN DEFAULT FALSE", table="users")
+                    add_col("school_name", "school_name TEXT", table="users")
+                    add_col("phone", "phone TEXT", table="users")
+                    add_col(
+                        "consent_personal_data",
+                        "consent_personal_data BOOLEAN DEFAULT FALSE",
+                        table="users",
+                    )
 
             logger.info("Database initialised successfully.")
             return

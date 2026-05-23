@@ -124,7 +124,7 @@ _DEFAULT: list[dict] = [
             "Используется для приёма сигналов АИС морских судов, телеметрии "
             "и образовательных задач СПбПУ."
         ),
-        "image_url": "/pu3-photo.jpg",
+        "image_url": "https://spacepi.space/uploads/PU_3_543c54b2af.jpg",
         "source_url": "https://spacepi.space/satellites/politeh-yunivers-3/",
     },
     {
@@ -202,9 +202,25 @@ def _load() -> list[dict]:
         )
         return list(_DEFAULT)
     try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        items = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     except Exception:
         return list(_DEFAULT)
+
+    # One-off migration: подменяем устаревшее локальное фото PU-3 на
+    # официальное с spacepi.space (запрос пользователя).
+    changed = False
+    OLD_PU3 = {"/pu3-photo.jpg", "pu3-photo.jpg"}
+    NEW_PU3 = "https://spacepi.space/uploads/PU_3_543c54b2af.jpg"
+    for it in items:
+        if it.get("id") == "polytech-universe-3" and it.get("image_url") in OLD_PU3:
+            it["image_url"] = NEW_PU3
+            changed = True
+    if changed:
+        try:
+            _save(items)
+        except Exception:
+            pass
+    return items
 
 
 def _save(items: list[dict]) -> None:

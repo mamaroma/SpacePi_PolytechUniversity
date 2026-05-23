@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchNews, createNews, deleteNews } from "../api";
 import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
@@ -33,6 +33,7 @@ function formatDateLong(iso) {
 
 /* ─── Calendar ──────────────────────────────────────────────────────────── */
 function NewsCalendar({ news, selectedDate, onSelectDate }) {
+  const navigate = useNavigate();
   const today = new Date();
   const maxYear  = today.getFullYear();
   const maxMonth = today.getMonth();
@@ -41,13 +42,21 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
   const [viewYear,  setViewYear]  = useState(maxYear);
   const [viewMonth, setViewMonth] = useState(maxMonth);
 
-  // Build a map: "YYYY-MM-DD" → first image URL (or null)
+  // Build a map: "YYYY-MM-DD" → { thumb, count, firstId }
   const dayMap = useMemo(() => {
     const m = {};
     for (const item of news) {
       const day = isoDay(item.created_at);
       if (!day) continue;
-      if (!m[day]) m[day] = item.images?.[0] ?? null;
+      if (!m[day]) {
+        m[day] = {
+          thumb:   item.images?.[0] ?? null,
+          count:   1,
+          firstId: item.id,
+        };
+      } else {
+        m[day].count += 1;
+      }
     }
     return m;
   }, [news]);
@@ -84,9 +93,18 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
   const newsForDay = (dayKey) => news.filter(n => isoDay(n.created_at) === dayKey);
 
   const handleDayClick = (dayKey) => {
-    if (!dayMap[dayKey]) return;
-    if (popup === dayKey) { setPopup(null); onSelectDate(null); }
-    else { setPopup(dayKey); onSelectDate(dayKey); }
+    const entry = dayMap[dayKey];
+    if (!entry) return;
+    // Если за день одна новость — сразу открываем её (как на et.spbstu.ru).
+    // Несколько новостей — показываем компактный поп-ап с миниатюрами для
+    // выбора. Дополнительно проставляем дату в фильтре ленты.
+    onSelectDate(dayKey);
+    if (entry.count === 1 && entry.firstId) {
+      setPopup(null);
+      navigate(`/news/${entry.firstId}`);
+      return;
+    }
+    setPopup(popup === dayKey ? null : dayKey);
   };
 
   return (
@@ -115,8 +133,9 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
         {Array.from({ length: daysInMonth }, (_, i) => {
           const day    = i + 1;
           const dayKey = `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-          const thumb  = dayMap[dayKey];
-          const hasNews = !!thumb;
+          const entry  = dayMap[dayKey];
+          const hasNews = !!entry;
+          const thumb  = entry?.thumb;
           const isToday = day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
           const isSelected = selectedDate === dayKey;
 
@@ -125,7 +144,7 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
               key={dayKey}
               className={`nc-cell${hasNews ? " nc-cell--has-news" : ""}${isToday ? " nc-cell--today" : ""}${isSelected ? " nc-cell--selected" : ""}`}
               onClick={() => handleDayClick(dayKey)}
-              title={hasNews ? `${newsForDay(dayKey).length} новость(ей)` : undefined}
+              title={hasNews ? `${entry.count} новость(ей) — нажмите, чтобы открыть` : undefined}
               disabled={!hasNews}
             >
               {thumb && (
@@ -135,7 +154,10 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
                 />
               )}
               <span className="nc-day-num">{day}</span>
-              {hasNews && <span className="nc-dot" />}
+              {hasNews && entry.count > 1 && (
+                <span className="nc-cell-count">{entry.count}</span>
+              )}
+              {hasNews && entry.count === 1 && <span className="nc-dot" />}
 
               {/* Popup mini-list */}
               {popup === dayKey && (
@@ -183,14 +205,12 @@ function NewsFeedCard({ item, isEditor, onDelete }) {
         <div className="nf-card-body">
           <div className="nf-card-meta">
             <span className="nf-date">{formatDateLong(item.created_at)}</span>
-            {item.views > 0 && (
-              <span className="nf-views">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-                {item.views}
-              </span>
-            )}
+            <span className="nf-views" title={`${item.views ?? 0} просмотров`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              {item.views ?? 0}
+            </span>
             {isEditor && (
               <button
                 className="nf-delete-btn"

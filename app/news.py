@@ -27,6 +27,7 @@ _DEFAULT_NEWS = [
         description="Платформа наземной станции Политехнического университета для мониторинга спутников, кораблей и электромагнитного излучения.",
         content="PolySpace Ground Station — это комплексная платформа, разработанная в СПбПУ для мониторинга космических аппаратов серии Polytech Universe, отслеживания морских судов по протоколу AIS, анализа электромагнитной обстановки и интерактивного обучения школьников основам радиоприёма.\n\nПлатформа включает:\n• Телеметрию спутников в реальном времени\n• Мониторинг кораблей (AIS)\n• Карту электромагнитного излучения\n• Интерактивный SDR-сервис для школьников\n\nИспользуйте меню навигации для доступа к различным сервисам.",
         created_at=datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+        views=103,
     ),
     NewsItem(
         id="pu5-launch",
@@ -34,8 +35,18 @@ _DEFAULT_NEWS = [
         description="Новый спутник серии Polytech Universe начал передачу телеметрии. Все системы функционируют штатно.",
         content="Спутник Polytech Universe-5 был успешно выведен на низкую околоземную орбиту. Первый сигнал был получен наземной станцией СПбПУ через 45 минут после отделения от разгонного блока.\n\nХарактеристики:\n• Орбита: LEO ~500 км\n• Частота: 437.5 МГц (UHF)\n• Протокол: LoRa\n• Масса: 3U CubeSat\n\nТелеметрия показывает нормальное функционирование всех подсистем.",
         created_at=datetime(2025, 9, 20, 14, 30, 0, tzinfo=timezone.utc),
+        views=81,
     ),
 ]
+
+# Минимальное (стартовое) число просмотров для дефолтных новостей.
+# Используется в одноразовой миграции _seed_default_news ниже —
+# чтобы дефолтные новости всегда выглядели «обжитыми», даже если
+# счётчик из предыдущей версии был меньше.
+_MIN_VIEWS = {
+    "welcome":    103,
+    "pu5-launch": 81,
+}
 
 
 def _get_images(item: NewsItem) -> list[str]:
@@ -51,9 +62,31 @@ def _get_images(item: NewsItem) -> list[str]:
 
 
 def _seed_default_news(session: Session):
-    if session.exec(select(NewsItem)).first() is None:
-        for item in _DEFAULT_NEWS:
-            session.add(item)
+    """Идемпотентный seed дефолтных новостей.
+
+    Логика:
+      * если дефолтной новости (по id) ещё нет — создаём её со стартовыми
+        значениями `views` (welcome=103, pu5-launch=81);
+      * если есть, но `views` меньше минимального стартового значения —
+        мягко поднимаем счётчик до минимума (это покрывает случай, когда
+        seed был выкачен из БД старой версии с views=0). Бо́льшие значения
+        не трогаем — сбрасывать накопленное нельзя.
+    """
+    changed = False
+    for default in _DEFAULT_NEWS:
+        existing = session.get(NewsItem, default.id)
+        if existing is None:
+            session.add(default)
+            changed = True
+            continue
+
+        min_views = _MIN_VIEWS.get(default.id)
+        if min_views and (existing.views or 0) < min_views:
+            existing.views = min_views
+            session.add(existing)
+            changed = True
+
+    if changed:
         session.commit()
 
 

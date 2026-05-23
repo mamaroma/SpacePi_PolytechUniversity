@@ -23,7 +23,24 @@ export default function NewsDetailPage() {
     fetchNewsById(id)
       .then((data) => {
         setItem(data);
-        trackNewsView(id);
+        // защита от двойного инкремента в React StrictMode (dev) и
+        // быстрых ремаунтов: считаем «просмотр» один раз за сессию вкладки.
+        try {
+          const key = `news-viewed:${id}`;
+          if (!sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, "1");
+            trackNewsView(id)
+              .then((res) => {
+                if (res && typeof res.views === "number") {
+                  setItem((prev) => (prev ? { ...prev, views: res.views } : prev));
+                }
+              })
+              .catch(() => {});
+          }
+        } catch {
+          // sessionStorage может быть недоступен (приватный режим) — тогда просто инкрементим
+          trackNewsView(id).catch(() => {});
+        }
       })
       .catch((e) => setError(e?.message || "Новость не найдена"))
       .finally(() => setLoading(false));
@@ -65,15 +82,13 @@ export default function NewsDetailPage() {
         <div className="news-detail-body">
           <div className="news-detail-meta">
             <span className="news-card-date">{formatDate(item.created_at)}</span>
-            {item.views > 0 && (
-              <span className="news-views">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                {item.views}
-              </span>
-            )}
+            <span className="news-views">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              {item.views ?? 0}
+            </span>
           </div>
           <h1 className="news-detail-title">{item.title}</h1>
           <div className="news-detail-content">

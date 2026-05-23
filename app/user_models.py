@@ -23,6 +23,21 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = Field(default=True)
 
+    # ── Расширенный профиль (запрос Макарова) ───────────────────────
+    # ФИО — обязательны для всех; патроним опционален.
+    last_name: Optional[str] = Field(default=None)
+    first_name: Optional[str] = Field(default=None)
+    patronymic: Optional[str] = Field(default=None)
+
+    # Абитуриент: школьник / лицеист / студент колледжа и т.п.
+    # Для них активируется обязательное «учебное заведение» и автосогласие.
+    is_applicant: bool = Field(default=False)
+    school_name: Optional[str] = Field(default=None)
+    phone: Optional[str] = Field(default=None)
+
+    # Согласие на обработку персональных данных (152-ФЗ).
+    consent_personal_data: bool = Field(default=False)
+
 
 class UserRead(SQLModel):
     id: int
@@ -31,10 +46,26 @@ class UserRead(SQLModel):
     created_at: datetime
     is_active: bool
 
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    is_applicant: bool = False
+    school_name: Optional[str] = None
+    phone: Optional[str] = None
+    consent_personal_data: bool = False
+
 
 class UserRegister(SQLModel):
     email: str
     password: str
+    # Обязательные ФИ; патроним опционален.
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    is_applicant: bool = False
+    school_name: Optional[str] = None
+    phone: Optional[str] = None
+    consent_personal_data: bool = False
 
 
 class UserLogin(SQLModel):

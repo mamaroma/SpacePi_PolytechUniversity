@@ -32,33 +32,36 @@ const PARTNERS = [
     href: "https://www.roscosmos.ru/",
   },
   {
-    name: "ИЭиТ · ВШПФиКТ",
-    role: "СПбПУ",
+    name: "ВШПФиКТ",
+    role: "Высшая школа прикладной физики и компьютерных технологий · ИЭиТ СПбПУ",
     logo: "/ieit-logo.png",
     bg: "light",
-    href: "https://www.spbstu.ru/structure/vysshaya-shkola-promyshlennoy-fiziki-i-kompyuternykh-tekhnologiy/",
+    href: "https://et.spbstu.ru/",
+    // эта карточка визуально особая — крупный логотип и название справа,
+    // как у политеха. Сигнальный флаг используется в PartnerCard.
+    big: true,
   },
 ];
 
 function PartnerCard({ p }) {
   return (
     <a
-      className="partner-card"
+      className={`partner-card${p.big ? " partner-card--big" : ""}`}
       href={p.href}
       target="_blank"
       rel="noopener noreferrer"
       title={`${p.name} — ${p.role}`}
     >
-      <div className={`partner-logo-img-wrap partner-logo-img-wrap--${p.bg}`}>
+      <div className={`partner-logo-img-wrap partner-logo-img-wrap--${p.bg}${p.big ? " partner-logo-img-wrap--big" : ""}`}>
         <img
           src={p.logo}
           alt={p.name}
-          className="partner-logo-img"
+          className={`partner-logo-img${p.big ? " partner-logo-img--big" : ""}`}
           loading="lazy"
         />
       </div>
-      <div className="partner-name">{p.name}</div>
-      <div className="partner-role">{p.role}</div>
+      <div className={`partner-name${p.big ? " partner-name--right" : ""}`}>{p.name}</div>
+      <div className={`partner-role${p.big ? " partner-role--right" : ""}`}>{p.role}</div>
     </a>
   );
 }

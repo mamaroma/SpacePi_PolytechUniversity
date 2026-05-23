@@ -90,15 +90,70 @@ def register(body: UserRegister, session: Session = Depends(get_session)):
     if session.exec(select(User).where(User.email == body.email)).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Согласие на обработку персональных данных обязательно.
+    if not body.consent_personal_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Необходимо подтвердить согласие на обработку персональных данных",
+        )
+
+    # Обязательные поля профиля.
+    last  = (body.last_name or "").strip()
+    first = (body.first_name or "").strip()
+    if not last or not first:
+        raise HTTPException(
+            status_code=400,
+            detail="Фамилия и имя обязательны для регистрации",
+        )
+
+    # Абитуриентам — обязательное учебное заведение.
+    if body.is_applicant:
+        school = (body.school_name or "").strip()
+        if not school:
+            raise HTTPException(
+                status_code=400,
+                detail="Для абитуриентов укажите название учебного заведения",
+            )
+    else:
+        school = (body.school_name or "").strip() or None
+
     role = UserRole.ADMIN if body.email == ADMIN_EMAIL else UserRole.READER
+
+    # is_active:
+    #   * админ — всегда активен;
+    #   * абитуриент — активируется автоматически (его статус сам по себе
+    #     подтверждение «настоящего человека»);
+    #   * остальные — ждут ручной активации администратором.
+    is_active = (role == UserRole.ADMIN) or bool(body.is_applicant)
+
     user = User(
         email=body.email,
         hashed_password=hash_password(body.password),
         role=role,
+        is_active=is_active,
+        last_name=last,
+        first_name=first,
+        patronymic=(body.patronymic or "").strip() or None,
+        is_applicant=bool(body.is_applicant),
+        school_name=school,
+        phone=(body.phone or "").strip() or None,
+        consent_personal_data=True,
     )
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    # Не-абитуриентам токен НЕ выдаём — учётка должна быть подтверждена админом.
+    # Возвращаем 403 «pending approval»: фронт распознаёт по тексту и показывает
+    # пользователю поздравление вместо ошибки.
+    if not is_active:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "PENDING_APPROVAL: Заявка принята. Учётная запись будет "
+                "активирована администратором вручную — мы свяжемся с вами по email."
+            ),
+        )
 
     token = create_token(user.id, user.email, user.role)
     return TokenResponse(access_token=token, user=UserRead.model_validate(user))

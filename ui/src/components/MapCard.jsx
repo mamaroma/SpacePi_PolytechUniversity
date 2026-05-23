@@ -24,14 +24,31 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     markerShadow,
 });
 
-// ─── 🛰 Satellite DivIcon (увеличен в 2 раза) ─────────────────
-const SAT_ICON = L.divIcon({
-  html: `<div class="sat-div-icon">🛰</div>`,
-  className: "",
-  iconSize:   [60, 60],
-  iconAnchor: [30, 30],
-  popupAnchor:[0, -32],
-});
+// ─── 🛰 Satellite DivIcon (cubesat-фото вместо emoji) ──────────
+const CUBESAT_ICON_URL = "/cubesat-icon-256.png";
+
+function makeCubesatIcon({ glow = "#724796", size = 64, dead = false, opacity = 1 } = {}) {
+  return L.divIcon({
+    html: `<div class="sat-cubesat-icon" style="
+      width:${size}px;height:${size}px;line-height:1;display:flex;
+      align-items:center;justify-content:center;cursor:pointer;
+      opacity:${opacity};
+      filter:drop-shadow(0 0 8px ${glow}) drop-shadow(0 0 14px ${glow});
+    ">
+      <img src="${CUBESAT_ICON_URL}" alt="cubesat" style="
+        width:${size}px;height:${size}px;
+        object-fit:contain;display:block;pointer-events:none;
+        ${dead ? "filter: grayscale(0.5) brightness(0.7);" : ""}
+      "/>
+    </div>`,
+    className: "",
+    iconSize:   [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor:[0, -size / 2 - 2],
+  });
+}
+
+const SAT_ICON = makeCubesatIcon({ glow: "#724796", size: 60 });
 
 const POLYTECH_COORDS = {
   lat: 60.01,
@@ -150,22 +167,17 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
     <div className="globe-card">
       {/* Inject satellite icon animation + leaflet dark override */}
       <style>{`
-        .sat-div-icon {
-          font-size: 50px;
-          line-height: 1;
-          filter: drop-shadow(0 0 10px #724796);
-          animation: sat-glow 2s ease-in-out infinite;
+        .sat-cubesat-icon {
+          animation: sat-cubesat-glow 2.4s ease-in-out infinite;
           user-select: none;
-          cursor: pointer;
-          text-align: center;
+        }
+        @keyframes sat-cubesat-glow {
+          0%,100% { transform: translateY(0); }
+          50%     { transform: translateY(-3px); }
         }
         .polytech-logo-icon {
           filter: drop-shadow(0 0 6px rgba(55, 179, 74, 0.6));
           border-radius: 6px;
-        }
-        @keyframes sat-glow {
-          0%,100% { filter: drop-shadow(0 0 8px #724796); }
-          50%      { filter: drop-shadow(0 0 18px #f39768) drop-shadow(0 0 8px #724796); }
         }
         .leaflet-popup-content-wrapper,
         .leaflet-popup-tip {
@@ -341,18 +353,25 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             const cur = oData?.current;
             if (!cur || !validLL(cur.lat, cur.lon)) return null;
             const isDead = !!deadSatellites?.[satName];
-            const color = isDead ? "#6b5e7e" : (fleetColorMap[satName] || "#724796");
+            // PU-1, PU-2, PU-6 — особая «архивная» категория: им рисуем
+            // мягкое рыжее свечение полупрозрачным кружком. Остальные —
+            // обычный фиолетовый купол покрытия как у живых аппаратов.
+            const isWarm =
+              satName === "Polytech_Universe-1" ||
+              satName === "Polytech_Universe-2" ||
+              satName === "Polytech_Universe-6";
+            const baseColor = fleetColorMap[satName] || "#724796";
+            const color = isWarm ? "#f39768" : baseColor;
             const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
             const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
-            const trackSegs = isDead ? [] : splitDateline(trackLL);
+            const trackSegs = isDead && !isWarm ? [] : splitDateline(trackLL);
             const shortName = satName.replace("Polytech_Universe-", "PU-");
             const deadInfo = deadSatellites?.[satName];
-            const icon = L.divIcon({
-              html: `<div style="font-size:42px;filter:drop-shadow(0 0 8px ${color});line-height:1;text-align:center;${isDead ? "opacity:0.6;" : ""}">🛰</div>`,
-              className: "",
-              iconSize: [54, 54],
-              iconAnchor: [27, 27],
-              popupAnchor: [0, -28],
+            const icon = makeCubesatIcon({
+              glow: color,
+              size: 52,
+              dead: isDead && !isWarm,
+              opacity: isDead && !isWarm ? 0.7 : 1,
             });
             return (
               <React.Fragment key={satName}>
@@ -363,7 +382,9 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                     pathOptions={{ color, weight: 1.8, opacity: 0.7 }}
                   />
                 ))}
-                {/* Зона покрытия — для активных яркая, для неактивных бледная */}
+                {/* Зона покрытия:
+                   - warm-категория (PU-1/2/6) — полупрозрачное рыжее кольцо;
+                   - остальные — фиолетовый купол. */}
                 {showCoverage && (
                   <Circle
                     center={[Number(cur.lat), Number(cur.lon)]}
@@ -371,10 +392,10 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                     pathOptions={{
                       color:       color,
                       fillColor:   color,
-                      fillOpacity: isDead ? 0.025 : 0.06,
-                      weight:      isDead ? 0.8 : 1.2,
-                      opacity:     isDead ? 0.30 : 0.50,
-                      dashArray:   "4 8",
+                      fillOpacity: isWarm ? 0.10 : 0.06,
+                      weight:      isWarm ? 1.4 : 1.2,
+                      opacity:     isWarm ? 0.55 : 0.50,
+                      dashArray:   isWarm ? "6 6" : "4 8",
                     }}
                   />
                 )}
@@ -386,13 +407,16 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
                   <Popup>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11 }}>
                       <div style={{ fontWeight: 700, color, marginBottom: 5 }}>
-                        🛰 {shortName} {isDead && <span style={{ color: "#da4927", fontSize: 9 }}>INACTIVE</span>}
+                        🛰 {shortName}
+                        {isDead && !isWarm && (
+                          <span style={{ color: "#da4927", fontSize: 9, marginLeft: 4 }}>INACTIVE</span>
+                        )}
                       </div>
-                      {isDead ? (
+                      {isDead && !isWarm ? (
                         <div style={{ color: "#cbb98c" }}>Последний контакт: {deadInfo?.lastContact || "—"}</div>
                       ) : (
                         <>
-                          <div>{new Date(cur.ts_utc).toLocaleString()}</div>
+                          {cur.ts_utc && <div>{new Date(cur.ts_utc).toLocaleString()}</div>}
                           <div>Lat {Number(cur.lat).toFixed(3)}</div>
                           <div>Lon {Number(cur.lon).toFixed(3)}</div>
                         </>

@@ -1792,33 +1792,10 @@ bytes 30..31 CRC-16   CCITT-FALSE, big-endian`}
 }
 
 function TelemetryDecodeActivity() {
-  const [tab, setTab] = useState("standard");
-
-  const tabStyle = (active) => ({
-    padding: "8px 20px", borderRadius: "8px 8px 0 0", cursor: "pointer", fontSize: 13,
-    fontWeight: active ? 700 : 400,
-    background: active ? "var(--surface-1)" : "transparent",
-    border: active ? "1px solid var(--border)" : "1px solid transparent",
-    borderBottom: active ? "1px solid var(--surface-1)" : "1px solid var(--border)",
-    color: active ? "var(--accent)" : "var(--text-muted)",
-    marginBottom: -1,
-  });
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)" }}>
-        <button onClick={() => setTab("standard")} style={tabStyle(tab === "standard")}>
-          Стандартный формат PU
-        </button>
-        <button onClick={() => setTab("bits")} style={tabStyle(tab === "bits")}>
-          ⚙ Бит-декодер (кастомный)
-        </button>
-      </div>
-
-      {tab === "standard" && <TelemetryStandardTab />}
-      {tab === "bits"     && <BitDecoderTab />}
-    </div>
-  );
+  // По запросу пользователя кастомный бит-декодер «вынесен на уровень
+  // выше» в виде отдельной верхнеуровневой активности. Эта вкладка
+  // теперь оставлена только под стандартный формат PU — без табов.
+  return <TelemetryStandardTab />;
 }
 
 // ─── Activity 5: IQ demodulation (gm.py) ───────────────────────────────────────
@@ -1943,6 +1920,9 @@ function IqDemodActivity() {
 }
 
 // ─── Main Challenge Page ────────────────────────────────────────────────────────
+//
+// `howto` — пошаговая инструкция, как пользоваться активностью. Выводится
+// под кнопкой «Назад» в виде подсказки. По требованию пользователя.
 const ACTIVITIES = [
   {
     key: "graph",
@@ -1952,6 +1932,12 @@ const ACTIVITIES = [
     diffColor: "#724796",
     desc: "Выбери спутник, загрузи пакеты с телеметрией и построй график температуры. Можно подгружать свои файлы AIS / Telemetry с отображением на карте и диаграммах.",
     skills: ["Работа с данными", "Визуализация", "Загрузка файлов"],
+    howto: [
+      "Выберите спутник (PU-3, PU-4) и нажмите «Загрузить реальную телеметрию» — придут последние 50 пакетов через API.",
+      "Можно также нажать «Сгенерировать демо», чтобы поиграть с синтетическим набором данных.",
+      "Сверху выберите параметр (температура, заряд, RSSI, напряжение) — карта точек обновится автоматически.",
+      "Нажмите «Построить график» — точки соберутся в кривую. Кнопка «Скачать PNG» сохраняет картинку.",
+    ],
   },
   {
     key: "decode",
@@ -1961,6 +1947,12 @@ const ACTIVITIES = [
     diffColor: "#f39768",
     desc: "Получи сырой двоичный пакет со спутника и декодируй его по протоколу: satellite ID, температуру, напряжение и контрольную сумму.",
     skills: ["Двоичный протокол", "Little-endian", "XOR контрольная сумма"],
+    howto: [
+      "Кликните «Сгенерировать пакет» — появится hex-строка из 14 байт со случайной телеметрией.",
+      "Распакуйте поля по схеме сверху: 2 байта sat_id, температура, напряжение и т.д. — все в little-endian.",
+      "Введите ваши значения в поля справа и нажмите «Проверить». Зелёные галочки — поле декодировано верно.",
+      "В конце сверьте CRC: первые 13 байт XOR-ом должны давать последний байт.",
+    ],
   },
   {
     key: "ais",
@@ -1970,6 +1962,12 @@ const ACTIVITIES = [
     diffColor: "#f39768",
     desc: "Загрузи бинарный или текстовый файл с пакетами AIS (NMEA-AIVDM), декодируй MMSI, координаты, скорость и курс кораблей.",
     skills: ["NMEA-AIVDM", "AIS protocol", "pyais"],
+    howto: [
+      "Загрузите файл с NMEA-AIVDM строками или сырыми бинарными AIS-пакетами (например, из RTL-AIS).",
+      "Сервер распарсит пакеты библиотекой pyais и вернёт таблицу: MMSI, тип, координаты, скорость, курс.",
+      "Корабли с валидными координатами автоматически рисуются на карте — кликните по точке для деталей.",
+      "Сравните дешифрованные значения с реальными данными MarineTraffic, чтобы убедиться, что декодер не врёт.",
+    ],
   },
   {
     key: "telemetry",
@@ -1979,6 +1977,37 @@ const ACTIVITIES = [
     diffColor: "#f39768",
     desc: "Загрузи бинарный поток телеметрии Polytech Universe и распарси температуру, напряжение, RSSI/SNR. Проверь CRC-16 каждого пакета.",
     skills: ["Бинарный парсинг", "struct LE/BE", "CRC-16 CCITT"],
+    howto: [
+      "Возьмите .bin со стандартным форматом Polytech Universe (32-байтные пакеты) — например, из раздела «Хранилище».",
+      "Загрузите файл — сервер распакует поля (температуру, vbus, ibus, заряд батареи, RSSI/SNR) для каждого пакета.",
+      "Колонка CRC покажет, целостен ли пакет (CRC-16/CCITT). Зелёное ✓ — всё ОК.",
+      "Если ваш формат не стандартный — используйте активность «Свой пакет и формат» (на верхнем уровне).",
+    ],
+  },
+  {
+    key: "bits",
+    icon: null,
+    title: "Свой пакет и формат · бит-декодер",
+    difficulty: "Продвинуто",
+    diffColor: "#9460b8",
+    badge: "Pro",
+    badgeColor: "#9460b8",
+    highlight: true,
+    desc:
+      "Универсальный конструктор: опишите свою структуру пакета по битам — имена полей, " +
+      "смещения, длины, знак, масштаб, MSB/LSB-порядок — и загрузите любой бинарник. " +
+      "Сервер разрежет файл на пакеты, распакует каждое поле и покажет битовую карту. " +
+      "Под капотом — наш /api/decode/binary эндпоинт.",
+    skills: [
+      "Произвольный бит-формат", "Signed / unsigned", "Scale & offset",
+      "MSB / LSB-порядок", "Большие пакеты (CCSDS, AX.25, USP)",
+    ],
+    howto: [
+      "Укажите размер одного пакета в байтах (например, 32) — сервер аккуратно разрежет файл по этому размеру.",
+      "Добавьте поля кнопкой «+ Поле»: имя, смещение в битах, длина в битах, signed/unsigned, scale и порядок битов (MSB/LSB).",
+      "Загрузите бинарник — на экране появится «битовая карта» первого пакета (поля подсвечены) и таблица распакованных значений для всех пакетов.",
+      "Сохраните конфиг как JSON: его можно использовать повторно или передать через POST /api/decode/binary.",
+    ],
   },
   {
     key: "iq",
@@ -1988,6 +2017,12 @@ const ACTIVITIES = [
     diffColor: "#f39768",
     desc: "Загрузи raw.iq запись с SDR, задай параметры приёма (sample rate, freq shift, SF, bandwidth) и пропусти через демодулятор LoRa — до получения data.bin.",
     skills: ["LoRa SDR", "GNU Radio params", "FFT demod"],
+    howto: [
+      "Возьмите запись raw.iq (complex float32) с SDR-приёмника — например, RTL-SDR или HackRF.",
+      "Задайте параметры приёма: sample rate, центральная частота, ширина полосы, spreading factor LoRa.",
+      "Параметры decimation/interpolation, фильтра, сдвига и sync-word должны соответствовать вашему передатчику.",
+      "Нажмите «↑ Загрузить raw.iq» — сервер прогонит запись через пайплайн и вернёт data.bin + hex первых байт.",
+    ],
   },
 ];
 
@@ -1996,50 +2031,159 @@ export default function ChallengePage() {
   const act = ACTIVITIES.find(a => a.key === activity);
 
   if (!activity) {
+    // Карточку с key === "bits" выводим первой и крупнее обычных —
+    // это «фишковая» активность, её нужно подчеркнуть (запрос пользователя).
+    const highlightedActivities = ACTIVITIES.filter((a) => a.highlight);
+    const regularActivities = ACTIVITIES.filter((a) => !a.highlight);
+
+    const renderCard = (a, opts = {}) => {
+      const { big = false } = opts;
+      return (
+        <button
+          key={a.key}
+          onClick={() => setActivity(a.key)}
+          style={{
+            textAlign: "left",
+            background: big
+              ? `linear-gradient(135deg, ${a.diffColor}24 0%, var(--surface-1) 65%)`
+              : "var(--surface-1)",
+            border: `1px solid ${big ? a.diffColor : "var(--border)"}`,
+            borderRadius: 16,
+            padding: big ? 28 : 24,
+            cursor: "pointer",
+            transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
+            color: "inherit",
+            boxShadow: big ? `0 0 28px ${a.diffColor}33` : "none",
+            position: "relative",
+            overflow: "hidden",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = a.diffColor;
+            e.currentTarget.style.boxShadow = `0 0 32px ${a.diffColor}44`;
+            e.currentTarget.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = big ? a.diffColor : "var(--border)";
+            e.currentTarget.style.boxShadow = big ? `0 0 28px ${a.diffColor}33` : "none";
+            e.currentTarget.style.transform = "translateY(0)";
+          }}
+        >
+          {a.badge && (
+            <span
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: 1,
+                padding: "3px 10px",
+                borderRadius: 999,
+                color: "#fff",
+                background: a.badgeColor || a.diffColor,
+                boxShadow: `0 0 14px ${(a.badgeColor || a.diffColor)}88`,
+              }}
+            >
+              ★ {a.badge.toUpperCase()}
+            </span>
+          )}
+          {a.icon && <div style={{ fontSize: 40, marginBottom: 14 }}>{a.icon}</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 700, fontSize: big ? 22 : 18, color: big ? a.diffColor : "var(--text)" }}>
+              {a.title}
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 9px",
+                borderRadius: 20,
+                background: `${a.diffColor}18`,
+                color: a.diffColor,
+                border: `1px solid ${a.diffColor}44`,
+              }}
+            >
+              {a.difficulty}
+            </span>
+          </div>
+          <p
+            style={{
+              fontSize: big ? 14 : 13,
+              color: big ? "var(--text-dim)" : "var(--text-muted)",
+              lineHeight: 1.65,
+              marginBottom: 16,
+            }}
+          >
+            {a.desc}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {a.skills.map((s) => (
+              <span
+                key={s}
+                style={{
+                  fontSize: 11,
+                  padding: "3px 9px",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 20,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </button>
+      );
+    };
+
     return (
       <div className="page-wrap">
         <div className="page-header-row">
           <div>
             <h1 className="page-title">Challenge</h1>
-            <p className="page-subtitle">Интерактивные задания по работе со спутниковыми данными</p>
+            <p className="page-subtitle">
+              Интерактивные задания по работе со спутниковыми данными
+            </p>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, maxWidth: 720 }}>
-          {ACTIVITIES.map(a => (
-            <button
-              key={a.key}
-              onClick={() => setActivity(a.key)}
+        {highlightedActivities.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div
               style={{
-                textAlign: "left", background: "var(--surface-1)", border: "1px solid var(--border)",
-                borderRadius: 16, padding: 24, cursor: "pointer", transition: "border-color 0.2s, box-shadow 0.2s",
-                color: "inherit",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 1.4,
+                color: "var(--orange)",
+                textTransform: "uppercase",
+                marginBottom: 10,
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = a.diffColor; e.currentTarget.style.boxShadow = `0 0 20px ${a.diffColor}22`; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
             >
-              {a.icon && <div style={{ fontSize: 40, marginBottom: 14 }}>{a.icon}</div>}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 18 }}>{a.title}</span>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 20,
-                  background: `${a.diffColor}18`, color: a.diffColor, border: `1px solid ${a.diffColor}44`,
-                }}>
-                  {a.difficulty}
-                </span>
-              </div>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.65, marginBottom: 16 }}>{a.desc}</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {a.skills.map(s => (
-                  <span key={s} style={{
-                    fontSize: 11, padding: "3px 9px",
-                    background: "var(--surface-2)", border: "1px solid var(--border)",
-                    borderRadius: 20, color: "var(--text-muted)",
-                  }}>{s}</span>
-                ))}
-              </div>
-            </button>
-          ))}
+              ★ Фишка платформы
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: 18,
+                maxWidth: 880,
+              }}
+            >
+              {highlightedActivities.map((a) => renderCard(a, { big: true }))}
+            </div>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: 20,
+            maxWidth: 880,
+          }}
+        >
+          {regularActivities.map((a) => renderCard(a))}
         </div>
       </div>
     );
@@ -2067,10 +2211,55 @@ export default function ChallengePage() {
         </div>
       </div>
 
+      {act?.howto?.length > 0 && (
+        <details
+          style={{
+            ...S.card,
+            padding: "14px 18px",
+            marginBottom: 18,
+            borderColor: act.diffColor + "55",
+            background: `linear-gradient(135deg, ${act.diffColor}10 0%, var(--surface-1) 80%)`,
+          }}
+          open
+        >
+          <summary
+            style={{
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              color: act.diffColor,
+              userSelect: "none",
+              outline: "none",
+            }}
+          >
+            Как пользоваться этой активностью
+          </summary>
+          <ol
+            style={{
+              paddingLeft: 22,
+              marginTop: 10,
+              marginBottom: 0,
+              fontSize: 13,
+              color: "var(--text-dim)",
+              lineHeight: 1.7,
+            }}
+          >
+            {act.howto.map((step, i) => (
+              <li key={i} style={{ marginBottom: 4 }}>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+
       {activity === "graph"     && <GraphActivity />}
       {activity === "decode"    && <PacketDecodeActivity />}
       {activity === "ais"       && <AisDecodeActivity />}
       {activity === "telemetry" && <TelemetryDecodeActivity />}
+      {activity === "bits"      && <BitDecoderTab />}
       {activity === "iq"        && <IqDemodActivity />}
     </div>
   );

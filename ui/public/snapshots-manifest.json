@@ -2,7 +2,7 @@
   "bucket": "space-pi-bucket",
   "endpoint": "https://storage.yandexcloud.net",
   "root": "snapshots",
-  "count": 57,
+  "count": 77,
   "items": [
     {
       "id": "alyaska-0",
@@ -568,10 +568,10 @@
     {
       "id": "scst-2.11-0",
       "folder": "Фотографии с КА",
-      "title": "SCST-2.11 · Снимок экрана — 2026-04-30 в 13.28.15",
-      "region": "SCST-2.11",
-      "lat": 54.6833,
-      "lon": 39.0867,
+      "title": "SCST-2.11 · Подмосковье · Истринское водохранилище",
+      "region": "SCST-2.11 · Подмосковье",
+      "lat": 55.9667,
+      "lon": 36.8833,
       "file": "snapshots/spacecraft/scst-2.11/snimok_ekrana_2026-04-30_v_13.28.15.png",
       "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/scst-2.11/snimok_ekrana_2026-04-30_v_13.28.15.png",
       "size": 5869683
@@ -579,10 +579,10 @@
     {
       "id": "scst-2.11-1",
       "folder": "Фотографии с КА",
-      "title": "SCST-2.11 · Снимок экрана — 2026-04-30 в 13.28.38",
-      "region": "SCST-2.11",
-      "lat": 56.2833,
-      "lon": 35.42,
+      "title": "SCST-2.11 · Тверская область · район Ржева",
+      "region": "SCST-2.11 · Тверская обл.",
+      "lat": 56.263,
+      "lon": 34.3275,
       "file": "snapshots/spacecraft/scst-2.11/snimok_ekrana_2026-04-30_v_13.28.38.png",
       "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/scst-2.11/snimok_ekrana_2026-04-30_v_13.28.38.png",
       "size": 3416892
@@ -630,6 +630,226 @@
       "file": "snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.26.48.png",
       "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.26.48.png",
       "size": 7584382
+    },
+    {
+      "id": "meteor-m2-moscow",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Москва и ЦФО",
+      "region": "Москва · ЦФО",
+      "lat": 55.7558,
+      "lon": 37.6173,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-moscow.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.54.10.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-spb",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Санкт-Петербург",
+      "region": "Санкт-Петербург",
+      "lat": 59.9343,
+      "lon": 30.3351,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-spb.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.55.07.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-volgo",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Волго-Балтийский путь",
+      "region": "Волго-Балт",
+      "lat": 58.6,
+      "lon": 39.85,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-volgo.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.55.43.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-arkh",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Архангельск",
+      "region": "Архангельск",
+      "lat": 64.54,
+      "lon": 40.54,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-arkh.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.56.02.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-murm",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Мурманск",
+      "region": "Мурманск",
+      "lat": 68.97,
+      "lon": 33.09,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-murm.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.56.21.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-ekb",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Екатеринбург и Урал",
+      "region": "Урал · Екатеринбург",
+      "lat": 56.8389,
+      "lon": 60.6057,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-ekb.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.58.44.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-nsk",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Новосибирск",
+      "region": "Новосибирск",
+      "lat": 55.0084,
+      "lon": 82.9357,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-nsk.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_13.00.16.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-krsk",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Красноярск · Енисей",
+      "region": "Красноярск",
+      "lat": 56.0153,
+      "lon": 92.8932,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-krsk.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_13.02.14.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-irk",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Иркутск · Байкал",
+      "region": "Иркутск · Байкал",
+      "lat": 52.287,
+      "lon": 104.305,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-irk.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.25.34.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-yakutsk",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Якутск",
+      "region": "Якутск",
+      "lat": 62.0355,
+      "lon": 129.6755,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-yakutsk.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.26.11.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-vladi",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Владивосток",
+      "region": "Владивосток",
+      "lat": 43.1198,
+      "lon": 131.8869,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-vladi.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.26.34.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-petropav",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Петропавловск-Камч.",
+      "region": "Камчатка",
+      "lat": 53.0167,
+      "lon": 158.65,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-petropav.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/spacecraft/pyu-4/snimok_ekrana_2026-04-30_v_13.26.48.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-yamal",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Ямал · Бованенково",
+      "region": "Ямал",
+      "lat": 70.4,
+      "lon": 68.5,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-yamal.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.54.10.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-novzem",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Новая Земля",
+      "region": "Новая Земля",
+      "lat": 74.5,
+      "lon": 56.0,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-novzem.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.55.07.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-baikalsk",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Байкальск",
+      "region": "Прибайкалье",
+      "lat": 51.5167,
+      "lon": 104.15,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-baikalsk.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.55.43.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-anadyr",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Анадырь · Чукотка",
+      "region": "Чукотка",
+      "lat": 64.7333,
+      "lon": 177.5,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-anadyr.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.56.02.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-sochi",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Сочи · Черноморье",
+      "region": "Сочи",
+      "lat": 43.5855,
+      "lon": 39.7231,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-sochi.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.56.21.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-kazan",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Казань · Поволжье",
+      "region": "Казань",
+      "lat": 55.796,
+      "lon": 49.1064,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-kazan.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_12.58.44.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-perm",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Пермский край",
+      "region": "Пермь",
+      "lat": 58.0105,
+      "lon": 56.2502,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-perm.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_13.00.16.png",
+      "size": 0
+    },
+    {
+      "id": "meteor-m2-rostov",
+      "folder": "Фотографии с КА",
+      "title": "Метеор-М · Ростов-на-Дону",
+      "region": "Ростов-на-Дону",
+      "lat": 47.2225,
+      "lon": 39.7187,
+      "file": "snapshots/spacecraft/meteor-m2/meteor-m2-rostov.png",
+      "url": "https://storage.yandexcloud.net/space-pi-bucket/snapshots/polar/alyaska/snimok_ekrana_2026-04-30_v_13.02.14.png",
+      "size": 0
     }
   ]
 }

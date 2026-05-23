@@ -194,6 +194,13 @@ function MiniSparkline({ data, dataKey, color, height = 40, width = "100%" }) {
 function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
   const short = satName.replace("Polytech_Universe-", "PU-");
   const latest = rows.length ? rows[rows.length - 1] : null;
+  // «Тёплая» категория — это PU-1/PU-2/PU-6: они формально архивные,
+  // но в UI мы не помечаем их «INACTIVE»/«⚫» (запрос пользователя).
+  const isWarm =
+    satName === "Polytech_Universe-1" ||
+    satName === "Polytech_Universe-2" ||
+    satName === "Polytech_Universe-6";
+  const showDeadLabel = isDead && !isWarm;
 
   const seriesTemp = useMemo(() => dailyMinAvgMax(chartData, "temp_c"), [chartData]);
   const seriesBat = useMemo(() => dailyMinAvgMax(chartData, "battery_capacity_pct"), [chartData]);
@@ -204,14 +211,18 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
       <div className="sat-panel-header">
         <div>
           <div className="sat-panel-name">🛰 {short}</div>
-          <div className={`sat-panel-status ${isDead ? "dead" : "live"}`}>
-            {isDead ? `⚫ INACTIVE · посл. контакт ${deadInfo?.lastContact || "—"}` : "🟢 ACTIVE"}
+          <div className={`sat-panel-status ${showDeadLabel ? "dead" : "live"}`}>
+            {showDeadLabel
+              ? `⚫ INACTIVE · посл. контакт ${deadInfo?.lastContact || "—"}`
+              : isWarm
+                ? "🟠 АРХИВ · данные последнего пролёта"
+                : "🟢 ACTIVE"}
           </div>
         </div>
         <button className="sat-panel-close" onClick={onClose}>×</button>
       </div>
 
-      {isDead && (
+      {showDeadLabel && (
         <div style={{
           background: "rgba(218,73,39,0.10)",
           border: "1px dashed var(--orange-2)",
@@ -257,7 +268,7 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
 
       {latest && (
         <div className="sat-panel-last-packet">
-          <div className="sat-mini-label">{isDead ? "Последний пакет (архив)" : "Последний пакет"}</div>
+          <div className="sat-mini-label">{(isDead || isWarm) ? "Последний пакет (архив)" : "Последний пакет"}</div>
           <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
             {new Date(latest.ts_utc).toLocaleString()}
           </div>
@@ -298,7 +309,7 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
       </div>
 
       <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>
-        {rows.length} пакетов {isDead ? "в архиве" : "загружено"}
+        {rows.length} пакетов {(isDead || isWarm) ? "в архиве" : "загружено"}
       </div>
     </div>
   );
@@ -348,9 +359,18 @@ export default function SatellitesPage() {
     fetchFleet()
       .then((list) => {
         setFleet(list);
-        // По умолчанию показываем сразу все 6 аппаратов — пользователь видит
+        // По умолчанию показываем сразу все аппараты — пользователь видит
         // полную картину флота и при необходимости снимает галки.
-        setMapSats(new Set(list.map((s) => s.name)));
+        // Сохраняем выбор в localStorage, чтобы он переживал перезагрузки.
+        let initial = new Set(list.map((s) => s.name));
+        try {
+          const raw = localStorage.getItem("mapSats");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) initial = new Set(parsed);
+          }
+        } catch {}
+        setMapSats(initial);
         if (list.length && !list.find(s => s.name === dataSat)) {
           const first = list.find(s => s.active) || list[0];
           setDataSat(first.name);
@@ -368,9 +388,15 @@ export default function SatellitesPage() {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
+      try { localStorage.setItem("mapSats", JSON.stringify([...next])); } catch {}
       return next;
     });
   }, []);
+
+  // Сохраняем выбор «Все/Нет/Активные»
+  useEffect(() => {
+    try { localStorage.setItem("mapSats", JSON.stringify([...mapSats])); } catch {}
+  }, [mapSats]);
 
   const fleetColorMap = useMemo(() => {
     const m = {};
@@ -547,8 +573,16 @@ export default function SatellitesPage() {
                   <label key={s.name} className="sat-dropdown-item">
                     <input type="checkbox" checked={mapSats.has(s.name)} onChange={() => toggleMapSat(s.name)} style={{ accentColor: s.color }} />
                     <span className="sat-dot" style={{ background: s.color }} />
-                    <span style={{ opacity: s.active ? 1 : 0.5 }}>{s.name.replace("Polytech_Universe-", "PU-")}</span>
-                    {!s.active && <span className="sat-badge-dead">offline</span>}
+                    <span style={{ opacity: s.active ? 1 : 0.7 }}>{s.name.replace("Polytech_Universe-", "PU-")}</span>
+                    {/* Бейдж «offline» убираем для PU-1/2/6 — пользователь
+                       сообщил, что эти аппараты не должны помечаться как
+                       отсутствующие в эфире (для них показываем архивный
+                       рыжий купол на карте). Остальные неактивные —
+                       подсвечиваем как раньше. */}
+                    {!s.active &&
+                      !["Polytech_Universe-1","Polytech_Universe-2","Polytech_Universe-6"].includes(s.name) && (
+                        <span className="sat-badge-dead">offline</span>
+                    )}
                   </label>
                 ))}
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -610,7 +644,12 @@ export default function SatellitesPage() {
         )}
       </div>
 
-      {/* Map/Globe with floating info panel */}
+      {/* Map/Globe with floating info panel.
+          Логика отображения «главного» спутника на карте: рисуем его маркер
+          и track только если он есть в выборе (mapSats). Если ни один
+          спутник не выбран — карта/глобус остаются «пустыми».
+          Это требование пользователя: «если не выбраны спутники, ничего
+          не должно отображаться». */}
       <div className="telemetry-view-container">
         {viewMode === "globe" ? (
           <ErrorBoundary>
@@ -619,7 +658,7 @@ export default function SatellitesPage() {
               atIso={at.toISOString()}
               minutes={orbitMinutes}
               stepSec={orbitStepSec}
-              orbitData={orbitDataMap[sat] ?? null}
+              orbitData={mapSats.has(sat) ? (orbitDataMap[sat] ?? null) : null}
               multiOrbitData={orbitDataMap}
               mapSats={mapSats}
               fleetColorMap={fleetColorMap}
@@ -629,9 +668,9 @@ export default function SatellitesPage() {
           </ErrorBoundary>
         ) : (
           <MapCard
-            receivedPoints={chartData}
-            orbitTrack={orbitDataMap[sat]?.track ?? []}
-            orbitCurrent={orbitDataMap[sat]?.current ?? null}
+            receivedPoints={mapSats.has(sat) ? chartData : []}
+            orbitTrack={mapSats.has(sat) ? (orbitDataMap[sat]?.track ?? []) : []}
+            orbitCurrent={mapSats.has(sat) ? (orbitDataMap[sat]?.current ?? null) : null}
             multiOrbitData={orbitDataMap}
             mapSats={mapSats}
             fleetColorMap={fleetColorMap}
