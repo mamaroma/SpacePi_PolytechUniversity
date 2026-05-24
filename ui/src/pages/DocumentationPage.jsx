@@ -572,7 +572,7 @@ function SatelliteDetail() {
             <section key={section.title} style={{ ...SECTION_CARD }}>
               <div style={SUBTITLE_STYLE}>{section.subtitle || "Раздел"}</div>
               <h2 style={{ margin: "0 0 12px", fontSize: 18, color: "var(--text)" }}>{section.title}</h2>
-              {section.paragraphs.map((p, i) => (
+              {(section.paragraphs || []).map((p, i) => (
                 <p key={i} style={{ margin: "0 0 10px", color: "var(--text-dim)", fontSize: 14, lineHeight: 1.7 }}>
                   {p}
                 </p>
