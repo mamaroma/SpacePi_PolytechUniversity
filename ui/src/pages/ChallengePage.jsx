@@ -1202,6 +1202,121 @@ function PacketDecodeActivity() {
   );
 }
 
+// ─── AIS mini-guide (на русском, прямо на странице) ───────────────────────────
+//
+// По требованию пользователя: убираем ссылку «↗ Документация AIS / ITU-R M.1371»
+// и пишем понятную мини-документацию на русском прямо на странице активности.
+function AisMiniGuide() {
+  const sectionStyle = {
+    ...S.card,
+    padding: "16px 20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  };
+  const h3 = {
+    margin: 0,
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "var(--orange)",
+  };
+  const p = { margin: 0, fontSize: 13, lineHeight: 1.65, color: "var(--text-dim)" };
+  const codeBox = {
+    marginTop: 4,
+    padding: "10px 12px",
+    background: "#130e22",
+    borderRadius: 6,
+    fontSize: 12,
+    color: "var(--accent-2)",
+    overflow: "auto",
+    border: "1px solid var(--border)",
+  };
+
+  const fields = [
+    ["MMSI", "9 цифр — уникальный идентификатор судна (страна + борт)."],
+    ["Тип сообщения (msg_type)", "1/2/3 — позиционные репорты класса A; 4 — базовая станция; 5 — статичная информация; 18/19 — позиция класса B; 24 — статика класса B."],
+    ["Координаты (lat / lon)", "Широта и долгота в градусах. Передаются в 1/10000 минуты дуги — после декодирования сразу получаем привычные градусы (с дробной частью)."],
+    ["Скорость (SOG)", "Speed Over Ground — скорость относительно земли, в узлах (knots)."],
+    ["Курс (COG)", "Course Over Ground — направление движения относительно севера, 0–360°."],
+    ["Курсовой угол (heading)", "В какую сторону «смотрит» нос корабля. 511 — значение «не указано»."],
+    ["Статус навигации (status)", "0 — в движении на двигателе, 1 — на якоре, 5 — пришвартован, 7 — рыбалка, 8 — под парусом и т.д."],
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={sectionStyle}>
+        <h3 style={h3}>Что такое AIS</h3>
+        <p style={p}>
+          <b style={{ color: "var(--text)" }}>AIS (Automatic Identification System)</b> — морская система автоматической идентификации.
+          Каждое крупное судно с интервалом 2–10 секунд передаёт по радио (УКВ 161,975 / 162,025 МГц)
+          короткие пакеты со своим MMSI, координатами, скоростью и курсом. Сигнал принимают
+          соседние корабли, береговые станции, а также спутники низкой орбиты —
+          именно эти данные мы и декодируем здесь.
+        </p>
+      </div>
+
+      <div style={sectionStyle}>
+        <h3 style={h3}>Формат NMEA-AIVDM (что в файле)</h3>
+        <p style={p}>
+          AIS-приёмник (RTL-SDR, dAISy, спутниковый трактом) сохраняет пакеты
+          в текстовом формате NMEA — одна строка = один пакет. Строка начинается
+          с <code>!AIVDM</code> (или <code>!AIVDO</code> для своих передач):
+        </p>
+        <pre style={codeBox}>
+{`!AIVDM,1,1,,A,13lq2>002f0V3scdr8ATr40p8L07,0*6A
+  ↑     ↑ ↑ ↑ ↑ ↑                            ↑
+  тег   │ │ │ │ полезные данные (6-битный    контрольная
+        │ │ │ │ ASCII, payload AIS-пакета)    сумма XOR
+        │ │ │ канал A или B (161.975/162.025)
+        │ │ номер фрагмента (всё в одном пакете)
+        │ всего фрагментов
+        количество fragment-ов в сообщении`}
+        </pre>
+        <p style={p}>
+          Длинные сообщения (типы 5, 24) бывают разбиты на 2 фрагмента — тогда
+          сначала идёт строка с <code>2,1,…</code>, потом <code>2,2,…</code>.
+          Наш декодер сам склеивает их по идентификатору последовательности.
+        </p>
+      </div>
+
+      <div style={sectionStyle}>
+        <h3 style={h3}>Какие поля мы извлекаем</h3>
+        <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-dim)", fontSize: 13, lineHeight: 1.75 }}>
+          {fields.map(([name, desc]) => (
+            <li key={name} style={{ marginBottom: 6 }}>
+              <b style={{ color: "var(--accent-2)" }}>{name}</b> — {desc}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={sectionStyle}>
+        <h3 style={h3}>Как пользоваться</h3>
+        <ol style={{ margin: 0, paddingLeft: 18, color: "var(--text-dim)", fontSize: 13, lineHeight: 1.75 }}>
+          <li>Получите файл AIS — это может быть лог с RTL-AIS, дамп с dAISy USB, выгрузка с MarineTraffic или сырая запись со спутникового приёмника.</li>
+          <li>Убедитесь, что в каждой строке есть <code>!AIVDM,…,0*xx</code>. Файлы <code>.log</code>, <code>.txt</code>, <code>.aivdm</code> подходят без переделок.</li>
+          <li>Нажмите «↑ Загрузить AIS-файл». Сервер обработает его библиотекой <code>pyais</code> и вернёт таблицу с распакованными полями.</li>
+          <li>Корабли с валидными координатами автоматически отрисовываются на карте — кликните по точке для деталей.</li>
+          <li>Сравните MMSI с реальными данными MarineTraffic (поиск по номеру), чтобы убедиться, что декодер не врёт.</li>
+        </ol>
+      </div>
+
+      <div style={sectionStyle}>
+        <h3 style={h3}>Подсказки и подводные камни</h3>
+        <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-dim)", fontSize: 13, lineHeight: 1.75 }}>
+          <li>В AIS координаты иногда «прячут» как 91°/181° — это означает «координата не валидна», не путайте с реальной позицией.</li>
+          <li>Heading=511 означает «не указано» — в норме отображаем «—», а не 511.</li>
+          <li>Скорость в узлах. Чтобы перевести в км/ч, умножьте на 1,852.</li>
+          <li>Если файл «битый» — счётчик ошибок справа от количества покажет, сколько пакетов сервер не смог распарсить.</li>
+          <li>Один и тот же корабль будет повторяться много раз: AIS даёт позицию каждые 2–10 секунд, по этим точкам строится трек.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ─── Activity 3: AIS decoding ──────────────────────────────────────────────────
 function AisDecodeActivity() {
   const [result, setResult] = useState(null);
@@ -1239,17 +1354,11 @@ function AisDecodeActivity() {
             {busy ? "Декодирую…" : "↑ Загрузить AIS-файл"}
             <input type="file" accept=".txt,.aivdm,.log" style={{ display: "none" }} onChange={handle} disabled={busy} />
           </label>
-          <a
-            href="https://www.itu.int/rec/R-REC-M.1371"
-            target="_blank"
-            rel="noreferrer"
-            style={{ fontSize: 12, color: "var(--orange)", textDecoration: "none", padding: "8px 14px", border: "1px solid var(--orange)", borderRadius: 8 }}
-          >
-            ↗ Документация AIS / ITU-R M.1371
-          </a>
         </div>
         {error && <div style={{ marginTop: 10, color: "var(--orange-2)", fontSize: 13 }}>Ошибка: {error}</div>}
       </div>
+
+      <AisMiniGuide />
 
       {result && (
         <div style={{ ...S.card, padding: 0 }}>
@@ -2141,7 +2250,7 @@ export default function ChallengePage() {
       <div className="page-wrap">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Challenge</h1>
+            <h1 className="page-title">Практические кейсы</h1>
             <p className="page-subtitle">
               Интерактивные задания по работе со спутниковыми данными
             </p>

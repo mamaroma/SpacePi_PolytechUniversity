@@ -96,129 +96,67 @@ function Lightbox({ photos, index, onClose }) {
   );
 }
 
-/* Категории нашего тренировочного набора. Привязка по индексу — это
- * требование пользователя (Макаров): первые 10 фотографий из galleries
- * имеют фиксированную семантику.
+/* Категории тренировочного набора.
  *
- *   1, 2          → Айсберги
- *   3, 4, 9, 10   → Корабли
- *   5, 6          → Цветущие воды
- *   7, 8          → Разливы нефти
+ * Сам набор снимков лежит в /ui/public/snimki/{ships,icebergs,bloom_water,fuel}.
+ * Это снимки, которые загрузил автор проекта (см. /ui/public/snimki/manifest.json).
  *
- * Индексы 1-based, как видит пользователь.
+ * Пользователь может также через UI загрузить свои фотографии — они попадают
+ * в общую «галерею» (`photos`) и отображаются в разделе «Дополнительные снимки».
  */
 const PHOTO_CATEGORIES = [
   {
     key: "icebergs",
+    folder: "icebergs",
     title: "Айсберги",
     accent: "#5ad6ff",
     description:
       "Снимки полярных областей — отделение и дрейф айсбергов в Северном и Южном океанах.",
-    indexes: [1, 2],
   },
   {
     key: "ships",
+    folder: "ships",
     title: "Корабли",
     accent: "#f39768",
     description:
       "Детектирование морских судов в открытом море и портах по форме и кильватерному следу.",
-    indexes: [3, 4, 9, 10],
   },
   {
     key: "blooming",
+    folder: "bloom_water",
     title: "Цветущие воды",
     accent: "#6cc77b",
     description:
       "Цветение фитопланктона — окраска поверхности воды вследствие массового роста микроорганизмов.",
-    indexes: [5, 6],
   },
   {
     key: "oil",
+    folder: "fuel",
     title: "Разливы нефти",
     accent: "#b765e3",
     description:
       "Обнаружение нефтяных плёнок: характерные радужные пятна на поверхности воды.",
-    indexes: [7, 8],
   },
 ];
 
-const _ALL_INDEXED = new Set(
-  PHOTO_CATEGORIES.flatMap((c) => c.indexes)
-);
-
-// Дополнительные демо-примеры. Подмешиваются к загруженным снимкам так,
-// чтобы у каждой категории всегда было ≥3 примера для пользователя —
-// важно для образовательной части (узнать характерную текстуру/окраску).
-// Источники: ESA Copernicus / NASA Worldview (public domain).
-const DEMO_EXAMPLES = [
-  // Айсберги
-  {
-    key: "demo-iceberg-1",
-    category: "icebergs",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Iceberg_in_the_Arctic_with_its_underside_exposed.jpg/640px-Iceberg_in_the_Arctic_with_its_underside_exposed.jpg",
-    filename: "demo_iceberg_arctic.jpg",
-  },
-  {
-    key: "demo-iceberg-2",
-    category: "icebergs",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Iceberg_with_hole_near_Sandersons_Hope_2007-07-28_2.jpg/640px-Iceberg_with_hole_near_Sandersons_Hope_2007-07-28_2.jpg",
-    filename: "demo_iceberg_greenland.jpg",
-  },
-  // Корабли
-  {
-    key: "demo-ship-1",
-    category: "ships",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Cargo_ship_seen_from_space.jpg/640px-Cargo_ship_seen_from_space.jpg",
-    filename: "demo_cargo_satellite.jpg",
-  },
-  {
-    key: "demo-ship-2",
-    category: "ships",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Containerschip_aerial.jpg/640px-Containerschip_aerial.jpg",
-    filename: "demo_container_aerial.jpg",
-  },
-  // Цветущие воды (algal bloom)
-  {
-    key: "demo-bloom-1",
-    category: "blooming",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Cyanobacteria_aggregations_in_the_Gulf_of_Finland.jpg/640px-Cyanobacteria_aggregations_in_the_Gulf_of_Finland.jpg",
-    filename: "demo_bloom_finland.jpg",
-  },
-  {
-    key: "demo-bloom-2",
-    category: "blooming",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Algal_bloom%28akasio%29_by_Noctiluca_in_Nagasaki.jpg/640px-Algal_bloom%28akasio%29_by_Noctiluca_in_Nagasaki.jpg",
-    filename: "demo_bloom_red_tide.jpg",
-  },
-  // Разливы нефти
-  {
-    key: "demo-oil-1",
-    category: "oil",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Deepwater_Horizon_oil_spill_-_May_24%2C_2010.jpg/640px-Deepwater_Horizon_oil_spill_-_May_24%2C_2010.jpg",
-    filename: "demo_oil_deepwater.jpg",
-  },
-  {
-    key: "demo-oil-2",
-    category: "oil",
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Oil_spill_in_Gulf_of_Mexico.jpg/640px-Oil_spill_in_Gulf_of_Mexico.jpg",
-    filename: "demo_oil_gulf.jpg",
-  },
-];
-
-function groupPhotos(photos) {
-  // Распределяем по категориям. Всё, что вне фиксированного списка,
-  // уходит в «Дополнительные снимки» — туда же попадают свежезагруженные.
-  const buckets = PHOTO_CATEGORIES.map((c) => ({
-    ...c,
-    photos: [
-      ...c.indexes.map((idx) => photos[idx - 1]).filter(Boolean),
-      // Доклеиваем демо-примеры из публичных open-data источников.
-      ...DEMO_EXAMPLES
-        .filter((d) => d.category === c.key)
-        .map((d) => ({ ...d, isDemo: true })),
-    ],
-  }));
-  const extras = photos.filter((_, i) => !_ALL_INDEXED.has(i + 1));
+/* Группировка по локальным папкам snimki/*.
+ * `snimkiManifest` — { ships: ['01.png', ...], icebergs: [...], ... }
+ *  Если манифеста нет (например при build без snimki) — категории просто пустые.
+ *  Все фотографии, загруженные пользователем через UI, идут в «Дополнительные». */
+function groupPhotos(photos, snimkiManifest) {
+  const buckets = PHOTO_CATEGORIES.map((c) => {
+    const files = (snimkiManifest && snimkiManifest[c.folder]) || [];
+    return {
+      ...c,
+      photos: files.map((name) => ({
+        key: `snimki-${c.folder}-${name}`,
+        url: `/snimki/${c.folder}/${name}`,
+        filename: name,
+        isBuiltin: true,
+      })),
+    };
+  });
+  const extras = photos || [];
   return { buckets, extras };
 }
 
@@ -228,6 +166,7 @@ export default function IdentificationPage() {
   const isEditor = user && (user.role === "admin" || user.role === "moderator");
 
   const [photos, setPhotos] = useState([]);
+  const [snimkiManifest, setSnimkiManifest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lightboxIdx, setLightboxIdx] = useState(null);
@@ -236,14 +175,12 @@ export default function IdentificationPage() {
   const [deleteId, setDeleteId] = useState(null);
   const fileRef = useRef(null);
 
-  // Полный список фото (загруженные + демо-примеры) в том же порядке,
-  // в каком они выводятся на странице — нужен для корректной работы
-  // лайтбокса по индексу.
+  // Полный список фото (встроенные snimki + загруженные пользователем) —
+  // нужен для корректной работы лайтбокса по индексу.
   const allPhotos = useMemo(() => {
-    if (!photos.length) return [];
-    const { buckets, extras } = groupPhotos(photos);
+    const { buckets, extras } = groupPhotos(photos, snimkiManifest);
     return [...buckets.flatMap((b) => b.photos), ...extras];
-  }, [photos]);
+  }, [photos, snimkiManifest]);
 
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -260,6 +197,16 @@ export default function IdentificationPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Один раз загружаем manifest со списком встроенных снимков.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/snimki/manifest.json")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((m) => { if (!cancelled) setSnimkiManifest(m); })
+      .catch(() => { if (!cancelled) setSnimkiManifest({}); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -363,33 +310,13 @@ export default function IdentificationPage() {
         </div>
       )}
 
-      {/* ── Empty state ── */}
-      {!loading && !error && photos.length === 0 && (
-        <div style={{
-          minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center",
-          borderRadius: 14, border: "1px dashed var(--border)",
-          background: "var(--surface-1)",
-        }}>
-          <div style={{ textAlign: "center", color: "var(--text-muted)", maxWidth: 380 }}>
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--accent-2, #9460b8)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", opacity: 0.5 }}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <p style={{ fontSize: 14 }}>
-              {isEditor ? "Нет фотографий — нажмите «Загрузить фото»" : "Галерея пуста"}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── Grid ── */}
-      {!loading && !error && photos.length > 0 && (() => {
-        const { buckets, extras } = groupPhotos(photos);
+      {!loading && !error && (() => {
+        const { buckets, extras } = groupPhotos(photos, snimkiManifest);
 
         const renderPhotoCell = (photo) => {
-          // allPhotos уже посчитан выше (useMemo), просто берём индекс.
           const idx = allPhotos.indexOf(photo);
-          const isDemo = !!photo.isDemo;
+          const isBuiltin = !!photo.isBuiltin;
           return (
             <div
               key={photo.key}
@@ -411,29 +338,13 @@ export default function IdentificationPage() {
                   width: "100%", height: "100%",
                   objectFit: "cover", display: "block",
                   transition: "transform 0.2s, filter 0.2s",
-                  // Качество исходников бывает разным — лёгкая коррекция
-                  // помогает мутным/тёмным снимкам читаться в превью.
                   imageRendering: "auto",
-                  filter: "saturate(1.08) contrast(1.06) brightness(1.03)",
+                  filter: "saturate(1.05) contrast(1.04) brightness(1.02)",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.04)"; e.currentTarget.style.filter = "saturate(1.15) contrast(1.1) brightness(1.05)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "saturate(1.08) contrast(1.06) brightness(1.03)"; }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.04)"; e.currentTarget.style.filter = "saturate(1.12) contrast(1.08) brightness(1.04)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "saturate(1.05) contrast(1.04) brightness(1.02)"; }}
               />
-              {isDemo && (
-                <span
-                  style={{
-                    position: "absolute", top: 6, left: 6,
-                    fontSize: 9, fontWeight: 700, letterSpacing: 0.8,
-                    background: "rgba(108,199,123,0.85)", color: "#0d2618",
-                    padding: "2px 7px", borderRadius: 12,
-                    textTransform: "uppercase",
-                    boxShadow: "0 0 8px rgba(108,199,123,0.45)",
-                  }}
-                >
-                  Пример
-                </span>
-              )}
-              {isEditor && !isDemo && (
+              {isEditor && !isBuiltin && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDelete(photo); }}
                   disabled={deleteId === photo.key}
@@ -491,7 +402,7 @@ export default function IdentificationPage() {
                     {bucket.title}
                   </h2>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {bucket.photos.length}{" "}/{" "}{bucket.indexes.length}
+                    {bucket.photos.length}
                   </span>
                   <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
                     {bucket.description}
@@ -509,7 +420,7 @@ export default function IdentificationPage() {
                       fontSize: 13,
                     }}
                   >
-                    Раздел пуст — загрузите снимки для категории «{bucket.title}».
+                    Снимки этой категории пока не загружены.
                   </div>
                 ) : (
                   <div

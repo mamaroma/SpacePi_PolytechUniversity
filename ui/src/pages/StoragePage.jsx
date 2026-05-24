@@ -247,7 +247,7 @@ export default function StoragePage() {
       <GuideBanner id="storage-intro">
         <strong>Хранилище.</strong> Здесь складываются <em>сырые</em> (не демодулированные)
         пакеты AIS, бинарная телеметрия со спутников и IQ-записи с SDR.
-        Файлы можно скачивать и обрабатывать в задачах раздела <em>Challenge</em>.
+        Файлы можно скачивать и обрабатывать в задачах раздела <em>Практические кейсы</em>.
       </GuideBanner>
 
       <div className="page-header-row">

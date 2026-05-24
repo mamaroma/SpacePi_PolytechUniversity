@@ -1,0 +1,4625 @@
+{
+  "blocks": [
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Автоматизированный измерительный наземный комплекс приема УКВ-диапазона с управляемой антенной системой",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Оглавление:",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "1.Структурная схема комплекса приема спутниковой информации",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "1.1. Общая схема приема (тракт прохождения сигнала)",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "2. Антенная система и фидерный тракт",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n2.1. ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Характеристика и ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "параметры управляемой антенны УКВ-диапазона",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "X-Quad",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "2.2. Поворотное устройство (позиционер) и система наведения",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n2.3 Настройка поворотного устройства",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "3",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ". Фильтрующие устройства системы",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "3",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".1 ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "П",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "одавление помех в приёмном диапазоне",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "4",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ". Усилительная часть",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "4",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".1",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "SP 70 ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Pre",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Amp",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "switchable",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " 435 ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "MHz",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "5. Приемное устройство (СДР)",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "5",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ".1. ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Структурная схема СДР-приемника",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "5",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".2. Динамический диапазон и чувствительность",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "6.",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "П",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "рограмное обеспечение",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " и технические решения",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n6.1 ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "техническая документация",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "к ПО.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n6.1 список программ и руководство по установке.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "7",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ". Программное обеспечение и ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "руководство пользователю ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "7",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ".1. Обработка принимаемого сигнала",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " через сервис политеха",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n7.2 руководство к калибровке и использованию физического оборудования",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "1.Структурная схема комплекса приема спутниковой информации",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "1.1. Общая схема приема (тракт прохождения сигнала)",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "С помощью системы наведения поворотного устройства антенна осуществляет автоматическое сопровождение низкоорбитального космического аппарата (спутника), проходящего над горизонтом, с минимальным углом места (элевации), равным 7 градусам. Приём полезного сигнала осуществляется на несущей частоте 435 МГц. Принятый антенной сигнал поступает на вход полосового фильтра, где производится подавление внеполосных помех и шумов. Далее отфильтрованный сигнал направляется на вход малошумящего усилителя (МШУ) SP 70, где происходит его усиление до уровня, достаточного для детектирования. После усиления сигнал детектируется программно-определяемым радиоприёмником (SDR) ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One, который выполняет его оцифровку и демодуляцию. Полученный цифровой поток данных (пакеты) передаётся по интерфейсу USB на персональный компьютер (ПК) для дальнейшей обработки.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image1.png"
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "2. Антенная система и фидерный тракт ",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "2.1. ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Характеристика и параметры управляемой антенны УКВ-диапазона",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "X-Quad",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "1.Возможность переключения поляризации (горизонтальная / вертикальная / круговая правая / круговая левая / диагональная)",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n2. Высокое усиление по сравнению с другими антенными системами благодаря эффекту синфазного сложения (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "С",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "инфазное сложение",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "(",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "стекинг",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ")",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " — это процесс сложения колебаний или волн, которые происходят в одинаковой фазе, то есть в один и тот же момент времени достигают максимумов или минимумов одновременно. При таком сложении амплитуда суммарного колебания равна сумме амплитуд отдельных колебаний",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ")",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n3. Короткая длина стрелы и простая конструкция",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n4. Крепление на мачте спереди",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Излучатель представляет собой синфазный квад-элемент.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Изменение поляризации антенны (Г/В) легко осуществляется выбором правильной точки питания.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Переключение поляризации выполняется с помощью коаксиального реле или одного из выносных переключателей поляризации, установленных вблизи точки питания антенны, что требует только короткой линии питания. С помощью специального фазовращающего жгута антенна может быть настроена на фиксированную круговую поляризацию.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Все элементы и экран фидерной линии заземлены, что исключает любые проблемы с электростатическим разрядом.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Подключение обоих фидерных линий выполняется с помощью N-разъёмов",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Стрела и элементы полностью изготовлены из алюминия.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Технические данные",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Антенна",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": " X-Quad",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Длина",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "0,7 м",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Усиление",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "12,8 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "дВ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Ширина ДН по половинной мощности ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "гориз",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ". (E)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "36 градусов",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "В",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "ерт. (H)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "36 градусов",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Отношение Ф/Т",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "21 дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "М",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "акс. мощность",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1000 Вт",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Д",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "лина",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1270 мм",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "В",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "ысота",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "220 мм",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Ветровая нагрузка",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "48 Н",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Разъём",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2x N-гнездо",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Расстояние для синфазного сложения",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2,1 м",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "фазовращающий жгут для RHCP или LHCP",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "18049",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Когда X-Quad должны использоваться с фиксированной правовращающей круговой поляризацией, обе плоскости соединяются с помощью фазовращающего жгута. Этот жгут подключается непосредственно к обоим точкам питания антенны и состоит из различных кабелей разной длины. Требуется только одна фидерная линия. Это решение дёшево, но фиксирует антенну либо на правую круговую (RHCP), либо на левую круговую (LHCP) поляризацию. Использование антенны с линейной поляризацией невозможно.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Подключение антенны выполняется с помощью 2 коротких кабелей, и только одна фидерная линия идёт вниз к радиостанции.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Антенна должна быть собрана так, чтобы N-гнёзда были направлены вниз и назад, как показано на рисунке снизу. Для правовращающей круговой поляризации (RHCP) более длинный кабель фазовращающей линии должен быть подключён к горизонтальному N-гнезду. Если разъёмы перепутаны, антенна будет иметь левую круговую поляризацию (LHCP) вместо правой, и, таким образом, потери более 10 дБ, если корреспондент использует правую круговую поляризацию! ",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image2.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "2.2. Поворотное устройство",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " G-5500",
+          "bold": true,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " и система наведения",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Поворотные устройства ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Yaesu",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " G-5500 обеспечивают управление азимутом (450°) и углом места (180°) средних и крупных однонаправленных спутниковых антенных решеток с дистанционным управлением с рабочего места оператора.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " Поворотные устройства могут быть смонтированы вместе на одной мачте или независимо: устройство азимута — внутри башни, а устройство угла места — на мачте.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image3.png"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Параметры",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Значение",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Требования к напряжению",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "110-120",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " или ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "200-240",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " В ~",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Напряжение двигателя",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "24 В ~",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Время вращения: Угол места (180°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Азимут (360°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "67 сек",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "58 сек",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Максимальная продолжительность непрерывной работы",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "5 минут",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вращающий момент: Угол места (180°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Азимут (360°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "14 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "кг·м",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " (101 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "фут·фунт",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "6 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "кг·м",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " (44 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "фут·фунта",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Тормозной момент: Угол места (180°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Азимут (360°)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "40 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "кг·м",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " (289 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "фут·фунтов",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "40 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "кг·м",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " (289 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "фут·фунтов",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вертикальная нагрузка",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "200 кг (440 фунтов)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Точность позиционирования",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "±4 процента",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Площадь парусности (ветровая нагрузка)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1 м²",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Кабели управления",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2 x 6 жил, сечением не менее #20 AWG",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Диаметр мачты",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "38-63",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " мм (",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "1-1",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "/2 до ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "2-1",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "/2 дюйма)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Диаметр стрелы",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "32-43",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " мм (",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "1-1",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "/4 до ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "1-5",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "/8 дюйма)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вес: Поворотные устройства",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Блок управления",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "9 кг (20 фунтов)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "3 кг (6,6 фунта)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Важно!",
+          "bold": true,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "\nОбратите внимание что @60 ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Гц",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " Это привязка к частоте электрической сети",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "(",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "стандартизация).",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "  Скорость вращения синхронных двигателей, которые там стоят, зависит от частоты тока, следовательно поскольку в России и странах Европы стандарт сети @50 Гц то антенна может вращаться медленней га 15 -20%",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image4.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "2.3 Настройка поворотного устройства ",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Выключите блок управления и при необходимости отрегулируйте винты 0. ADJ (НАСТРОЙКА НУЛЯ) под лицевой панелью каждого индикатора так, чтобы каждый индикатор указывал на левый край шкалы. Затем снова включите блок управления для следующих шагов.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Индикатор азимута",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Нажмите и удерживайте кнопку LEFT , позволяя поворотному устройству азимута вращаться до тех пор, пока оно не достигнет своего концевого упора. Отметьте точное положение поворотного устройства (при необходимости пометьте корпус), затем нажмите и удерживайте кнопку RIGH",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "T",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ", чтобы довести поворотное устройство на один полный оборот до того же самого положения. Теперь индикатор должен указывать точно на 360° шкалы. Если это не так, отрегулируйте потенциометр FULL SCALE ADJ (настройка полной шкалы) в верхнем углу задней панели над клеммами AZIMUTH.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Снова нажмите кнопку RIGHT (ВПРАВО), чтобы продолжить вращение по часовой стрелке, пока поворотное устройство не достигнет своего концевого упора. Теперь индикатор должен указывать на правый край шкалы (90°).",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Индикатор угла места",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Нажмите кнопку UP, чтобы совместить метки 180° на поворотном устройстве. Теперь индикатор должен указывать точно на 180° у правого конца шкалы. Если это не так, ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "отрегулируйте потенциометр FULL SCALE ADJ в верхнем углу задней панели над клеммами ELEVATION (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "угол места",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ").",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Особенности работы",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "1.Двигатели поворотных устройств рассчитаны на прерывистый режим работы продолжительностью пять минут. Однако после этого им необходимо дать отдохнуть не менее 15 минут.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n2.Если кнопки UP и DOWN или RIGHT и LEFT нажаты одновременно, соответствующее поворотное устройство вращается вверх или вправо (по часовой стрелке).",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n3.Отпускайте кнопку, когда индикатор показывает в концевых зонах шкалы (поворотное устройство останавливается).",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n4.Не забывайте выключать блок управления, когда поворотные устройства не используются.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image5.png"
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image6.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Если установлен дополнительный блок компьютерного интерфейса GS-232, кабель RS-232C от компьютера проходит через эту втулку и фиксируется на месте нейлоновым зажимом для кабеля.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Разъем внешнего управления со стороны проводки",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Pin",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "(",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "контакт",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Функции",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Обеспечивает напряжение от 2 до 4,5 В постоянного тока, соответствующее диапазону от 0 до 180°",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Подключите к контакту 8 для вращения вправо (по часовой стрелке)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "3",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Подключите к контакту 8 для вращения ВНИЗ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "4",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Подключите к контакту 8 для вращения влево (против часовой стрелки)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "5",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Подключите к контакту 8 для вращения ВВЕРХ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "6",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Обеспечивает напряжение от 2 до 4,5 В постоянного тока, соответствующее диапазону от 0 до 450°",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "7",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Обеспечивает постоянное напряжение от 13 В до 6 В при токе до 200 мА",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "8",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Общий (земля)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image7.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "ДОБАВИТЬ ОПИСАНИЕ АВТОНАВЕДЕНИЯ ПО ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "TLE",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "3. Фильтрующие устройства системы",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "3.1 Подавление помех в приёмном диапазоне",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "СПЕЦИФИКАЦИЯ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "МОДЕЛЬ: HDF435CF11",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Абсолютные максимальные номиналы",
+          "bold": true,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Параметры",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Значение",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Напряжение постоянного тока",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "10 В",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Напряжение переменного тока (размах)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "10 В",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Частота сети",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "50 Гц / 60 Гц",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Рабочая температура",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "от -20°C до +60°C",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Температура хранения",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "от -45°C до +85°C",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Рассеиваемая ВЧ-мощность",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "0 ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "дБм",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Электрические характеристики",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Типовая частотная характеристика",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image8.png"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Параметр",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Значение",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Единица измерения",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Номер детали",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "F435C",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "-",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Номинальная центральная частота (",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "Fo",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ")",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "435,0",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "МГц",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вносимые потери: ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1. fo-45,8 ~ fo-39,8 МГц ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2. ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "fo",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " ± 4,0 МГц ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "3. fo+39,8 ~ fo+45,8 МГц",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "45 мин. ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "5,0 макс. ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "45 мин.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Неравномерность (в полосе ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "Fo",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " ± 3,0 МГц)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "2,0 макс.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Входное/выходное сопротивление (номинальное)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "50 / 0",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Ом / пФ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "СХЕМА ИЗМЕРЕНИЙ",
+          "bold": true,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image9.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "ГАБАРИТНЫЙ ЧЕРТЕЖ",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image10.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "4. Усилительная часть",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "4.1. ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Усилитель",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "image",
+          "src": "/docs/tech/images/image11.png"
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "SP 70 представляет собой селективный приёмный предварительный усилитель с переключением «приём/передача». Он имеет регулируемое усиление, низкий коэффициент шума и хорошее поведение при работе с большими сигналами. В случае малых мощностей передачи переключение «приём/передача» может быть реализовано с помощью встроенной ВЧ-схемы VOX (голосовое управление). Этот усилитель построен на ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "GaAs",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " MMIC (арсенид-галлиевом монолитном СВЧ-интегральном чипе) по новейшей технологии на высококачественной микроволновой подложке с использованием SMD-технологии. Полосовой фильтр на выходе усилителя обеспечивает хорошую селекцию ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "диапазона, благодаря чему все сигналы, находящиеся за пределами рабочей полосы, эффективно подавляются. Этот усилитель имеет брызгозащищённый, устойчивый к ультрафиолету пластиковый корпус и оцинкованные мачтовые хомуты с винтами из нержавеющей стали для крепления к антенной мачте.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Параметр",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Значение",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Диапазон частот",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "430-440",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " МГц",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Коэффициент шума, тип.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "1,0 дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Усиление, переменное",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "13-22",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": " дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Коммутируемая мощность",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "ВЧ-VOX 100 Вт",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Передаваемая мощность при использовании секвенсора",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "500 Вт ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "PEP",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ", 300 Вт / ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "FM",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": ", ",
+                  "bold": false,
+                  "italic": false
+                },
+                {
+                  "type": "text",
+                  "text": "WSJT",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вносимые потери в режиме TX",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "0,15 дБ",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Стандарт подключения",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "N-гнездо",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Вход питания локальный",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "UHF-гнездо",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Дистанционное питание",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "N-выходная розетка",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Рабочее напряжение",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "12 В-15 В",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Потребляемая мощность, тип.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "330 мА",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Диаметр мачты",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "макс. 58 мм",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Время переключения (TX->RX)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "0,50 сек.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ],
+        [
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "Время переключения (RX->TX)",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "type": "p",
+              "style": null,
+              "runs": [
+                {
+                  "type": "text",
+                  "text": "0,02 сек.",
+                  "bold": false,
+                  "italic": false
+                }
+              ]
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "5. Приемное устройство (СДР) — ",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": true,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One",
+          "bold": true,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "В качестве приемного устройства в комплексе используется программно-определяемый радиоприемник (SDR) ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One. Это устройство подключается к выходу усилителя SP 70 и под управлением ПК обеспечивает приём и оцифровку сигналов в диапазоне от 1 МГц до 6 ГГц, что полностью перекрывает рабочий диапазон антенны (70 см).",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "5.1. Структурная схема подключения",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Общая схема подключения радиочастотного тракта от антенны к ПК выглядит следующим образом:",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "X-Quad (антенна) → Фильтр HDF435CF11 → Усилитель SP 70 → ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One → Персональный компьютер (USB)",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Схема соединения кабелей и разъёмов: Антенна подключается к фильтру, фильтр — ко входу усилителя SP 70 (ANT). Выход усилителя (TRX) соединяется с антенным входом ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One (SMA ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Female",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "). Управление питанием усилителя осуществляется через отдельный кабель питания (12-15В), а приёмник ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One питается и обменивается данными через порт USB (Micro-B) компьютера.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "5.2. Подготовка и настройка ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Перед началом работы необходимо убедиться в готовности устройства и хоста (ПК).",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Подключение и индикация:",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\nПри подключении ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One к USB-порту компьютера (который должен обеспечивать ток не менее 500 мА) на плате устройства должны загореться четыре светодиода (LED): 3V3, 1V8, RF и USB. Это индикация того, что питание в норме, прошивка ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "запущена и установлено USB-соединение. (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "См. раздел «8. ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "LEDs",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "» в документации на ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ").",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Установка программного обеспечения:",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\nДля работы с устройством необходимы утилиты ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "hackrf-tools",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " и библиотека ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "libhackrf",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": ". Рекомендуемый способ установки в ОС семейства Linux (Ubuntu/",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Debian",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "):",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "sudo",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "apt-get",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "install",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "hackrf",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Проверка связи с устройством:",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\nПосле подключения и установки ПО необходимо выполнить команду для получения информации об устройстве:",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "hackrf_info",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "В выводе команды должны отображаться серийный номер, версия прошивки и другие параметры. Это подтверждает корректное определение устройства системой.",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "5.3. Ключевые параметры и управление усилением",
+          "bold": false,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Частота: 1 МГц – 6 ГГц (диапазон 435 МГц поддерживается).",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Частота дискретизации (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Sample",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " Rate): Рекомендуется устанавливать от 8 до 20 МГц. Использование частоты ниже 8 МГц не рекомендуется, так как фильтр основной полосы MAX2837 имеет минимальную полосу пропускания 1,75 МГц, что приводит к недостаточному подавлению помех. (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "См. раздел «25. ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Sampling",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " Rate ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "and",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Baseband",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Filters",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "»",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ").",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": [
+        {
+          "type": "text",
+          "text": "Управление усилением при приёме (RX ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Gain",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "):",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\n",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "HackRF",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " One имеет три каскада усиления: RF, IF (LNA) и ",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "Baseband",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": " (VGA).",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\nРекомендуемая стартовая конфигурация: RF = 0 (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "выкл",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "), IF = 16 дБ, VGA = 16 дБ.",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "\nРегулировку следует производить, примерно одинаково изменяя усиление IF и VGA. Включение RF-усиления (-a 1) оправдано только для очень слабых сигналов. Чрезмерное усиление приводит к искажениям (появлению ложных сигналов на спектре). (",
+          "bold": false,
+          "italic": false
+        },
+        {
+          "type": "text",
+          "text": "См. раздел «26. ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Setting",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Gain",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "Controls",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": "for",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": " RX»",
+          "bold": false,
+          "italic": true
+        },
+        {
+          "type": "text",
+          "text": ").",
+          "bold": false,
+          "italic": false
+        }
+      ]
+    },
+    {
+      "type": "p",
+      "style": null,
+      "runs": []
+    }
+  ]
+}

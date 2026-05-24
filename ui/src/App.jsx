@@ -103,7 +103,7 @@ const MENU_ITEMS = [
   { to: "/ais",        label: "AIS",          icon: MenuIcons.ais },
   { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
   { to: SDR_URL,       label: "SDR",          icon: MenuIcons.sdr, external: true },
-  { to: "/challenge",  label: "Challenge",    icon: MenuIcons.challenge },
+  { to: "/challenge",  label: "Практические кейсы", icon: MenuIcons.challenge },
   { to: "/storage",       label: "Хранилище",     icon: MenuIcons.storage },
   { to: "/snapshots",     label: "Снимки",        icon: MenuIcons.snapshots },
   { to: "/identification", label: "Идентификация", icon: MenuIcons.identification },
@@ -324,7 +324,7 @@ function AppInner() {
           <Route path="/storage" element={<StoragePage />} />
           <Route path="/snapshots" element={<SnapshotsPage />} />
           <Route path="/identification" element={<IdentificationPage />} />
-          <Route path="/documentation" element={<DocumentationPage />} />
+          <Route path="/documentation/*" element={<DocumentationPage />} />
           <Route path="/login" element={<AuthPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
