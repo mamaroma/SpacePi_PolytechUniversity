@@ -53,3 +53,7 @@ data/processed/*.mat
 *.iq
 sdr/sdr_web_test/data/recordings/
 sdr/sdr_web_test/data/silence/
+
+# ─── Архив телеметрии / AIS (хранится только на сервере) ─────
+tele-ais_data/
+data/teleais_cache/

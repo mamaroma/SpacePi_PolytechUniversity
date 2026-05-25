@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, AttributionControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, AttributionControl, CircleMarker, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Hint, { GuideBanner } from "../components/Hint";
+import { fetchTeleaisAisPoints } from "../api";
 
 /* Палитра типов судов в соответствии с фиолетово-оранжевой темой проекта. */
 const SHIP_TYPES = {
@@ -239,7 +240,42 @@ function advance(ship, minutes) {
 
 const FLEET = buildShipFleet();
 
+/* ─── Главный компонент: переключатель табов ─────────────────────────────── */
 export default function ShipsPage() {
+  const [tab, setTab] = useState("demo"); // "demo" | "sat"
+  return (
+    <div className="app-body">
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-title">AIS · корабли</h1>
+          <p className="page-subtitle">
+            Демо-карта со сгенерированным трафиком и реальные данные, полученные со спутников.
+          </p>
+        </div>
+      </div>
+
+      <div className="ctrl-row" style={{ marginBottom: 14, gap: 8 }}>
+        <button
+          className={`btn btn-tab ${tab === "demo" ? "active" : ""}`}
+          onClick={() => setTab("demo")}
+        >
+          Демо-карта
+        </button>
+        <button
+          className={`btn btn-tab ${tab === "sat" ? "active" : ""}`}
+          onClick={() => setTab("sat")}
+        >
+          Данные со спутников
+        </button>
+      </div>
+
+      {tab === "demo" ? <DemoMapTab /> : <SatDataMapTab />}
+    </div>
+  );
+}
+
+/* ─── Таб «Демо-карта» — то, что было раньше на странице ─────────────────── */
+function DemoMapTab() {
   const [visibleTypes, setVisibleTypes] = useState(new Set(SHIP_TYPE_LIST));
   const [tOffsetMin, setTOffsetMin] = useState(0);  // -360..0..+0 (минуты от "сейчас")
   const [playing, setPlaying] = useState(false);
@@ -285,14 +321,12 @@ export default function ShipsPage() {
   };
 
   return (
-    <div className="app-body">
+    <>
       <GuideBanner id="ais-intro">
-        <strong>AIS-карта.</strong> Здесь показаны суда, которые мы видим через
-        приёмник AIS-сигналов в зонах активного судоходства (Россия, СНГ, Китай,
-        ЮВА). Кликните по корме корабля, чтобы увидеть последний принятый AIS-пакет
-        с координатами, скоростью и качеством сигнала. Используйте бегунок
-        времени, чтобы посмотреть, как двигались корабли в течение последних
-        6 часов.
+        <strong>Демо-карта AIS.</strong> Здесь показаны{" "}
+        <em>сгенерированные</em> суда в зонах активного судоходства (Россия, СНГ,
+        Китай, ЮВА). Это <b>учебная модель</b> — для работы с реальными
+        приёмами с орбиты переключитесь на вкладку «Данные со спутников».
       </GuideBanner>
 
       <div className="controls-card">
@@ -348,7 +382,7 @@ export default function ShipsPage() {
 
       <div className="globe-card">
         <div className="card-header">
-          <span className="card-title">AIS Vessel Tracking — 2D Карта</span>
+          <span className="card-title">Демо-карта · AIS Vessel Tracking</span>
           <span className="card-meta">{ships.length} судов</span>
         </div>
         <div className="globe-inner" style={{ height: 640 }}>
@@ -421,6 +455,384 @@ export default function ShipsPage() {
           </MapContainer>
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+/* ─── Таб «Данные со спутников» ───────────────────────────────────────────── */
+
+/** Источники AIS — спутники, с которых принят пакет. Цвет совпадает с
+ *  отметкой кораблика на карте. */
+const SAT_COLORS = {
+  "CSTP-2.1":  "#f39768",
+  "CSTP-2.2":  "#9460b8",
+  "PU-4":      "#5ad6ff",
+  "CSTP-2.10": "#6cc77b",
+  "unknown":   "#8aa090",
+};
+
+const SAT_ORDER = ["CSTP-2.1", "CSTP-2.2", "PU-4"];
+
+/** Ищем для каждой позиции 4-минутное «окно» вокруг указанного времени.
+ *  Возвращаем «последнюю позицию» (по последнему времени) на каждое MMSI. */
+function pointsAtTime(points, ts, windowMin = 60) {
+  const half = windowMin * 60 * 1000;
+  const lo = ts - half;
+  const hi = ts + half;
+  // Точки уже отсортированы по ts, можно бинарным поиском срезать. Но 500
+  // штук — берём фильтром, всё равно быстро.
+  const slice = points.filter((p) => p._t >= lo && p._t <= hi);
+
+  // последняя точка на mmsi (либо просто все точки если нет MMSI)
+  const byMmsi = new Map();
+  for (const p of slice) {
+    const key = p.mmsi || `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;
+    const prev = byMmsi.get(key);
+    if (!prev || p._t > prev._t) byMmsi.set(key, p);
+  }
+  return Array.from(byMmsi.values());
+}
+
+function makeSatVesselIcon(satColor, course = 0) {
+  return L.divIcon({
+    html: `<div style="transform:rotate(${Math.round(course || 0)}deg);filter:drop-shadow(0 0 4px ${satColor});">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="${satColor}">
+        <path d="M12 2L5 21l7-4 7 4z" stroke="#0d0a18" stroke-width="0.7"/>
+      </svg>
+    </div>`,
+    className: "",
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -10],
+  });
+}
+
+function SatDataMapTab() {
+  const [raw, setRaw] = useState(null);   // вся выгрузка с сервера
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [enabledSats, setEnabledSats] = useState(() => new Set(SAT_ORDER));
+  const [tIdx, setTIdx] = useState(0);          // позиция бегунка (0..N-1)
+  const [playing, setPlaying] = useState(false);
+  const [showTracks, setShowTracks] = useState(true);
+  const [windowMin, setWindowMin] = useState(60); // окно вокруг tIdx, минут
+  const playRef = useRef();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError("");
+    fetchTeleaisAisPoints(null)
+      .then((d) => {
+        if (cancelled) return;
+        // обогащаем точки числовым timestamp
+        const pts = (d.points || []).map((p) => ({ ...p, _t: Date.parse(p.ts) }))
+          .filter((p) => Number.isFinite(p._t));
+        setRaw({ ...d, points: pts });
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e?.message || String(e));
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // фильтрация по чекбоксам спутников
+  const filteredAll = useMemo(() => {
+    if (!raw) return [];
+    return raw.points.filter((p) => enabledSats.has(p.sat));
+  }, [raw, enabledSats]);
+
+  // строим временную ось — равномерные шаги по 5 минут от min до max
+  const timeline = useMemo(() => {
+    if (!raw || !raw.min_ts || !raw.max_ts) return null;
+    const min = Date.parse(raw.min_ts);
+    const max = Date.parse(raw.max_ts);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
+    const stepMs = 5 * 60 * 1000;
+    const total = Math.ceil((max - min) / stepMs);
+    return { min, max, stepMs, total };
+  }, [raw]);
+
+  useEffect(() => {
+    // сброс позиции если timeline появился
+    if (timeline) setTIdx(timeline.total);
+  }, [timeline]);
+
+  useEffect(() => {
+    if (!playing || !timeline) return;
+    playRef.current = setInterval(() => {
+      setTIdx((i) => (i >= timeline.total ? 0 : i + 1));
+    }, 200);
+    return () => clearInterval(playRef.current);
+  }, [playing, timeline]);
+
+  const currentTs = timeline ? timeline.min + tIdx * timeline.stepMs : 0;
+
+  const visiblePoints = useMemo(() => {
+    if (!timeline) return [];
+    return pointsAtTime(filteredAll, currentTs, windowMin);
+  }, [filteredAll, currentTs, windowMin, timeline]);
+
+  // Треки по MMSI — соединяем все позиции одного судна по фильтру
+  const tracks = useMemo(() => {
+    if (!showTracks) return [];
+    const m = new Map();
+    for (const p of filteredAll) {
+      if (!p.mmsi) continue;
+      if (!m.has(p.mmsi)) m.set(p.mmsi, []);
+      m.get(p.mmsi).push(p);
+    }
+    const out = [];
+    for (const [mmsi, pts] of m) {
+      if (pts.length < 2) continue;
+      pts.sort((a, b) => a._t - b._t);
+      out.push({
+        mmsi,
+        sat: pts[0].sat,
+        positions: pts.map((p) => [p.lat, p.lon]),
+      });
+    }
+    return out;
+  }, [filteredAll, showTracks]);
+
+  const toggleSat = (s) => {
+    setEnabledSats((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  };
+
+  // Центр карты — над Арктикой (там вся выборка)
+  const center = useMemo(() => {
+    if (visiblePoints.length) {
+      const lat = visiblePoints.reduce((a, p) => a + p.lat, 0) / visiblePoints.length;
+      const lon = visiblePoints.reduce((a, p) => a + p.lon, 0) / visiblePoints.length;
+      return [lat, lon];
+    }
+    return [72, 75];
+  }, [visiblePoints]);
+
+  const fmtCurrent = () => {
+    if (!timeline) return "—";
+    const d = new Date(currentTs);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth()+1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+  };
+
+  return (
+    <>
+      <GuideBanner id="ais-sat-intro">
+        <strong>Данные со спутников.</strong> Реальные AIS-репорты, принятые
+        спутниками <b>CSTP-2.1</b>, <b>CSTP-2.2</b> и <b>PU-4</b> над Арктикой
+        в феврале 2025 г. Чекбоксами выбирайте, какие источники
+        отображать; бегунком — момент времени. Если выбраны все три — на карте
+        все суда сразу.
+      </GuideBanner>
+
+      <div className="controls-card">
+        <div className="ctrl-row" style={{ flexWrap: "wrap", gap: 12 }}>
+          <span className="ctrl-label">Источник AIS</span>
+          <Hint text="Эти чекбоксы фильтруют точки по тому, какой спутник их принял." />
+          {SAT_ORDER.map((s) => (
+            <label
+              key={s}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enabledSats.has(s)}
+                onChange={() => toggleSat(s)}
+                style={{ accentColor: SAT_COLORS[s] }}
+              />
+              <span style={{
+                width: 10, height: 10, borderRadius: "50%",
+                background: SAT_COLORS[s], display: "inline-block",
+              }} />
+              <span style={{ color: "var(--text)" }}>{s}</span>
+              {raw && raw.by_sat && (
+                <span style={{ color: "var(--text-muted)", fontFamily: "'Space Mono', monospace" }}>
+                  · {raw.by_sat[s] || 0}
+                </span>
+              )}
+            </label>
+          ))}
+
+          <div className="ctrl-spacer" />
+
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-dim)" }}>
+            <input
+              type="checkbox"
+              checked={showTracks}
+              onChange={(e) => setShowTracks(e.target.checked)}
+              style={{ accentColor: "var(--orange)" }}
+            />
+            Треки (Polyline по MMSI)
+          </label>
+
+          <span className="card-meta">
+            {raw ? `${raw.total} точек · ${Object.keys(raw.sessions || {}).length} сессий` : "…"}
+          </span>
+        </div>
+
+        <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <span className="ctrl-label">Время</span>
+          <Hint text="Перетащите бегунок, чтобы увидеть позиции кораблей в выбранный момент. ▶ запускает анимацию." />
+          <button
+            className="btn btn-sm"
+            onClick={() => setPlaying((p) => !p)}
+            disabled={!timeline}
+          >
+            {playing ? "❚❚ Пауза" : "▶ Воспроизвести"}
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => { setTIdx(timeline?.total || 0); setPlaying(false); }}
+            disabled={!timeline}
+          >
+            В конец
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => { setTIdx(0); setPlaying(false); }}
+            disabled={!timeline}
+          >
+            В начало
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={timeline?.total ?? 0}
+            step={1}
+            value={tIdx}
+            onChange={(e) => setTIdx(Number(e.target.value))}
+            disabled={!timeline}
+            style={{ flex: 1, minWidth: 240, accentColor: "var(--orange)" }}
+          />
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "var(--text-dim)" }}>
+            {fmtCurrent()}
+          </span>
+        </div>
+
+        <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <span className="ctrl-label">Окно показа</span>
+          <Hint text="Сколько минут до и после выбранного времени учитывать как «здесь и сейчас»." />
+          {[15, 30, 60, 120, 360].map((w) => (
+            <button
+              key={w}
+              className={`btn btn-sm ${windowMin === w ? "active" : ""}`}
+              onClick={() => setWindowMin(w)}
+            >
+              ±{w >= 60 ? `${w / 60} ч` : `${w} мин`}
+            </button>
+          ))}
+          <div className="ctrl-spacer" />
+          <span className="card-meta">
+            На экране: {visiblePoints.length} судов{tracks.length ? ` · треков ${tracks.length}` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className="globe-card">
+        <div className="card-header">
+          <span className="card-title">AIS · реальные приёмы со спутников</span>
+          <span className="card-meta">
+            {raw && raw.min_ts && raw.max_ts
+              ? `${new Date(raw.min_ts).toLocaleDateString("ru")} — ${new Date(raw.max_ts).toLocaleDateString("ru")}`
+              : "—"}
+          </span>
+        </div>
+        <div className="globe-inner" style={{ height: 640 }}>
+          {error ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--orange-2)" }}>
+              Не удалось загрузить данные: {error}
+            </div>
+          ) : loading ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+              Загрузка реальных AIS-данных…
+            </div>
+          ) : (
+            <MapContainer
+              center={center}
+              zoom={4}
+              style={{ width: "100%", height: "100%" }}
+              attributionControl={false}
+              preferCanvas
+            >
+              <AttributionControl position="bottomright" prefix={false} />
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                subdomains="abcd"
+                maxZoom={19}
+                attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+              />
+
+              {tracks.map((tr) => (
+                <Polyline
+                  key={`trk-${tr.mmsi}`}
+                  positions={tr.positions}
+                  pathOptions={{
+                    color: SAT_COLORS[tr.sat] || "#9460b8",
+                    weight: 1.5,
+                    opacity: 0.45,
+                    dashArray: "3 4",
+                  }}
+                />
+              ))}
+
+              {visiblePoints.map((p, i) => {
+                const color = SAT_COLORS[p.sat] || "#9460b8";
+                const hasCourse = Number.isFinite(p.cog);
+                return (
+                  <Marker
+                    key={`${p.mmsi}-${i}`}
+                    position={[p.lat, p.lon]}
+                    icon={makeSatVesselIcon(color, hasCourse ? p.cog : 0)}
+                  >
+                    <Popup>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, minWidth: 240 }}>
+                        <div style={{ color, fontWeight: 700, marginBottom: 6, fontSize: 13 }}>
+                          MMSI {p.mmsi || "—"}
+                          {p.name ? ` · ${p.name}` : ""}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px" }}>
+                          <span style={{ color: "#8aa090" }}>Принят:</span>
+                          <span>{new Date(p.ts).toLocaleString("ru")}</span>
+                          <span style={{ color: "#8aa090" }}>Спутник:</span>
+                          <span style={{ color }}>{p.sat}</span>
+                          <span style={{ color: "#8aa090" }}>Сессия:</span>
+                          <span style={{ fontSize: 10 }}>{p.session}</span>
+                          <span style={{ color: "#8aa090" }}>Позиция:</span>
+                          <span>{p.lat.toFixed(4)} · {p.lon.toFixed(4)}</span>
+                          {Number.isFinite(p.sog) && (<>
+                            <span style={{ color: "#8aa090" }}>SOG:</span>
+                            <span>{p.sog} уз</span>
+                          </>)}
+                          {Number.isFinite(p.cog) && (<>
+                            <span style={{ color: "#8aa090" }}>COG:</span>
+                            <span>{Math.round(p.cog)}°</span>
+                          </>)}
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

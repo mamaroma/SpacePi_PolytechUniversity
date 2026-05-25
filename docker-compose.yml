@@ -30,11 +30,15 @@ services:
     environment:
       DATABASE_URL: "postgresql+psycopg2://spacepi:spacepi@db:5432/spacepi"
       CORS_ALLOW_ORIGINS: "*"
+      # Архивные CSV (телеметрия PU-1..PU-6 и AIS-сессии), смонтированы ниже
+      TELEAIS_DATA_DIR: "/app/tele-ais_data"
     volumes:
       # Persist Telethon session file (re-use existing session)
       - ./telemetry_session.session:/app/telemetry_session.session
       # Mount SDR data directory (contains nothing.iq and recordings)
       - ./sdr/sdr_web_test/data:/app/sdr/sdr_web_test/data
+      # Архив телеметрии и AIS (read-only) — на сервере положен в /opt/spacepi
+      - ./tele-ais_data:/app/tele-ais_data:ro
     depends_on:
       db:
         condition: service_healthy

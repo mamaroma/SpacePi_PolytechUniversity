@@ -229,6 +229,30 @@ export async function fetchDemoEmiPackets() {
   return fetchJson(`${API_BASE}/api/storage/_demo_emi`);
 }
 
+/* ── Tele-AIS archive (real data from server) ───────────── */
+export async function fetchTeleaisTelemetryList() {
+  return fetchJson(`${API_BASE}/api/teleais/telemetry/list`);
+}
+
+export function teleaisTelemetryDownloadUrl(satCode) {
+  return `${API_BASE}/api/teleais/telemetry/download?sat=${encodeURIComponent(satCode)}`;
+}
+
+export async function fetchTeleaisAisList() {
+  return fetchJson(`${API_BASE}/api/teleais/ais/list`);
+}
+
+export function teleaisAisDownloadUrl(relPath) {
+  return `${API_BASE}/api/teleais/ais/download?path=${encodeURIComponent(relPath)}`;
+}
+
+export async function fetchTeleaisAisPoints(sats /* string[] | null */) {
+  const qs = sats && sats.length
+    ? `?sats=${encodeURIComponent(sats.join(","))}`
+    : "";
+  return fetchJson(`${API_BASE}/api/teleais/ais/points${qs}`);
+}
+
 /* ── CNN Gallery ─────────────────────────────────────── */
 
 export async function fetchGallery() {
