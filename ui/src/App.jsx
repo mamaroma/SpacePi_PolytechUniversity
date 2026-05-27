@@ -98,7 +98,7 @@ const MenuIcons = {
 };
 
 const MENU_ITEMS = [
-  { to: "/",           label: "Главная",      icon: MenuIcons.home },
+  { to: "/news",       label: "Новости",      icon: MenuIcons.home },
   { to: "/telemetry",  label: "Телеметрия",   icon: MenuIcons.telemetry },
   { to: "/ais",        label: "AIS",          icon: MenuIcons.ais },
   { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
@@ -313,7 +313,8 @@ function AppInner() {
         </div>
       }>
         <Routes>
-          <Route path="/" element={<NewsPage />} />
+          <Route path="/" element={<Navigate to="/telemetry" replace />} />
+          <Route path="/news" element={<NewsPage />} />
           <Route path="/news/:id" element={<NewsDetailPage />} />
           <Route path="/telemetry" element={<SatellitesPage />} />
           <Route path="/ais" element={<ShipsPage />} />

@@ -312,6 +312,29 @@ export default function NewsPage() {
     <div className="app-body news-page-body">
       <SpaceBackground />
 
+      {/* ── TODO: убрать заглушку когда работы закончатся ── */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "14px 20px",
+        marginBottom: 18,
+        borderRadius: 12,
+        background: "rgba(243,151,104,0.10)",
+        border: "1px solid rgba(243,151,104,0.45)",
+        color: "#f39768",
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f39768" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Технические работы</div>
+          <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
+            Раздел новостей временно недоступен — ведутся технические работы. Скоро вернёмся.
+          </div>
+        </div>
+      </div>
+
       <GuideBanner id="news-intro" icon={null}>
         <strong>Новости проекта.</strong> Обновления наземной станции, запуски спутников,
         активности образовательной программы. Нажмите на дату в календаре, чтобы
