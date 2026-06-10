@@ -2209,6 +2209,7 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
 .creators-admin-card,
@@ -2234,7 +2235,9 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 }
 
 .creators-team-card {
+  height: 100%;
   text-align: center;
+  align-items: stretch;
   border-color: color-mix(in srgb, var(--person-accent) 28%, var(--border));
 }
 
@@ -2259,7 +2262,7 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  object-position: center 22%;
 }
 
 .creators-photo--admin {
@@ -2269,8 +2272,10 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 
 .creators-photo--team {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  max-height: 118px;
+  height: 136px;
+  min-height: 136px;
+  max-height: 136px;
+  margin: 0 auto;
 }
 
 .creators-photo--placeholder {
@@ -2320,6 +2325,17 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 
 .creators-team-card .creators-card-name {
   font-size: 12px;
+  min-height: 2.6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.creators-team-card .creators-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: flex-start;
 }
 
 .creators-card-roles {
@@ -2339,8 +2355,18 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   color: var(--text-dim);
 }
 
+.creators-team-card .creators-card-roles {
+  align-items: center;
+}
+
 .creators-team-card .creators-card-roles li {
   font-size: 11px;
+  padding-left: 0;
+  text-align: center;
+}
+
+.creators-team-card .creators-card-roles li::before {
+  display: none;
 }
 
 .creators-card-roles li::before {
