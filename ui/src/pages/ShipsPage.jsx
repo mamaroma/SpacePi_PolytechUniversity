@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, AttributionControl, CircleMarker, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, AttributionControl, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Hint, { GuideBanner } from "../components/Hint";
@@ -473,24 +473,24 @@ const SAT_COLORS = {
 
 const SAT_ORDER = ["CSTP-2.1", "CSTP-2.2", "PU-4"];
 
-/** Ищем для каждой позиции 4-минутное «окно» вокруг указанного времени.
- *  Возвращаем «последнюю позицию» (по последнему времени) на каждое MMSI. */
-function pointsAtTime(points, ts, windowMin = 60) {
-  const half = windowMin * 60 * 1000;
-  const lo = ts - half;
-  const hi = ts + half;
-  // Точки уже отсортированы по ts, можно бинарным поиском срезать. Но 500
-  // штук — берём фильтром, всё равно быстро.
-  const slice = points.filter((p) => p._t >= lo && p._t <= hi);
-
-  // последняя точка на mmsi (либо просто все точки если нет MMSI)
+/** Последняя известная позиция каждого судна на момент ts.
+ *  Берём все репорты не позже ts, но не старше windowMin — так на карте
+ *  видно больше кораблей, а не только те, что попали в узкое ±окно. */
+function pointsAtTime(points, ts, windowMin = 360) {
+  const maxAge = windowMin * 60 * 1000;
   const byMmsi = new Map();
-  for (const p of slice) {
+  for (const p of points) {
+    if (p._t > ts) continue;
+    if (ts - p._t > maxAge) continue;
     const key = p.mmsi || `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`;
     const prev = byMmsi.get(key);
     if (!prev || p._t > prev._t) byMmsi.set(key, p);
   }
   return Array.from(byMmsi.values());
+}
+
+function isPlausibleArcticPoint(p) {
+  return Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.lat >= 45 && p.lat <= 90;
 }
 
 function makeSatVesselIcon(satColor, course = 0) {
@@ -515,8 +515,7 @@ function SatDataMapTab() {
   const [enabledSats, setEnabledSats] = useState(() => new Set(SAT_ORDER));
   const [tIdx, setTIdx] = useState(0);          // позиция бегунка (0..N-1)
   const [playing, setPlaying] = useState(false);
-  const [showTracks, setShowTracks] = useState(true);
-  const [windowMin, setWindowMin] = useState(60); // окно вокруг tIdx, минут
+  const [windowMin, setWindowMin] = useState(4320); // свежесть позиции, минут
   const playRef = useRef();
 
   useEffect(() => {
@@ -526,8 +525,9 @@ function SatDataMapTab() {
       .then((d) => {
         if (cancelled) return;
         // обогащаем точки числовым timestamp
-        const pts = (d.points || []).map((p) => ({ ...p, _t: Date.parse(p.ts) }))
-          .filter((p) => Number.isFinite(p._t));
+        const pts = (d.points || [])
+          .map((p) => ({ ...p, _t: Date.parse(p.ts) }))
+          .filter((p) => Number.isFinite(p._t) && isPlausibleArcticPoint(p));
         setRaw({ ...d, points: pts });
         setLoading(false);
       })
@@ -576,28 +576,6 @@ function SatDataMapTab() {
     return pointsAtTime(filteredAll, currentTs, windowMin);
   }, [filteredAll, currentTs, windowMin, timeline]);
 
-  // Треки по MMSI — соединяем все позиции одного судна по фильтру
-  const tracks = useMemo(() => {
-    if (!showTracks) return [];
-    const m = new Map();
-    for (const p of filteredAll) {
-      if (!p.mmsi) continue;
-      if (!m.has(p.mmsi)) m.set(p.mmsi, []);
-      m.get(p.mmsi).push(p);
-    }
-    const out = [];
-    for (const [mmsi, pts] of m) {
-      if (pts.length < 2) continue;
-      pts.sort((a, b) => a._t - b._t);
-      out.push({
-        mmsi,
-        sat: pts[0].sat,
-        positions: pts.map((p) => [p.lat, p.lon]),
-      });
-    }
-    return out;
-  }, [filteredAll, showTracks]);
-
   const toggleSat = (s) => {
     setEnabledSats((prev) => {
       const next = new Set(prev);
@@ -607,15 +585,8 @@ function SatDataMapTab() {
     });
   };
 
-  // Центр карты — над Арктикой (там вся выборка)
-  const center = useMemo(() => {
-    if (visiblePoints.length) {
-      const lat = visiblePoints.reduce((a, p) => a + p.lat, 0) / visiblePoints.length;
-      const lon = visiblePoints.reduce((a, p) => a + p.lon, 0) / visiblePoints.length;
-      return [lat, lon];
-    }
-    return [72, 75];
-  }, [visiblePoints]);
+  const mapCenter = [72, 60];
+  const mapZoom = 4;
 
   const fmtCurrent = () => {
     if (!timeline) return "—";
@@ -671,16 +642,6 @@ function SatDataMapTab() {
 
           <div className="ctrl-spacer" />
 
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-dim)" }}>
-            <input
-              type="checkbox"
-              checked={showTracks}
-              onChange={(e) => setShowTracks(e.target.checked)}
-              style={{ accentColor: "var(--orange)" }}
-            />
-            Треки (Polyline по MMSI)
-          </label>
-
           <span className="card-meta">
             {raw ? `${raw.total} точек · ${Object.keys(raw.sessions || {}).length} сессий` : "…"}
           </span>
@@ -726,20 +687,20 @@ function SatDataMapTab() {
         </div>
 
         <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <span className="ctrl-label">Окно показа</span>
-          <Hint text="Сколько минут до и после выбранного времени учитывать как «здесь и сейчас»." />
-          {[15, 30, 60, 120, 360].map((w) => (
+          <span className="ctrl-label">Свежесть позиций</span>
+          <Hint text="Показываем последнюю позицию судна, если её репорт не старше выбранного интервала относительно текущего момента на шкале." />
+          {[60, 360, 720, 1440, 4320].map((w) => (
             <button
               key={w}
               className={`btn btn-sm ${windowMin === w ? "active" : ""}`}
               onClick={() => setWindowMin(w)}
             >
-              ±{w >= 60 ? `${w / 60} ч` : `${w} мин`}
+              {w >= 1440 ? `${w / 1440} сут` : w >= 60 ? `${w / 60} ч` : `${w} мин`}
             </button>
           ))}
           <div className="ctrl-spacer" />
           <span className="card-meta">
-            На экране: {visiblePoints.length} судов{tracks.length ? ` · треков ${tracks.length}` : ""}
+            На экране: {visiblePoints.length} судов
           </span>
         </div>
       </div>
@@ -764,8 +725,8 @@ function SatDataMapTab() {
             </div>
           ) : (
             <MapContainer
-              center={center}
-              zoom={4}
+              center={mapCenter}
+              zoom={mapZoom}
               style={{ width: "100%", height: "100%" }}
               attributionControl={false}
               preferCanvas
@@ -777,19 +738,6 @@ function SatDataMapTab() {
                 maxZoom={19}
                 attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
               />
-
-              {tracks.map((tr) => (
-                <Polyline
-                  key={`trk-${tr.mmsi}`}
-                  positions={tr.positions}
-                  pathOptions={{
-                    color: SAT_COLORS[tr.sat] || "#9460b8",
-                    weight: 1.5,
-                    opacity: 0.45,
-                    dashArray: "3 4",
-                  }}
-                />
-              ))}
 
               {visiblePoints.map((p, i) => {
                 const color = SAT_COLORS[p.sat] || "#9460b8";

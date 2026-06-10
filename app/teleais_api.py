@@ -402,9 +402,8 @@ def _aggregate_points() -> dict:
                         lon = float(row.get("lon") or "")
                     except (TypeError, ValueError):
                         continue
-                    if not (math.isfinite(lat) and math.isfinite(lon)):
-                        continue
-                    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    lon = _normalize_lon(lon)
+                    if not _is_plausible_arctic_point(lat, lon):
                         continue
 
                     ts = _parse_iso(row.get("approx_time_utc") or "")
@@ -437,6 +436,7 @@ def _aggregate_points() -> dict:
         except Exception:
             continue
 
+    points = _filter_mmsi_outliers(points)
     points.sort(key=lambda p: p["ts"])
 
     return {
@@ -456,6 +456,89 @@ def _to_float(v) -> Optional[float]:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+# ── Валидация AIS-точек ───────────────────────────────────────────────────────
+# Сессии — арктические пролёты; координаты вне северных широт почти всегда
+# означают ошибку декодирования пакета (типичный артефакт — lat ~25°, lon ~±170°).
+
+_ARCTIC_MIN_LAT = 45.0
+
+
+def _normalize_lon(lon: float) -> float:
+    """Приводим долготу к диапазону [-180, 180]."""
+    while lon > 180:
+        lon -= 360
+    while lon < -180:
+        lon += 360
+    return lon
+
+
+def _is_plausible_arctic_point(lat: float, lon: float) -> bool:
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return False
+    if not (-90 <= lat <= 90):
+        return False
+    lon = _normalize_lon(lon)
+    if lat < _ARCTIC_MIN_LAT:
+        return False
+    return True
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
+
+def _filter_mmsi_outliers(points: list[dict]) -> list[dict]:
+    """
+    Для одного MMSI иногда попадают «призрачные» позиции далеко от основной
+    группы (битый декод). Оставляем крупнейший географический кластер.
+    """
+    by_mmsi: dict[str, list[dict]] = {}
+    singles: list[dict] = []
+    for p in points:
+        mmsi = p.get("mmsi") or ""
+        if not mmsi:
+            singles.append(p)
+            continue
+        by_mmsi.setdefault(mmsi, []).append(p)
+
+    kept: list[dict] = list(singles)
+    max_jump_km = 400.0  # ~4° широты — разумный предел для арктического пролёта
+
+    for mmsi, pts in by_mmsi.items():
+        if len(pts) == 1:
+            kept.append(pts[0])
+            continue
+
+        # Сортируем по времени, строим цепочку: добавляем точку, если она
+        # не слишком далеко от предыдущей принятой.
+        pts.sort(key=lambda x: x["ts"])
+        chain = [pts[0]]
+        for p in pts[1:]:
+            prev = chain[-1]
+            dist = _haversine_km(prev["lat"], prev["lon"], p["lat"], p["lon"])
+            if dist <= max_jump_km:
+                chain.append(p)
+        if len(chain) >= max(1, len(pts) // 2):
+            kept.extend(chain)
+        else:
+            # fallback: медианный кластер
+            lats = sorted(p["lat"] for p in pts)
+            lons = sorted(p["lon"] for p in pts)
+            med_lat = lats[len(lats) // 2]
+            med_lon = lons[len(lons) // 2]
+            for p in pts:
+                if _haversine_km(med_lat, med_lon, p["lat"], p["lon"]) <= max_jump_km:
+                    kept.append(p)
+
+    kept.sort(key=lambda p: p["ts"])
+    return kept
 
 
 @router.get("/ais/points")
