@@ -1419,7 +1419,6 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 }
 
 .nf-delete-btn {
-  margin-left: auto;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -1427,6 +1426,20 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   padding: 2px 6px;
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
+}
+.nf-edit-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(120, 170, 255, 0.75);
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.nf-edit-btn:hover {
+  color: #8cb4ff;
+  background: rgba(120, 170, 255, 0.12);
 }
 .nf-delete-btn:hover {
   color: #da4927;
@@ -1747,6 +1760,13 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 
 /* ─── News Form ─────────────────────────────────────── */
 .news-form { margin-bottom: 20px; }
+
+.news-form-title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
 
 .news-form-grid {
   display: grid;

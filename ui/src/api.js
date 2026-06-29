@@ -99,6 +99,25 @@ export async function createNews({ title, description, content, images = [] }, a
   return r.json();
 }
 
+export async function updateNews(id, { title, description, content, images = [] }, authHeader = {}) {
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("description", description);
+  formData.append("content", content || description);
+  images.forEach((img) => formData.append("images", img));
+
+  const r = await fetch(`${API_BASE}/api/news/${id}`, {
+    method: "PUT",
+    headers: { ...authHeader },
+    body: formData,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
 export async function deleteNews(id, authHeader = {}) {
   const r = await fetch(`${API_BASE}/api/news/${id}`, {
     method: "DELETE",

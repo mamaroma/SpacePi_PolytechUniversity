@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchNews, createNews, deleteNews } from "../api";
+import { fetchNews, createNews, updateNews, deleteNews } from "../api";
 import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
 import { GuideBanner } from "../components/Hint";
@@ -188,7 +188,7 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
 }
 
 /* ─── Single Feed Card ───────────────────────────────────────────────────── */
-function NewsFeedCard({ item, isEditor, onDelete }) {
+function NewsFeedCard({ item, isEditor, onDelete, onEdit }) {
   const hasImages = item.images?.length > 0;
 
   return (
@@ -212,16 +212,27 @@ function NewsFeedCard({ item, isEditor, onDelete }) {
               {item.views ?? 0}
             </span>
             {isEditor && (
-              <button
-                className="nf-delete-btn"
-                onClick={() => onDelete(item.id)}
-                title="Удалить новость"
-              >
+              <>
+                <button
+                  className="nf-edit-btn"
+                  onClick={() => onEdit(item)}
+                  title="Редактировать новость"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                  </svg>
+                </button>
+                <button
+                  className="nf-delete-btn"
+                  onClick={() => onDelete(item.id)}
+                  title="Удалить новость"
+                >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
                   <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                 </svg>
               </button>
+              </>
             )}
           </div>
 
@@ -243,6 +254,7 @@ export default function NewsPage() {
   const [news,       setNews]       = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [showForm,   setShowForm]   = useState(false);
+  const [editingId,  setEditingId]  = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
 
@@ -277,15 +289,45 @@ export default function NewsPage() {
     setPreviews(prev => prev.filter((_, idx) => idx !== i));
   };
 
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setContent("");
+    setImages([]);
+    setPreviews([]);
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setTitle(item.title || "");
+    setDescription(item.description || "");
+    setContent(item.content || item.description || "");
+    setImages([]);
+    setPreviews([]);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
-      await createNews({ title: title.trim(), description: description.trim(), content: content.trim(), images }, authHeader);
-      setTitle(""); setDescription(""); setContent("");
-      setImages([]); setPreviews([]);
-      setShowForm(false);
+      if (editingId) {
+        await updateNews(
+          editingId,
+          { title: title.trim(), description: description.trim(), content: content.trim(), images },
+          authHeader,
+        );
+      } else {
+        await createNews(
+          { title: title.trim(), description: description.trim(), content: content.trim(), images },
+          authHeader,
+        );
+      }
+      resetForm();
       await load();
     } catch (err) {
       alert("Ошибка: " + (err?.message || err));
@@ -312,29 +354,6 @@ export default function NewsPage() {
     <div className="app-body news-page-body">
       <SpaceBackground />
 
-      {/* ── TODO: убрать заглушку когда работы закончатся ── */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "14px 20px",
-        marginBottom: 18,
-        borderRadius: 12,
-        background: "rgba(243,151,104,0.10)",
-        border: "1px solid rgba(243,151,104,0.45)",
-        color: "#f39768",
-      }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f39768" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Технические работы</div>
-          <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
-            Раздел новостей временно недоступен — ведутся технические работы. Скоро вернёмся.
-          </div>
-        </div>
-      </div>
-
       <GuideBanner id="news-intro" icon={null}>
         <strong>Новости проекта.</strong> Обновления наземной станции, запуски спутников,
         активности образовательной программы. Нажмите на дату в календаре, чтобы
@@ -348,7 +367,10 @@ export default function NewsPage() {
           <p className="page-subtitle">Последние события и обновления наземной станции</p>
         </div>
         {isEditor && (
-          <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => (showForm ? resetForm() : (resetForm(), setShowForm(true)))}
+          >
             {showForm ? "Отмена" : "+ Добавить новость"}
           </button>
         )}
@@ -357,6 +379,7 @@ export default function NewsPage() {
       {/* ── Add-news form ── */}
       {showForm && (
         <form className="news-form card" onSubmit={handleSubmit}>
+          <h2 className="news-form-title">{editingId ? "Редактирование новости" : "Новая новость"}</h2>
           <div className="news-form-grid">
             <div className="news-form-fields">
               <label className="form-label">
@@ -380,7 +403,9 @@ export default function NewsPage() {
             </div>
 
             <div className="news-form-image-col">
-              <label className="form-label">Фотографии</label>
+              <label className="form-label">
+                {editingId ? "Новые фотографии (необязательно)" : "Фотографии"}
+              </label>
               <label className="image-upload-area image-upload-area--multi">
                 <div className="image-upload-placeholder">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -407,9 +432,9 @@ export default function NewsPage() {
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button type="submit" className="btn btn-success"
               disabled={submitting || !title.trim() || !description.trim()}>
-              {submitting ? "Публикация..." : "Опубликовать"}
+              {submitting ? "Сохранение..." : editingId ? "Сохранить изменения" : "Опубликовать"}
             </button>
-            <button type="button" className="btn" onClick={() => setShowForm(false)}>Отмена</button>
+            <button type="button" className="btn" onClick={resetForm}>Отмена</button>
           </div>
         </form>
       )}
@@ -441,6 +466,7 @@ export default function NewsPage() {
                   item={item}
                   isEditor={isEditor}
                   onDelete={handleDelete}
+                  onEdit={startEdit}
                   style={{ animationDelay: `${Math.min(idx, 6) * 0.08}s` }}
                 />
               ))}

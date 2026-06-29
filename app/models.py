@@ -55,3 +55,9 @@ class NewsItem(SQLModel, table=True):
     images_json: Optional[str] = None  # JSON array of image URLs
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     views: int = Field(default=0)
+
+
+class NewsSeedState(SQLModel, table=True):
+    """Отслеживает, какая ревизия seed-текста уже применена к новости в БД."""
+    news_id: str = Field(primary_key=True)
+    text_revision: int = Field(default=0)

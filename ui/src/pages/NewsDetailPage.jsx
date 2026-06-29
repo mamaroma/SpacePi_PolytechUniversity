@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchNewsById, trackNewsView } from "../api";
+import { fetchNewsById, trackNewsView, updateNews } from "../api";
+import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
 
 function formatDate(iso) {
@@ -13,9 +14,15 @@ function formatDate(iso) {
 
 export default function NewsDetailPage() {
   const { id } = useParams();
+  const { isEditor, authHeader } = useAuth();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -23,8 +30,9 @@ export default function NewsDetailPage() {
     fetchNewsById(id)
       .then((data) => {
         setItem(data);
-        // защита от двойного инкремента в React StrictMode (dev) и
-        // быстрых ремаунтов: считаем «просмотр» один раз за сессию вкладки.
+        setTitle(data.title || "");
+        setDescription(data.description || "");
+        setContent(data.content || data.description || "");
         try {
           const key = `news-viewed:${id}`;
           if (!sessionStorage.getItem(key)) {
@@ -38,13 +46,31 @@ export default function NewsDetailPage() {
               .catch(() => {});
           }
         } catch {
-          // sessionStorage может быть недоступен (приватный режим) — тогда просто инкрементим
           trackNewsView(id).catch(() => {});
         }
       })
       .catch((e) => setError(e?.message || "Новость не найдена"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) return;
+    setSaving(true);
+    try {
+      const updated = await updateNews(
+        id,
+        { title: title.trim(), description: description.trim(), content: content.trim() },
+        authHeader,
+      );
+      setItem(updated);
+      setEditing(false);
+    } catch (err) {
+      alert("Ошибка: " + (err?.message || err));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -71,33 +97,78 @@ export default function NewsDetailPage() {
 
   return (
     <div className="app-body">
-      <Link to="/" className="btn btn-sm" style={{ marginBottom: 16, display: "inline-flex" }}>
-        ← Назад к новостям
-      </Link>
-
-      <article className="news-detail card">
-        {images.length > 0 && (
-          <NewsCarousel images={images} compact={false} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <Link to="/" className="btn btn-sm" style={{ display: "inline-flex" }}>
+          ← Назад к новостям
+        </Link>
+        {isEditor && !editing && (
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => setEditing(true)}>
+            Редактировать
+          </button>
         )}
-        <div className="news-detail-body">
-          <div className="news-detail-meta">
-            <span className="news-card-date">{formatDate(item.created_at)}</span>
-            <span className="news-views">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              {item.views ?? 0}
-            </span>
+      </div>
+
+      {editing ? (
+        <form className="news-form card" onSubmit={handleSave}>
+          <h2 className="news-form-title">Редактирование новости</h2>
+          <label className="form-label">
+            Заголовок *
+            <input type="text" className="form-input" value={title}
+              onChange={(e) => setTitle(e.target.value)} required />
+          </label>
+          <label className="form-label">
+            Краткое описание *
+            <textarea className="form-textarea" rows={2} value={description}
+              onChange={(e) => setDescription(e.target.value)} required />
+          </label>
+          <label className="form-label">
+            Полный текст
+            <textarea className="form-textarea" rows={12} value={content}
+              onChange={(e) => setContent(e.target.value)} />
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button type="submit" className="btn btn-success" disabled={saving}>
+              {saving ? "Сохранение..." : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setEditing(false);
+                setTitle(item.title || "");
+                setDescription(item.description || "");
+                setContent(item.content || item.description || "");
+              }}
+            >
+              Отмена
+            </button>
           </div>
-          <h1 className="news-detail-title">{item.title}</h1>
-          <div className="news-detail-content">
-            {(item.content || item.description).split("\n").map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
+        </form>
+      ) : (
+        <article className="news-detail card">
+          {images.length > 0 && (
+            <NewsCarousel images={images} compact={false} />
+          )}
+          <div className="news-detail-body">
+            <div className="news-detail-meta">
+              <span className="news-card-date">{formatDate(item.created_at)}</span>
+              <span className="news-views">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                {item.views ?? 0}
+              </span>
+            </div>
+            <h1 className="news-detail-title">{item.title}</h1>
+            <div className="news-detail-content">
+              {(item.content || item.description).split("\n").map((para, i) => (
+                para.trim() ? <p key={i}>{para}</p> : null
+              ))}
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
+      )}
     </div>
   );
 }
