@@ -147,7 +147,9 @@ export default function NewsDetailPage() {
       ) : (
         <article className="news-detail card">
           {images.length > 0 && (
-            <NewsCarousel images={images} compact={false} />
+            <div className="news-detail-media">
+              <NewsCarousel images={images} compact={false} />
+            </div>
           )}
           <div className="news-detail-body">
             <div className="news-detail-meta">

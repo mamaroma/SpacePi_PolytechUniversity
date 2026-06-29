@@ -7,6 +7,7 @@ import { GuideBanner } from "../components/Hint";
 import SpaceBackground from "../components/SpaceBackground";
 
 const CALENDAR_START = { year: 2025, month: 5 }; // June 2025 (0-based month)
+const NEWS_PAGE_SIZE = 8;
 
 const MONTH_NAMES_RU = [
   "Январь","Февраль","Март","Апрель","Май","Июнь",
@@ -197,7 +198,7 @@ function NewsFeedCard({ item, isEditor, onDelete, onEdit }) {
         {/* Image strip (left on wide, top on narrow) */}
         {hasImages && (
           <div className="nf-card-media">
-            <NewsCarousel images={item.images} />
+            <NewsCarousel images={item.images} compact />
           </div>
         )}
 
@@ -241,10 +242,79 @@ function NewsFeedCard({ item, isEditor, onDelete, onEdit }) {
 
           <div className="nf-actions">
             <Link to={`/news/${item.id}`} className="btn btn-sm btn-primary">Читать далее →</Link>
+            {isEditor && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => onEdit(item)}
+              >
+                Редактировать
+              </button>
+            )}
           </div>
         </div>
       </div>
     </article>
+  );
+}
+
+/* ─── Feed pagination ────────────────────────────────────────────────────── */
+function NewsPagination({ page, totalPages, totalItems, onPageChange }) {
+  if (totalPages <= 1) return null;
+
+  const pages = [];
+  const addPage = (p) => pages.push(p);
+  if (totalPages <= 7) {
+    for (let p = 1; p <= totalPages; p++) addPage(p);
+  } else {
+    addPage(1);
+    if (page > 3) pages.push("…");
+    for (let p = Math.max(2, page - 1); p <= Math.min(totalPages - 1, page + 1); p++) {
+      if (!pages.includes(p)) addPage(p);
+    }
+    if (page < totalPages - 2) pages.push("…");
+    if (!pages.includes(totalPages)) addPage(totalPages);
+  }
+
+  return (
+    <nav className="news-pagination" aria-label="Страницы ленты новостей">
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
+        ← Назад
+      </button>
+      <div className="news-pagination-pages">
+        {pages.map((p, i) =>
+          p === "…" ? (
+            <span key={`ellipsis-${i}`} className="news-pagination-ellipsis">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              className={`news-pagination-page${p === page ? " news-pagination-page--active" : ""}`}
+              onClick={() => onPageChange(p)}
+              aria-current={p === page ? "page" : undefined}
+            >
+              {p}
+            </button>
+          )
+        )}
+      </div>
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+      >
+        Вперёд →
+      </button>
+      <span className="news-pagination-info">
+        {totalItems} новостей · стр. {page} из {totalPages}
+      </span>
+    </nav>
   );
 }
 
@@ -257,6 +327,7 @@ export default function NewsPage() {
   const [editingId,  setEditingId]  = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [page, setPage] = useState(1);
 
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
@@ -272,6 +343,8 @@ export default function NewsPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => { setPage(1); }, [selectedDate]);
 
   const handleImagesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -349,6 +422,23 @@ export default function NewsPage() {
     if (!selectedDate) return sorted;
     return sorted.filter(n => isoDay(n.created_at) === selectedDate);
   }, [news, selectedDate]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedNews.length / NEWS_PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const paginatedNews = useMemo(() => {
+    const start = (page - 1) * NEWS_PAGE_SIZE;
+    return sortedNews.slice(start, start + NEWS_PAGE_SIZE);
+  }, [sortedNews, page]);
+
+  const goToPage = (next) => {
+    const p = Math.min(totalPages, Math.max(1, next));
+    setPage(p);
+    document.querySelector(".news-feed-col")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="app-body news-page-body">
@@ -459,18 +549,26 @@ export default function NewsPage() {
               )}
             </div>
           ) : (
-            <div className="news-feed">
-              {sortedNews.map((item, idx) => (
-                <NewsFeedCard
-                  key={item.id}
-                  item={item}
-                  isEditor={isEditor}
-                  onDelete={handleDelete}
-                  onEdit={startEdit}
-                  style={{ animationDelay: `${Math.min(idx, 6) * 0.08}s` }}
-                />
-              ))}
-            </div>
+            <>
+              <div className="news-feed">
+                {paginatedNews.map((item, idx) => (
+                  <NewsFeedCard
+                    key={item.id}
+                    item={item}
+                    isEditor={isEditor}
+                    onDelete={handleDelete}
+                    onEdit={startEdit}
+                    style={{ animationDelay: `${Math.min(idx, 6) * 0.08}s` }}
+                  />
+                ))}
+              </div>
+              <NewsPagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={sortedNews.length}
+                onPageChange={goToPage}
+              />
+            </>
           )}
         </div>
 

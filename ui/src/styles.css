@@ -1341,6 +1341,55 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   gap: 14px;
 }
 
+.news-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  margin-top: 20px;
+  padding: 16px 0 8px;
+}
+.news-pagination-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.news-pagination-page {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(114,71,150,0.38);
+  background: rgba(27,21,48,0.6);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.news-pagination-page:hover {
+  border-color: rgba(243,151,104,0.55);
+  background: rgba(218,73,39,0.12);
+}
+.news-pagination-page--active {
+  border-color: rgba(243,151,104,0.75);
+  background: rgba(218,73,39,0.22);
+  font-weight: 600;
+  cursor: default;
+}
+.news-pagination-ellipsis {
+  color: var(--text-dim);
+  padding: 0 4px;
+  user-select: none;
+}
+.news-pagination-info {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
 /* ─── Feed Card ───────────────────────────────────────── */
 .nf-card {
   background: rgba(27,21,48,0.78);
@@ -1365,13 +1414,21 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 /* Media strip on the left (visible if images exist) */
 .nf-card-media {
   flex-shrink: 0;
-  width: 220px;
+  width: 240px;
+  height: 180px;
+  overflow: hidden;
 }
-.nf-card-media .carousel { height: 100%; }
+.nf-card-media .carousel {
+  width: 100%;
+  height: 180px;
+  margin-bottom: 0;
+  border-radius: 0;
+}
 .nf-card-media .carousel--full,
 .nf-card-media .carousel--compact {
-  height: 100%;
-  min-height: 160px;
+  height: 180px;
+  min-height: 180px;
+  max-height: 180px;
   border-radius: 0;
 }
 .nf-card-media .carousel__img {
@@ -1382,9 +1439,17 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 }
 @media (max-width: 640px) {
   .nf-card-inner { flex-direction: column; }
-  .nf-card-media { width: 100%; }
+  .nf-card-media {
+    width: 100%;
+    height: 200px;
+  }
+  .nf-card-media .carousel,
   .nf-card-media .carousel--full,
-  .nf-card-media .carousel--compact { min-height: 200px; }
+  .nf-card-media .carousel--compact {
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
+  }
 }
 
 .nf-card-body {
@@ -1894,7 +1959,9 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   margin-bottom: 12px;
 }
 .carousel--full {
-  max-height: 480px;
+  height: 400px;
+  max-height: 400px;
+  min-height: 400px;
   margin-bottom: 20px;
   display: flex;
   align-items: center;
@@ -1904,15 +1971,16 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;   /* contain = нет потери качества, фото не обрезается */
+  object-fit: cover;
   background: var(--surface-2);
 }
 .carousel--compact .carousel__img {
-  object-fit: cover;     /* в превью cover смотрится аккуратнее */
+  object-fit: cover;
 }
 .carousel--full .carousel__img {
-  max-height: 480px;
-  object-fit: contain;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
 }
 .carousel__btn {
   position: absolute;
@@ -1962,7 +2030,31 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
 
 /* ─── News Detail ──────────────────────────────────── */
 .news-detail { overflow: hidden; }
-.news-detail-body { padding: 4px 0; }
+.news-detail-media {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.news-detail-media .carousel {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.news-detail-media .carousel__img {
+  object-fit: cover;
+}
+.news-detail-body { padding: 20px 24px 24px; }
+@media (max-width: 640px) {
+  .news-detail-media,
+  .news-detail-media .carousel,
+  .carousel--full {
+    height: 240px;
+    min-height: 240px;
+    max-height: 240px;
+  }
+}
 .news-detail-title {
   font-size: 26px;
   font-weight: 700;
