@@ -302,13 +302,13 @@ export async function deleteGalleryPhoto(filename, authHeader = {}) {
   return r.json();
 }
 
-/* ── Artek registration ─────────────────────────────── */
-export async function fetchArtekFiles() {
-  return fetchJson(`${API_BASE}/api/artek/files`);
+/* ── Artek registration & challenges ─────────────────── */
+export async function fetchArtekInstructions() {
+  return fetchJson(`${API_BASE}/api/artek/instructions`);
 }
 
-export function artekFileDownloadUrl(name) {
-  return `${API_BASE}/api/artek/files/${encodeURIComponent(name)}`;
+export async function fetchArtekLevels() {
+  return fetchJson(`${API_BASE}/api/artek/levels`);
 }
 
 export async function submitArtekRegistration(payload) {
@@ -316,6 +316,40 @@ export async function submitArtekRegistration(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+export async function createArtekChallengeSession({ level, email }) {
+  const r = await fetch(`${API_BASE}/api/artek/challenges/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ level, email: email || null }),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+export function artekChallengeInputUrl(sessionId) {
+  return `${API_BASE}/api/artek/challenges/session/${encodeURIComponent(sessionId)}/input.csv`;
+}
+
+export async function submitArtekChallengeAnswer(sessionId, file, opts = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (opts.email) fd.append("email", opts.email);
+  fd.append("used_custom_decoder", opts.usedCustomDecoder ? "true" : "false");
+  fd.append("has_map_visualization", opts.hasMapVisualization ? "true" : "false");
+  const r = await fetch(`${API_BASE}/api/artek/challenges/session/${encodeURIComponent(sessionId)}/submit`, {
+    method: "POST",
+    body: fd,
   });
   if (!r.ok) {
     const txt = await r.text().catch(() => "");

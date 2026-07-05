@@ -21,7 +21,7 @@ from .collect_api import router as collect_router
 from .news import router as news_router
 from .auth import router as auth_router
 from .user_models import User  # noqa: F401 — registers User table with SQLModel metadata
-from .models import ArtekRegistration, NewsItem, NewsSeedState  # noqa: F401 — registers tables with SQLModel metadata
+from .models import ArtekChallengeSession, ArtekChallengeSubmission, ArtekRegistration, NewsItem, NewsSeedState  # noqa: F401 — registers tables with SQLModel metadata
 from .sdr_bridge import attach_sdr, sdr_startup, sdr_shutdown
 from .decode_api import router as decode_router
 from .storage_api import router as storage_router, seed_demo_storage

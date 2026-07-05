@@ -24,7 +24,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from main import AISSimulator, reference_process_level1, reference_process_multi_level
+from ais_engine import (
+    AISSimulator,
+    LEVEL_COUNTS,
+    build_challenge,
+    reference_process_level1,
+    reference_process_multi_level,
+)
 
 
 @dataclass

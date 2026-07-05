@@ -72,3 +72,31 @@ class ArtekRegistration(SQLModel, table=True):
     email: str = Field(index=True)
     consent_personal_data: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+
+
+class ArtekChallengeSession(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    level: int = Field(index=True)
+    email: Optional[str] = Field(default=None, index=True)
+    seed: int
+    input_json: str
+    reference_enc: str
+    packet_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+
+
+class ArtekChallengeSubmission(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: str = Field(foreign_key="artekchallengesession.id", index=True)
+    email: Optional[str] = Field(default=None, index=True)
+    answer_json: str
+    score_core: float = 0.0
+    score_bonus: float = 0.0
+    score_total: float = 0.0
+    matched: int = 0
+    reference_rows: int = 0
+    participant_rows: int = 0
+    details_json: str = "{}"
+    used_custom_decoder: bool = False
+    has_map_visualization: bool = False
+    submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
