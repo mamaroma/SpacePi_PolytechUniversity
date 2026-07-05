@@ -21,7 +21,7 @@ from .collect_api import router as collect_router
 from .news import router as news_router
 from .auth import router as auth_router
 from .user_models import User  # noqa: F401 — registers User table with SQLModel metadata
-from .models import NewsItem, NewsSeedState  # noqa: F401 — registers tables with SQLModel metadata
+from .models import ArtekRegistration, NewsItem, NewsSeedState  # noqa: F401 — registers tables with SQLModel metadata
 from .sdr_bridge import attach_sdr, sdr_startup, sdr_shutdown
 from .decode_api import router as decode_router
 from .storage_api import router as storage_router, seed_demo_storage
@@ -29,6 +29,7 @@ from .satellites_api import router as satellites_info_router
 from .gallery_api import router as gallery_router
 from .ingest_api import router as ingest_router
 from .teleais_api import router as teleais_router
+from .artek_api import router as artek_router
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ app.include_router(satellites_info_router)
 app.include_router(gallery_router)
 app.include_router(ingest_router)
 app.include_router(teleais_router)
+app.include_router(artek_router)
 
 # Заполняем «Хранилище» демо-файлами на старте (если ещё пусто)
 seed_demo_storage()

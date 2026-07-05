@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlmodel import SQLModel, Field
@@ -61,3 +61,14 @@ class NewsSeedState(SQLModel, table=True):
     """Отслеживает, какая ревизия seed-текста уже применена к новости в БД."""
     news_id: str = Field(primary_key=True)
     text_revision: int = Field(default=0)
+
+
+class ArtekRegistration(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    full_name: str
+    birth_date: date
+    school: str
+    country: str
+    email: str = Field(index=True)
+    consent_personal_data: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)

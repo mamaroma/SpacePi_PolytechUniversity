@@ -301,3 +301,25 @@ export async function deleteGalleryPhoto(filename, authHeader = {}) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
+
+/* ── Artek registration ─────────────────────────────── */
+export async function fetchArtekFiles() {
+  return fetchJson(`${API_BASE}/api/artek/files`);
+}
+
+export function artekFileDownloadUrl(name) {
+  return `${API_BASE}/api/artek/files/${encodeURIComponent(name)}`;
+}
+
+export async function submitArtekRegistration(payload) {
+  const r = await fetch(`${API_BASE}/api/artek/registrations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}

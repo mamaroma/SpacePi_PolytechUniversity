@@ -21,6 +21,7 @@ const StoragePage       = lazy(() => import("./pages/StoragePage"));
 const SnapshotsPage     = lazy(() => import("./pages/SnapshotsPage"));
 const IdentificationPage = lazy(() => import("./pages/IdentificationPage"));
 const DocumentationPage  = lazy(() => import("./pages/DocumentationPage"));
+const ArtekRegistrationPage = lazy(() => import("./pages/ArtekRegistrationPage"));
 
 const SDR_URL = `${API_BASE}/sdr`;
 
@@ -95,6 +96,12 @@ const MenuIcons = {
       <line x1="8" y1="17" x2="13" y2="17"/>
     </svg>
   ),
+  artek: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
+      <path d="m3 7 9 6 9-6"/>
+    </svg>
+  ),
 };
 
 const MENU_ITEMS = [
@@ -104,6 +111,7 @@ const MENU_ITEMS = [
   { to: "/emi",        label: "ЭМИ",          icon: MenuIcons.emi },
   { to: SDR_URL,       label: "SDR",          icon: MenuIcons.sdr, external: true },
   { to: "/challenge",  label: "Практические кейсы", icon: MenuIcons.challenge },
+  { to: "/artek-registration", label: "Artek registration", icon: MenuIcons.artek },
   { to: "/storage",       label: "Хранилище",     icon: MenuIcons.storage },
   { to: "/snapshots",     label: "Снимки",        icon: MenuIcons.snapshots },
   { to: "/identification", label: "Идентификация", icon: MenuIcons.identification },
@@ -322,6 +330,7 @@ function AppInner() {
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/creators" element={<CreatorsPage />} />
           <Route path="/challenge" element={<ChallengePage />} />
+          <Route path="/artek-registration" element={<ArtekRegistrationPage />} />
           <Route path="/storage" element={<StoragePage />} />
           <Route path="/snapshots" element={<SnapshotsPage />} />
           <Route path="/identification" element={<IdentificationPage />} />
