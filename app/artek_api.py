@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime, timezone
 from typing import Any, List, Optional
 
@@ -23,6 +24,7 @@ from .models import ArtekChallengeSession, ArtekChallengeSubmission, ArtekRegist
 
 
 router = APIRouter(prefix="/api/artek", tags=["artek"])
+logger = logging.getLogger(__name__)
 
 
 class ArtekRegistrationIn(BaseModel):
@@ -168,28 +170,33 @@ def create_challenge_session(
     payload: ChallengeSessionCreateIn,
     session: Session = Depends(get_session),
 ):
-    data = create_session(payload.level)
-    row = ArtekChallengeSession(
-        id=new_session_token(),
-        level=payload.level,
-        email=str(payload.email).lower() if payload.email else None,
-        seed=data["seed"],
-        input_json=json.dumps(data["input_rows"], ensure_ascii=False),
-        reference_enc=data["reference_enc"],
-        packet_count=data["packet_count"],
-        created_at=datetime.now(timezone.utc),
-    )
-    session.add(row)
-    session.commit()
-    input_rows = json.loads(row.input_json)
-    return ChallengeSessionOut(
-        session_id=row.id,
-        level=row.level,
-        packet_count=row.packet_count,
-        input_preview=input_rows[:8],
-        expected_format=LEVEL_FORMAT[row.level],
-        max_score=LEVEL_MAX[row.level],
-    )
+    try:
+        data = create_session(payload.level)
+        row = ArtekChallengeSession(
+            id=new_session_token(),
+            level=payload.level,
+            email=str(payload.email).lower() if payload.email else None,
+            seed=data["seed"],
+            input_json=json.dumps(data["input_rows"], ensure_ascii=False),
+            reference_enc=data["reference_enc"],
+            packet_count=data["packet_count"],
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(row)
+        session.commit()
+        input_rows = json.loads(row.input_json)
+        return ChallengeSessionOut(
+            session_id=row.id,
+            level=row.level,
+            packet_count=row.packet_count,
+            input_preview=input_rows[:8],
+            expected_format=LEVEL_FORMAT[row.level],
+            max_score=LEVEL_MAX[row.level],
+        )
+    except Exception as exc:
+        logger.exception("Failed to create artek challenge session level=%s", payload.level)
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Challenge session error: {exc}") from exc
 
 
 @router.get("/challenges/session/{session_id}/input.csv")

@@ -32,7 +32,8 @@ def decode_reference(encoded: str) -> list[dict[str, Any]]:
 
 
 def create_session(level: int) -> dict[str, Any]:
-    seed = secrets.randbits(63)
+    # PostgreSQL INTEGER = int32 — не используем randbits(63)
+    seed = secrets.randbits(31)
     challenge = build_challenge(level=level, seed=seed)
     return {
         "level": level,

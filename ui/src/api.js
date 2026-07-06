@@ -331,8 +331,14 @@ export async function createArtekChallengeSession({ level, email }) {
     body: JSON.stringify({ level, email: email || null }),
   });
   if (!r.ok) {
-    const txt = await r.text().catch(() => "");
-    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+    let detail = "";
+    try {
+      const j = await r.json();
+      detail = j.detail ?? JSON.stringify(j);
+    } catch {
+      detail = await r.text().catch(() => "");
+    }
+    throw new Error(`HTTP ${r.status}: ${String(detail).slice(0, 300)}`);
   }
   return r.json();
 }
