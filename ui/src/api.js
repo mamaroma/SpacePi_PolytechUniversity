@@ -307,6 +307,10 @@ export async function fetchArtekInstructions() {
   return fetchJson(`${API_BASE}/api/artek/instructions`);
 }
 
+export function artekParticipantPackageUrl() {
+  return `${API_BASE}/api/artek/participant-package`;
+}
+
 export async function fetchArtekLevels() {
   return fetchJson(`${API_BASE}/api/artek/levels`);
 }

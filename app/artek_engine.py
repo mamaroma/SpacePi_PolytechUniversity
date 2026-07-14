@@ -14,7 +14,8 @@ AIS_SIM = Path(__file__).resolve().parent.parent / "AIS_sim"
 if str(AIS_SIM) not in sys.path:
     sys.path.insert(0, str(AIS_SIM))
 
-from ais_engine import LEVEL_COUNTS, LEVEL_MAX_SCORE, build_challenge  # noqa: E402
+from ais_core.challenge import LEVEL_MAX_SCORE, build_challenge  # noqa: E402
+from ais_core.participant_pack import build_participant_zip_bytes  # noqa: E402
 
 
 def new_session_token() -> str:
@@ -236,6 +237,9 @@ def input_to_csv(input_rows: list[dict[str, str]]) -> str:
 
 
 def extract_contest_description() -> str:
+    zadanie = AIS_SIM / "ZADANIE.md"
+    if zadanie.exists():
+        return zadanie.read_text(encoding="utf-8")
     docx = AIS_SIM / "Konkurs.docx"
     if not docx.exists():
         return ""
@@ -255,9 +259,10 @@ def extract_contest_description() -> str:
 
 
 def extract_participant_instructions() -> str:
-    md = AIS_SIM / "INSTRUCTION_PARTICIPANT.md"
-    if md.exists():
-        return md.read_text(encoding="utf-8")
+    for name in ("UCHASTNIK.md", "INSTRUCTION_PARTICIPANT.md"):
+        md = AIS_SIM / name
+        if md.exists():
+            return md.read_text(encoding="utf-8")
     return extract_contest_description()
 
 

@@ -1,258 +1,260 @@
-#!/usr/bin/env python3
-"""
-main.py — инструмент участника (шаги 1–3).
-
-Шаг 1: генерация input_levelX.csv (без эталона)
-Шаг 2: декодирование через participant_decoder.py → output_levelX.csv
-Шаг 3: карта через participant_map.py
-
-Командная строка (рекомендуется на macOS/Linux):
-  python main.py --level 2 --step generate
-  python main.py --level 2 --step decode
-  python main.py --level 2 --step map
-
-Окно (GUI): те же шаги кнопками.
-"""
-from __future__ import annotations
-
-import argparse
 import csv
-import datetime
-import importlib.util
 import os
-import subprocess
-import sys
+import secrets
 import threading
-from pathlib import Path
+import webbrowser
+import tkinter as tk
+from tkinter import messagebox, scrolledtext, ttk
 
-from ais_engine import AISSimulator, LEVEL_COUNTS, universal_decoder
+from ais_core.cleanup import clean_level_workdir
+from ais_core.reference import build_reference
+from ais_core.sealed import (
+    create_run_package,
+    create_submission_package,
+    load_manifest,
+    participant_output_path,
+)
+from ais_core.simulator import AISSimulator, count_packet_issues, packet_count_for_level
+from ais_core.validation import validate_output
+from ais_core.gui_utils import bring_tk_window_to_front, startup_message
 
-BASE_DIR = Path(__file__).resolve().parent
-GENERATED_GLOBS = [
-    "input_level*.csv",
-    "output_level*.csv",
-    "reference_level*.csv",
-    "participant_output.csv",
-    "*.map.html",
-]
-
-LEVEL_HINTS = {
-    1: "Ожидается около 5 валидных MMSI после фильтрации.",
-    2: "Ожидается около 34 точек трека одного MMSI.",
-    3: "Ожидается 13 судов (7 у Атлантики + 6 у Тихого океана).",
-    4: "Ожидается 60 точек (4 судна × 15 шагов), параллельные коридоры.",
-}
-
-
-def cleanup_generated():
-    removed = []
-    for pattern in GENERATED_GLOBS:
-        for p in BASE_DIR.glob(pattern):
-            try:
-                p.unlink()
-                removed.append(p.name)
-            except Exception:
-                pass
-    return removed
-
-
-def input_path(level: int) -> Path:
-    return BASE_DIR / f"input_level{level}.csv"
-
-
-def output_path(level: int) -> Path:
-    return BASE_DIR / f"output_level{level}.csv"
-
-
-def decoder_path() -> Path:
-    return BASE_DIR / "participant_decoder.py"
-
-
-def map_path() -> Path:
-    return BASE_DIR / "participant_map.py"
-
-
-def step_generate(level: int) -> list[str]:
-    logs = []
-    cleanup_generated()
-    logs.append("Очищены старые input/output/reference файлы.")
-
-    sim = AISSimulator(level=level, num_packets=LEVEL_COUNTS[level])
-    packets = sim.generate_packets(count_packets=LEVEL_COUNTS[level])
-
-    in_file = input_path(level)
-    with in_file.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["timestamp", "ais_sentence"])
-        writer.writerows(packets)
-
-    broken = sum(1 for _, pkt in packets if pkt.startswith("!AIVDM") is False or "ERROR" in pkt or "!" in pkt[7:20])
-    logs.append(f"Шаг 1 выполнен: создан {in_file.name}")
-    logs.append(f"Пакетов: {len(packets)} (повреждённых/ошибочных: {broken})")
-    logs.append(LEVEL_HINTS[level])
-    logs.append("Эталон участнику НЕ выдаётся. Проверка — у организатора.")
-    return logs
-
-
-def load_decoder():
-    path = decoder_path()
-    if not path.exists():
-        return None, None
-    spec = importlib.util.spec_from_file_location("participant_decoder", str(path))
-    if spec is None or spec.loader is None:
-        return None, None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    fn = getattr(module, "decode_packets", None)
-    return fn if callable(fn) else None, path
-
-
-def step_decode(level: int) -> list[str]:
-    logs = []
-    in_file = input_path(level)
-    if not in_file.exists():
-        raise FileNotFoundError(f"Сначала выполните шаг 1 (нет {in_file.name})")
-
-    with in_file.open("r", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-
-    decoder_fn, dec_path = load_decoder()
-    if decoder_fn:
-        logs.append(f"Используется декодер: {dec_path.name}")
-        result = decoder_fn(rows)
-        if not isinstance(result, list):
-            raise ValueError("participant_decoder.decode_packets() должен вернуть list[dict]")
-    else:
-        logs.append("participant_decoder.py не найден — используется базовый декодер.")
-        result = []
-        for row in rows:
-            res = universal_decoder(row.get("ais_sentence", ""))
-            if res:
-                res["last_seen"] = row.get("timestamp", "")
-                result.append(res)
-
-    out_file = output_path(level)
-    if result:
-        keys = sorted({k for row in result for k in row.keys()})
-        with out_file.open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=keys)
-            w.writeheader()
-            w.writerows(result)
-    else:
-        out_file.write_text("mmsi\n", encoding="utf-8")
-
-    valid_lines = len(result)
-    unique_mmsi = len({str(r.get("mmsi")) for r in result if r.get("mmsi")})
-    logs.append("Шаг 2: декодирование завершено.")
-    logs.append(f"Прочитано строк входа: {len(rows)}")
-    logs.append(f"Успешно декодировано: {valid_lines}")
-    logs.append(f"Уникальных MMSI в ответе: {unique_mmsi}")
-    logs.append(f"Результат сохранён: {out_file.name}")
-    logs.append(LEVEL_HINTS[level])
-    logs.append(
-        "Участник не видит эталон. Корректность оценивает проверяющий "
-        "или портал (сравнение с закрытым reference)."
-    )
-    return logs
-
-
-def step_map(level: int) -> list[str]:
-    logs = []
-    out_file = output_path(level)
-    if not out_file.exists():
-        raise FileNotFoundError(f"Сначала выполните шаг 2 (нет {out_file.name})")
-
-    mp = map_path()
-    if not mp.exists():
-        raise FileNotFoundError(
-            "Создайте participant_map.py: скопируйте participant_map_template.py → participant_map.py"
-        )
-
-    cmd = [sys.executable, str(mp), "--csv", str(out_file)]
-    logs.append(f"Запуск карты: {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=str(BASE_DIR), check=True)
-    logs.append("Шаг 3: карта открыта в браузере (HTML рядом с CSV).")
-    return logs
-
-
-# ─── GUI ───────────────────────────────────────────────────────────────────
-try:
-    import tkinter as tk
-    from tkinter import ttk, scrolledtext, messagebox
-except Exception:
-    tk = None
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+WORK_DIR = os.path.join(PROJECT_ROOT, "AIS_sim")
 
 
 class AISParticipantApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("AIS — инструмент участника")
-        self.root.geometry("720x580")
+        self.root.title("AIS Simulator — участник")
+        self.root.geometry("720x640")
         self.status_var = tk.StringVar(value="Готов")
-        self.level_var = tk.StringVar(value="1")
-        self._build()
+        self.init_ui()
 
-    def _build(self):
-        frame = ttk.Frame(self.root, padding=12)
-        frame.pack(fill=tk.BOTH, expand=True)
+    def init_ui(self):
+        main_frame = ttk.Frame(self.root, padding="15")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        row = ttk.Frame(frame)
-        row.pack(fill=tk.X)
-        ttk.Label(row, text="Уровень:").pack(side=tk.LEFT)
-        ttk.Combobox(row, textvariable=self.level_var, values=["1", "2", "3", "4"], width=4, state="readonly").pack(side=tk.LEFT, padx=6)
+        ttk.Label(
+            main_frame,
+            text="Инструкция: UCHASTNIK.md",
+            font=("", 10, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 8))
 
-        btns = ttk.Frame(frame)
-        btns.pack(fill=tk.X, pady=10)
-        ttk.Button(btns, text="Шаг 1 — сгенерировать input", command=lambda: self._run(step_generate)).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btns, text="Шаг 2 — декодировать", command=lambda: self._run(step_decode)).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btns, text="Шаг 3 — карта", command=lambda: self._run(step_map)).pack(side=tk.LEFT, padx=4)
+        # --- Шаг 1 ---
+        s1 = ttk.LabelFrame(main_frame, text=" Шаг 1. Генерация входных пакетов (здесь, в main.py) ", padding="10")
+        s1.pack(fill=tk.X, pady=4)
+        ttk.Label(s1, text="Уровень:").grid(row=0, column=0, sticky=tk.W)
+        self.level_combo = ttk.Combobox(s1, values=["1", "2", "3", "4"], width=5, state="readonly")
+        self.level_combo.current(0)
+        self.level_combo.grid(row=0, column=1, padx=5)
+        self.gen_btn = ttk.Button(s1, text="Сгенерировать input_levelN.csv", command=self.start_generation)
+        self.gen_btn.grid(row=0, column=2, padx=8)
+        ttk.Label(
+            s1,
+            text="Создаёт AIS_sim/input_levelN.csv. Старый output этого уровня удаляется автоматически.",
+            wraplength=650,
+        ).grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=(6, 0))
 
-        self.log_area = scrolledtext.ScrolledText(frame, height=22, state="disabled", bg="#f7f7f7")
-        self.log_area.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W).pack(fill=tk.X, pady=(8, 0))
+        # --- Шаг 2 ---
+        s2 = ttk.LabelFrame(
+            main_frame,
+            text=" Шаг 2. Декодирование (ВАША программа — НЕ в main.py) ",
+            padding="10",
+        )
+        s2.pack(fill=tk.X, pady=4)
+        ttk.Label(
+            s2,
+            text=(
+                "Напишите свой парсер (Python/C++/Java — на выбор).\n"
+                "Вход:  AIS_sim/input_levelN.csv\n"
+                "Выход: AIS_sim/output_levelN.csv\n"
+                "Шаблон декодера (опционально): скопируйте decoder.py.example → decoder.py в КОРЕНЬ проекта"
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W)
+        ttk.Button(s2, text="Проверить мой output_levelN.csv", command=self.check_output).pack(
+            anchor=tk.W, pady=6
+        )
 
-        self._log("Рабочая папка: " + str(BASE_DIR))
-        self._log("Файлы участника: participant_decoder.py, participant_map.py, output_levelX.csv")
+        # --- Шаг 3 ---
+        s3 = ttk.LabelFrame(main_frame, text=" Шаг 3. Визуализация (ВАША карта) ", padding="10")
+        s3.pack(fill=tk.X, pady=4)
+        ttk.Label(
+            s3,
+            text=(
+                "Обязательно для уровней 2 и 4.\n"
+                "Своя карта: map.py.example → map.py в КОРНЕ проекта (рядом с main.py).\n"
+                "Быстрая самопроверка: кнопка ниже (встроенная карта, не зачётная как решение)."
+            ),
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W)
+        ttk.Button(s3, text="Построить карту из output_levelN.csv", command=self.build_map).pack(
+            anchor=tk.W, pady=6
+        )
 
-    def _log(self, text):
+        # --- Шаг 4 ---
+        s4 = ttk.LabelFrame(main_frame, text=" Шаг 4. Отправка на портал ", padding="10")
+        s4.pack(fill=tk.X, pady=4)
+        ttk.Label(s4, text="Имя участника:").grid(row=0, column=0, sticky=tk.W)
+        self.name_entry = ttk.Entry(s4, width=28)
+        self.name_entry.grid(row=0, column=1, padx=5)
+        ttk.Button(s4, text="Собрать submission.aispkg", command=self.build_submission).grid(
+            row=0, column=2, padx=5
+        )
+        ttk.Label(
+            s4,
+            text="На портал загружайте ТОЛЬКО файл submission.aispkg (не весь проект).",
+            wraplength=650,
+        ).grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=(6, 0))
+
+        self.log_area = scrolledtext.ScrolledText(main_frame, height=12, state="disabled", bg="#f8f8f8")
+        self.log_area.pack(fill=tk.BOTH, expand=True, pady=8)
+        ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W).pack(fill=tk.X)
+
+    def log(self, text):
         self.log_area.configure(state="normal")
-        self.log_area.insert(tk.END, f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {text}\n")
+        self.log_area.insert(tk.END, f"{text}\n")
         self.log_area.see(tk.END)
         self.log_area.configure(state="disabled")
 
-    def _run(self, fn):
-        level = int(self.level_var.get())
-        self.status_var.set("Выполнение...")
-        def worker():
-            try:
-                for line in fn(level):
-                    self.root.after(0, lambda l=line: self._log(l))
-                self.root.after(0, lambda: self.status_var.set("Готово"))
-            except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror("Ошибка", str(e)))
-                self.root.after(0, lambda: self.status_var.set("Ошибка"))
-        threading.Thread(target=worker, daemon=True).start()
+    def start_generation(self):
+        try:
+            level = int(self.level_combo.get())
+            count = packet_count_for_level(level)
+            self.gen_btn.config(state=tk.DISABLED)
+            threading.Thread(target=self._generate, args=(level, count), daemon=True).start()
+        except Exception as exc:
+            self.gen_btn.config(state=tk.NORMAL)
+            messagebox.showerror("Ошибка", str(exc))
 
+    def _generate(self, level, count):
+        try:
+            removed = clean_level_workdir(WORK_DIR, level)
+            if removed:
+                self.log(f"Удалены старые файлы уровня {level}: {', '.join(removed)}")
 
-def main():
-    parser = argparse.ArgumentParser(description="AIS participant tool")
-    parser.add_argument("--level", type=int, choices=[1, 2, 3, 4], default=1)
-    parser.add_argument("--step", choices=["generate", "decode", "map"], help="CLI шаг")
-    args = parser.parse_args()
+            os.makedirs(WORK_DIR, exist_ok=True)
+            self.status_var.set("Генерация...")
+            seed = secrets.randbits(63)
+            sim = AISSimulator(level=level, num_packets=count, seed=seed)
+            packets = sim.generate_packets(count_packets=count)
+            reference = build_reference(packets, level, ships_data=sim.ships_data)
+            stats = count_packet_issues(packets, level)
 
-    if args.step:
-        os.chdir(BASE_DIR)
-        fn = {"generate": step_generate, "decode": step_decode, "map": step_map}[args.step]
-        for line in fn(args.level):
-            print(line)
-        return
+            info = create_run_package(WORK_DIR, level, seed, packets, reference)
 
-    if tk is None:
-        raise SystemExit("tkinter недоступен. Используйте --step generate|decode|map")
-    root = tk.Tk()
-    AISParticipantApp(root)
-    root.mainloop()
+            self.log(f"=== Шаг 1 готов: уровень {level} ===")
+            self.log(f"Вход:  {info['input_path']}")
+            self.log(f"Пакетов: {stats['total']}, с нарушением синтаксиса: ~{stats['syntax_broken']}")
+
+            if level == 1:
+                bad_ships = sum(
+                    1 for s in sim.ships_data
+                    if s["lat"] > 90 or s["lon"] > 180 or s["speed"] < 0
+                )
+                self.log(f"Судов с заведомо плохими координатами в генераторе: {bad_ships} из {len(sim.ships_data)}")
+
+            self.log(f"Run ID: {info['run_id']}")
+            self.log("→ Теперь Шаг 2: запустите СВОЙ парсер, сохраните output_level{}.csv".format(level))
+            self.status_var.set("Шаг 1 готов")
+        except Exception as exc:
+            self.log(f"Ошибка: {exc}")
+            self.status_var.set("Ошибка")
+        finally:
+            self.gen_btn.config(state=tk.NORMAL)
+
+    def check_output(self):
+        try:
+            result = validate_output(WORK_DIR)
+            for msg in result["messages"]:
+                self.log(f"[Проверка] {msg}")
+            for warn in result["warnings"]:
+                self.log(f"[Замечание] {warn}")
+
+            title = "Проверка ответа"
+            if result["ok"] and not result["warnings"]:
+                messagebox.showinfo(title, "\n".join(result["messages"]))
+            elif result["ok"]:
+                messagebox.showwarning(title, "\n".join(result["messages"] + result["warnings"]))
+            else:
+                messagebox.showerror(title, "\n".join(result["messages"] + result["warnings"]))
+        except Exception as exc:
+            messagebox.showerror("Ошибка", str(exc))
+
+    def build_map(self):
+        try:
+            manifest = load_manifest(WORK_DIR)
+            csv_path = participant_output_path(WORK_DIR, manifest["level"])
+            if not os.path.isfile(csv_path):
+                messagebox.showwarning(
+                    "Нет данных",
+                    f"Сначала выполните Шаг 2.\nФайл не найден:\n{csv_path}",
+                )
+                return
+
+            from participant_map import render_map_to_html, open_map_in_browser
+
+            html_path, msg = render_map_to_html(csv_path, project_root=PROJECT_ROOT)
+            url = open_map_in_browser(html_path)
+            self.log(f"[Карта] {msg}")
+            self.log(f"[Карта] Открыто в браузере: {url}")
+            messagebox.showinfo("Карта", f"{msg}\n\nОткрыто в браузере.\nЕсли не открылось (macOS): скопируйте путь в браузер:\n{html_path}")
+        except Exception as exc:
+            messagebox.showerror("Ошибка карты", str(exc))
+
+    def build_submission(self):
+        try:
+            val = validate_output(WORK_DIR)
+            if not val["ok"]:
+                if not messagebox.askyesno(
+                    "Предупреждение",
+                    "Ответ не прошёл базовую проверку.\nВсё равно собрать submission?",
+                ):
+                    return
+
+            name = self.name_entry.get().strip()
+            out_path, meta = create_submission_package(WORK_DIR, participant_name=name)
+            plugins = meta["plugins"]
+            self.log(f"=== submission собран: {out_path} ===")
+            if plugins["custom_decoder"]:
+                self.log("Найден decoder.py в корне проекта (+бонус)")
+            if plugins["custom_map"]:
+                self.log("Найден map.py в корне проекта (+бонус)")
+            messagebox.showinfo(
+                "Готово",
+                f"Файл для портала:\n{out_path}\n\nЗагрузите ТОЛЬКО этот файл.",
+            )
+        except Exception as exc:
+            messagebox.showerror("Ошибка", str(exc))
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="AIS Simulator — участник")
+    parser.add_argument("--level", type=int, choices=[1, 2, 3, 4], help="Шаг 1 без GUI")
+    parser.add_argument("--gui", action="store_true", help="Открыть окно")
+    args = parser.parse_args()
+
+    if args.level and not args.gui:
+        level = args.level
+        removed = clean_level_workdir(WORK_DIR, level)
+        if removed:
+            print(f"Удалены: {', '.join(removed)}", flush=True)
+        count = packet_count_for_level(level)
+        seed = secrets.randbits(63)
+        sim = AISSimulator(level=level, num_packets=count, seed=seed)
+        packets = sim.generate_packets(count_packets=count)
+        reference = build_reference(packets, level, ships_data=sim.ships_data)
+        stats = count_packet_issues(packets, level)
+        info = create_run_package(WORK_DIR, level, seed, packets, reference)
+        print(f"Шаг 1 готов: {info['input_path']}", flush=True)
+        print(f"Пакетов: {stats['total']}, синтакс. ошибок: ~{stats['syntax_broken']}", flush=True)
+        print(f"Run ID: {info['run_id']}", flush=True)
+        print("Шаг 2: ваш парсер → AIS_sim/output_level{}.csv".format(level), flush=True)
+    else:
+        startup_message("main.py: ищите окно на Dock (macOS) или за другими окнами")
+        root = tk.Tk()
+        app = AISParticipantApp(root)
+        bring_tk_window_to_front(root)
+        root.mainloop()

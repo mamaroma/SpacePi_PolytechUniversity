@@ -1,0 +1,66 @@
+"""
+Шаблон доп. задания: собственная визуализация.
+
+Скопируйте в map.py в корень проекта.
+Функция visualize() вызывается participant_map.py и проверяющей системой.
+"""
+import json
+import os
+
+
+def visualize(input_csv, output_csv, output_html=None):
+    """
+  Строит HTML-карту по декодированным данным участника.
+
+  Аргументы:
+      input_csv: сырые пакеты (для контекста, можно не использовать)
+      output_csv: ваш декодированный CSV (lat/lon)
+      output_html: путь для сохранения HTML (если None — вернуть путь сами)
+
+  Возвращает:
+      путь к созданному HTML-файлу
+  """
+    import csv
+
+    rows = []
+    with open(output_csv, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if "lat" in row and "lon" in row:
+                try:
+                    rows.append(
+                        {
+                            "mmsi": row.get("mmsi", "?"),
+                            "lat": float(row["lat"]),
+                            "lon": float(row["lon"]),
+                            "speed": row.get("speed", "?"),
+                        }
+                    )
+                except ValueError:
+                    continue
+
+    if not rows:
+        raise ValueError("Нет координат в output_csv")
+
+    out = output_html or os.path.join(os.path.dirname(output_csv), "visualization.html")
+    clat = sum(r["lat"] for r in rows) / len(rows)
+    clon = sum(r["lon"] for r in rows) / len(rows)
+    markers = []
+    for r in rows:
+        popup = f"MMSI {r['mmsi']}, speed {r['speed']}"
+        markers.append(
+            f"L.marker([{r['lat']},{r['lon']}]).addTo(map).bindPopup({json.dumps(popup)});"
+        )
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>html,body,#map{{height:100%;margin:0}}</style></head>
+<body><div id="map"></div><script>
+var map=L.map('map').setView([{clat},{clon}],8);
+L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(map);
+{chr(10).join(markers)}
+</script></body></html>"""
+
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html)
+    return out

@@ -7,6 +7,7 @@ import {
   createArtekChallengeSession,
   fetchArtekInstructions,
   fetchArtekLevels,
+  artekParticipantPackageUrl,
   submitArtekChallengeAnswer,
   submitArtekRegistration,
 } from "../api";
@@ -336,6 +337,23 @@ export default function ArtekRegistrationPage() {
             {submitInfo && <span className="artek-submit-info">{submitInfo}</span>}
           </div>
         </form>
+      </section>
+
+      <section className="card artek-card">
+        <h2 className="artek-section-title">Скачать задание (только для участника)</h2>
+        <p className="artek-muted">
+          Архив <strong>AIS_participant.zip</strong> содержит программу и инструкции участника.
+          Папка <code>judge/</code>, эталоны и скрипты проверяющего в архив <strong>не входят</strong>.
+        </p>
+        <div className="artek-form-actions">
+          <a className="btn btn-primary" href={artekParticipantPackageUrl()} download="AIS_participant.zip">
+            Скачать AIS_participant.zip
+          </a>
+        </div>
+        <p className="artek-muted" style={{ marginTop: 12 }}>
+          После шагов 1–4 в локальном проекте на портал загружайте только файл{" "}
+          <code>AIS_sim/submission.aispkg</code> (не весь проект и не этот zip).
+        </p>
       </section>
 
       <section className="card artek-card">

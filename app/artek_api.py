@@ -6,11 +6,12 @@ from datetime import date, datetime, timezone
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
 
 from .artek_engine import (
+    build_participant_zip_bytes,
     create_session,
     decode_reference,
     extract_contest_description,
@@ -120,6 +121,21 @@ def get_instructions():
         "contest": extract_contest_description(),
         "participant": extract_participant_instructions(),
     }
+
+
+@router.get("/participant-package")
+def download_participant_package():
+    """Архив задания для участника — без judge/ и без эталонов."""
+    try:
+        data = build_participant_zip_bytes()
+    except Exception as exc:
+        logger.exception("Failed to build participant package")
+        raise HTTPException(status_code=500, detail=f"Package build error: {exc}") from exc
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="AIS_participant.zip"'},
+    )
 
 
 @router.get("/levels")
