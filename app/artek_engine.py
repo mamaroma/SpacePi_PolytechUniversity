@@ -17,6 +17,8 @@ if str(AIS_SIM) not in sys.path:
 from ais_core.challenge import LEVEL_MAX_SCORE, build_challenge  # noqa: E402
 from ais_core.participant_pack import build_participant_zip_bytes  # noqa: E402
 
+from .portal_instruction import markdown_to_portal_document
+
 
 def new_session_token() -> str:
     return secrets.token_urlsafe(24)
@@ -264,6 +266,32 @@ def extract_participant_instructions() -> str:
         if md.exists():
             return md.read_text(encoding="utf-8")
     return extract_contest_description()
+
+
+def extract_contest_portal() -> dict[str, Any]:
+    doc = markdown_to_portal_document(extract_contest_description())
+    doc["blocks"] = [
+        b
+        for b in doc["blocks"]
+        if not (
+            b.get("type") == "paragraph"
+            and "Пошаговая инструкция" in b.get("text", "")
+        )
+    ]
+    return doc
+
+
+def extract_participant_portal() -> dict[str, Any]:
+    doc = markdown_to_portal_document(extract_participant_instructions())
+    cleaned = []
+    for b in doc["blocks"]:
+        if b.get("type") == "paragraph":
+            t = b.get("text", "")
+            if "ZADANIE.md" in t or "рабочий документ для участника" in t:
+                continue
+        cleaned.append(b)
+    doc["blocks"] = cleaned
+    return doc
 
 
 def extract_instructions() -> str:

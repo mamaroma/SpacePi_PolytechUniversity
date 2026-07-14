@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import SpaceBackground from "../components/SpaceBackground";
+import PortalInstruction from "../components/PortalInstruction";
 import {
   artekChallengeInputUrl,
   createArtekChallengeSession,
@@ -11,25 +12,6 @@ import {
   submitArtekChallengeAnswer,
   submitArtekRegistration,
 } from "../api";
-
-function splitInstructions(text) {
-  return (text || "")
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
-
-function splitMarkdownSections(text) {
-  const raw = (text || "").trim();
-  if (!raw) return [];
-  const parts = raw.split(/\n(?=## )/);
-  return parts.map((block) => {
-    const lines = block.trim().split("\n");
-    const title = lines[0].startsWith("## ") ? lines[0].replace(/^##\s+/, "") : null;
-    const body = (title ? lines.slice(1) : lines).join("\n").trim();
-    return { title, paragraphs: splitInstructions(body) };
-  });
-}
 
 function ParticipantMap({ points }) {
   const valid = (points || []).filter(
@@ -218,8 +200,8 @@ function ChallengePanel({ levelMeta, registrantEmail }) {
 }
 
 export default function ArtekRegistrationPage() {
-  const [contestText, setContestText] = useState("");
-  const [participantText, setParticipantText] = useState("");
+  const [contestDoc, setContestDoc] = useState(null);
+  const [participantDoc, setParticipantDoc] = useState(null);
   const [levels, setLevels] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -240,12 +222,12 @@ export default function ArtekRegistrationPage() {
       setLoadingMeta(true);
       try {
         const [instr, lvls] = await Promise.all([
-          fetchArtekInstructions().catch(() => ({ contest: "", participant: "" })),
+          fetchArtekInstructions().catch(() => ({ contest: null, participant: null })),
           fetchArtekLevels().catch(() => []),
         ]);
         if (!mounted) return;
-        setContestText(instr?.contest || instr?.text || "");
-        setParticipantText(instr?.participant || "");
+        setContestDoc(instr?.contest?.blocks ? instr.contest : null);
+        setParticipantDoc(instr?.participant?.blocks ? instr.participant : null);
         setLevels(Array.isArray(lvls) ? lvls : []);
       } finally {
         if (mounted) setLoadingMeta(false);
@@ -253,12 +235,6 @@ export default function ArtekRegistrationPage() {
     })();
     return () => { mounted = false; };
   }, []);
-
-  const contestParagraphs = useMemo(() => splitInstructions(contestText), [contestText]);
-  const participantSections = useMemo(
-    () => splitMarkdownSections(participantText),
-    [participantText]
-  );
 
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -360,34 +336,17 @@ export default function ArtekRegistrationPage() {
         <h2 className="artek-section-title">Описание отборочного этапа</h2>
         {loadingMeta ? (
           <p className="artek-muted">Загрузка...</p>
-        ) : contestParagraphs.length === 0 ? (
-          <p className="artek-muted">Текст описания временно недоступен.</p>
         ) : (
-          <div className="artek-instruction-text">
-            {contestParagraphs.map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
-          </div>
+          <PortalInstruction document={contestDoc} />
         )}
       </section>
 
       <section className="card artek-card">
-        <h2 className="artek-section-title">Инструкция участника (пошагово)</h2>
+        <h2 className="artek-section-title">Инструкция участника</h2>
         {loadingMeta ? (
           <p className="artek-muted">Загрузка...</p>
-        ) : participantSections.length === 0 ? (
-          <p className="artek-muted">Инструкция временно недоступна.</p>
         ) : (
-          <div className="artek-instruction-text">
-            {participantSections.map((section, i) => (
-              <div key={i} className="artek-instruction-section">
-                {section.title && <h3 className="artek-instruction-h3">{section.title}</h3>}
-                {section.paragraphs.map((p, j) => (
-                  <p key={j}>{p}</p>
-                ))}
-              </div>
-            ))}
-          </div>
+          <PortalInstruction document={participantDoc} />
         )}
       </section>
 
