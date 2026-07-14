@@ -115,41 +115,38 @@ class AISSimulator:
             return ships
 
         if self.level == 3:
-            mmsi_pool = [
-                373227000, 563242200, 636012629, 563279400, 370383000,
-                636024917, 256430000, 374495000, 538006339, 538005697,
-                563000100, 563278300, 357339000,
+            # Панамский канал: два разнесённых кластера (Атлантика / Тихий океан)
+            atlantic = [
+                (373227000, 9.45, -79.92), (563242200, 9.47, -79.88), (636012629, 9.49, -79.84),
+                (563279400, 9.51, -79.90), (370383000, 9.53, -79.86), (636024917, 9.55, -79.82),
+                (256430000, 9.57, -79.94),
             ]
-            points = [
-                (8.691675, -79.549255), (8.878966, -79.426346), (8.771082, -79.364548),
-                (8.881001, -79.281464), (9.501889, -79.896698), (9.447707, -79.990082),
-                (9.538458, -80.134277), (9.598042, -80.006561), (9.403000, -80.109558),
-                (9.466672, -80.268860), (8.684209, -79.457245), (8.864719, -79.355621),
-                (8.837580, -79.341888),
+            pacific = [
+                (374495000, 8.98, -79.52), (538006339, 9.00, -79.48), (538005697, 9.02, -79.44),
+                (563000100, 9.04, -79.50), (563278300, 9.06, -79.46), (357339000, 9.08, -79.42),
             ]
-            for i in range(len(points)):
-                lat, lon = points[i]
-                mmsi = mmsi_pool[i % len(mmsi_pool)]
+            for mmsi, lat, lon in atlantic + pacific:
                 ships.append(
                     {
                         "mmsi": mmsi,
                         "lat": lat,
                         "lon": lon,
-                        "speed": round(self._uniform(10.0, 18.0), 1),
-                        "course": self._randint(0, 359),
+                        "speed": round(self._uniform(10.0, 16.0), 1),
+                        "course": round(self._uniform(80, 100), 0),
                         "timestamp": base_time.isoformat(),
                     }
                 )
             return ships
 
         if self.level == 4:
+            # Балтика: 4 параллельных коридора, общий курс ~90°, разные MMSI и стартовые полосы
             fleet_configs = [
-                (273111000, 58.945859, 21.45, 15.0, 263),
-                (273222000, 58.52, 20.65, 14.5, 9),
-                (273333000, 59.194219, 20.110474, 10.0, 120),
-                (273444000, 59.275, 20.59, 11.2, 167),
+                (273111000, 58.72, 20.35, 14.0, 90),
+                (273222000, 58.82, 20.35, 13.5, 90),
+                (273333000, 58.92, 20.35, 12.0, 90),
+                (273444000, 59.02, 20.35, 12.5, 90),
             ]
-            spoof_zones = [(58.842175, 20.722961, 4.0)]
+            spoof_zones = [(58.87, 20.72, 3.5)]
             num_steps = 15
             time_step_minutes = 12.0
             for mmsi, s_lat, s_lon, speed, course in fleet_configs:
@@ -168,8 +165,8 @@ class AISSimulator:
                             is_spoofed = True
                             break
                     if is_spoofed:
-                        display_lat = real_lat + self._uniform(0.3, 0.6)
-                        display_lon = real_lon - self._uniform(0.3, 0.6)
+                        display_lat = real_lat + self._uniform(0.02, 0.05)
+                        display_lon = real_lon + self._uniform(-0.04, -0.02)
                     else:
                         display_lat, display_lon = real_lat, real_lon
                     ships.append(
@@ -184,7 +181,8 @@ class AISSimulator:
                         }
                     )
                     ship_time += datetime.timedelta(minutes=time_step_minutes)
-            ships.sort(key=lambda x: x["timestamp"])
+            # Общая сортировка: сначала по MMSI, затем по времени — удобно для проверки траекторий
+            ships.sort(key=lambda x: (x["mmsi"], x["timestamp"]))
             return ships
 
         return ships
@@ -225,6 +223,8 @@ class AISSimulator:
                 packets.append((ship["timestamp"], self._pack_to_ais(ship)))
                 if callback:
                     callback(len(packets))
+            if self.level == 4:
+                packets.sort(key=lambda x: x[0])
         else:
             for i in range(count_packets):
                 ship = self.ships_data[i % len(self.ships_data)]

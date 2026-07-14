@@ -235,7 +235,7 @@ def input_to_csv(input_rows: list[dict[str, str]]) -> str:
     return buf.getvalue()
 
 
-def extract_instructions() -> str:
+def extract_contest_description() -> str:
     docx = AIS_SIM / "Konkurs.docx"
     if not docx.exists():
         return ""
@@ -252,3 +252,19 @@ def extract_instructions() -> str:
         if texts:
             paras.append("".join(texts))
     return "\n\n".join(paras)
+
+
+def extract_participant_instructions() -> str:
+    md = AIS_SIM / "INSTRUCTION_PARTICIPANT.md"
+    if md.exists():
+        return md.read_text(encoding="utf-8")
+    return extract_contest_description()
+
+
+def extract_instructions() -> str:
+    """Обратная совместимость: полный текст для портала."""
+    contest = extract_contest_description()
+    guide = extract_participant_instructions()
+    if contest and guide and guide != contest:
+        return f"{contest}\n\n---\n\n{guide}"
+    return guide or contest

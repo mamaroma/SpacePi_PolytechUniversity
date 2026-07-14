@@ -18,6 +18,18 @@ function splitInstructions(text) {
     .filter(Boolean);
 }
 
+function splitMarkdownSections(text) {
+  const raw = (text || "").trim();
+  if (!raw) return [];
+  const parts = raw.split(/\n(?=## )/);
+  return parts.map((block) => {
+    const lines = block.trim().split("\n");
+    const title = lines[0].startsWith("## ") ? lines[0].replace(/^##\s+/, "") : null;
+    const body = (title ? lines.slice(1) : lines).join("\n").trim();
+    return { title, paragraphs: splitInstructions(body) };
+  });
+}
+
 function ParticipantMap({ points }) {
   const valid = (points || []).filter(
     (p) => Number.isFinite(p.lat) && Number.isFinite(p.lon)
@@ -205,7 +217,8 @@ function ChallengePanel({ levelMeta, registrantEmail }) {
 }
 
 export default function ArtekRegistrationPage() {
-  const [instructions, setInstructions] = useState("");
+  const [contestText, setContestText] = useState("");
+  const [participantText, setParticipantText] = useState("");
   const [levels, setLevels] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -226,11 +239,12 @@ export default function ArtekRegistrationPage() {
       setLoadingMeta(true);
       try {
         const [instr, lvls] = await Promise.all([
-          fetchArtekInstructions().catch(() => ({ text: "" })),
+          fetchArtekInstructions().catch(() => ({ contest: "", participant: "" })),
           fetchArtekLevels().catch(() => []),
         ]);
         if (!mounted) return;
-        setInstructions(instr?.text || "");
+        setContestText(instr?.contest || instr?.text || "");
+        setParticipantText(instr?.participant || "");
         setLevels(Array.isArray(lvls) ? lvls : []);
       } finally {
         if (mounted) setLoadingMeta(false);
@@ -239,7 +253,11 @@ export default function ArtekRegistrationPage() {
     return () => { mounted = false; };
   }, []);
 
-  const instructionParagraphs = useMemo(() => splitInstructions(instructions), [instructions]);
+  const contestParagraphs = useMemo(() => splitInstructions(contestText), [contestText]);
+  const participantSections = useMemo(
+    () => splitMarkdownSections(participantText),
+    [participantText]
+  );
 
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -321,15 +339,35 @@ export default function ArtekRegistrationPage() {
       </section>
 
       <section className="card artek-card">
-        <h2 className="artek-section-title">Инструкция отборочного этапа</h2>
+        <h2 className="artek-section-title">Описание отборочного этапа</h2>
         {loadingMeta ? (
-          <p className="artek-muted">Загрузка инструкции...</p>
-        ) : instructionParagraphs.length === 0 ? (
-          <p className="artek-muted">Текст инструкции временно недоступен.</p>
+          <p className="artek-muted">Загрузка...</p>
+        ) : contestParagraphs.length === 0 ? (
+          <p className="artek-muted">Текст описания временно недоступен.</p>
         ) : (
           <div className="artek-instruction-text">
-            {instructionParagraphs.map((p, i) => (
+            {contestParagraphs.map((p, i) => (
               <p key={i}>{p}</p>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="card artek-card">
+        <h2 className="artek-section-title">Инструкция участника (пошагово)</h2>
+        {loadingMeta ? (
+          <p className="artek-muted">Загрузка...</p>
+        ) : participantSections.length === 0 ? (
+          <p className="artek-muted">Инструкция временно недоступна.</p>
+        ) : (
+          <div className="artek-instruction-text">
+            {participantSections.map((section, i) => (
+              <div key={i} className="artek-instruction-section">
+                {section.title && <h3 className="artek-instruction-h3">{section.title}</h3>}
+                {section.paragraphs.map((p, j) => (
+                  <p key={j}>{p}</p>
+                ))}
+              </div>
             ))}
           </div>
         )}

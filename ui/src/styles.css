@@ -1413,6 +1413,17 @@ input[type="password"]:focus, input[type="text"].token-input:focus {
   overflow-y: auto;
   padding-right: 6px;
 }
+.artek-instruction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.artek-instruction-h3 {
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
 .artek-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));

@@ -1,7 +1,9 @@
 """
-Шаблон пользовательского декодера для отборочного этапа.
+Шаблон декодера участника.
 
-Переименуйте файл в participant_decoder.py и реализуйте decode_packets().
+1. Скопируйте этот файл в participant_decoder.py (в ту же папку AIS_sim/)
+2. Реализуйте decode_packets()
+3. Запустите: python main.py --level N --step decode
 """
 
 

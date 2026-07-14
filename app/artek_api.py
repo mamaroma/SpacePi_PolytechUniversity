@@ -13,7 +13,8 @@ from sqlmodel import Session, select
 from .artek_engine import (
     create_session,
     decode_reference,
-    extract_instructions,
+    extract_contest_description,
+    extract_participant_instructions,
     input_to_csv,
     new_session_token,
     parse_answer_csv,
@@ -115,10 +116,10 @@ LEVEL_DESCRIPTIONS = {
 
 @router.get("/instructions")
 def get_instructions():
-    text = extract_instructions()
-    if not text:
-        raise HTTPException(status_code=404, detail="Instruction file not found")
-    return {"text": text}
+    return {
+        "contest": extract_contest_description(),
+        "participant": extract_participant_instructions(),
+    }
 
 
 @router.get("/levels")
