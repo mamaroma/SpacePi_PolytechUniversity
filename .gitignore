@@ -57,3 +57,12 @@ sdr/sdr_web_test/data/silence/
 # ─── Архив телеметрии / AIS (хранится только на сервере) ─────
 tele-ais_data/
 data/teleais_cache/
+
+# ─── AIS_sim: локальные артефакты участника (не в репозиторий) ─
+AIS_sim/input_level*.csv
+AIS_sim/output_level*.csv
+AIS_sim/reference_level*.csv
+AIS_sim/*.map.html
+AIS_sim/participant_map.py
+AIS_sim/participant_decoder.py
+AIS_sim_participant.zip
