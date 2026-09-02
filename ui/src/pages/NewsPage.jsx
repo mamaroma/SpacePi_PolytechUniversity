@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchNews, createNews, updateNews, deleteNews } from "../api";
+import { fetchNews, createNews, updateNews, deleteNews, fetchNewsVkStatus, repostNewsToVk } from "../api";
 import { useAuth } from "../AuthContext";
 import NewsCarousel from "../components/NewsCarousel";
 import { GuideBanner } from "../components/Hint";
@@ -189,7 +189,7 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
 }
 
 /* ─── Single Feed Card ───────────────────────────────────────────────────── */
-function NewsFeedCard({ item, isEditor, onDelete, onEdit }) {
+function NewsFeedCard({ item, isEditor, onDelete, onEdit, onRepostVk, showVk }) {
   const hasImages = item.images?.length > 0;
 
   return (
@@ -249,6 +249,16 @@ function NewsFeedCard({ item, isEditor, onDelete, onEdit }) {
                 onClick={() => onEdit(item)}
               >
                 Редактировать
+              </button>
+            )}
+            {isEditor && showVk && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => onRepostVk(item.id)}
+                title="Опубликовать в группе VK"
+              >
+                В VK
               </button>
             )}
           </div>
@@ -334,6 +344,19 @@ export default function NewsPage() {
   const [content,     setContent]     = useState("");
   const [images,      setImages]      = useState([]);
   const [previews,    setPreviews]    = useState([]);
+  const [postToVk,    setPostToVk]    = useState(true);
+  const [vkStatus,    setVkStatus]    = useState({ configured: false, enabled: false });
+
+  useEffect(() => {
+    if (!isEditor) return;
+    fetchNewsVkStatus(authHeader)
+      .then((s) => {
+        setVkStatus(s || { configured: false });
+        if (s?.configured && s?.enabled) setPostToVk(true);
+        else setPostToVk(false);
+      })
+      .catch(() => setVkStatus({ configured: false, enabled: false }));
+  }, [isEditor, authHeader]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -370,6 +393,7 @@ export default function NewsPage() {
     setPreviews([]);
     setEditingId(null);
     setShowForm(false);
+    setPostToVk(Boolean(vkStatus.configured && vkStatus.enabled));
   };
 
   const startEdit = (item) => {
@@ -379,6 +403,7 @@ export default function NewsPage() {
     setContent(item.content || item.description || "");
     setImages([]);
     setPreviews([]);
+    setPostToVk(false);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -388,17 +413,35 @@ export default function NewsPage() {
     if (!title.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
+      let saved;
       if (editingId) {
-        await updateNews(
+        saved = await updateNews(
           editingId,
-          { title: title.trim(), description: description.trim(), content: content.trim(), images },
+          {
+            title: title.trim(),
+            description: description.trim(),
+            content: content.trim(),
+            images,
+            postToVk: Boolean(postToVk && vkStatus.configured),
+          },
           authHeader,
         );
       } else {
-        await createNews(
-          { title: title.trim(), description: description.trim(), content: content.trim(), images },
+        saved = await createNews(
+          {
+            title: title.trim(),
+            description: description.trim(),
+            content: content.trim(),
+            images,
+            postToVk: Boolean(postToVk && vkStatus.configured),
+          },
           authHeader,
         );
+      }
+      if (saved?.vk?.ok && saved.vk.wall_url) {
+        alert(`Новость сохранена.\nОпубликовано в VK:\n${saved.vk.wall_url}`);
+      } else if (postToVk && vkStatus.configured && saved?.vk && !saved.vk.ok && !saved.vk.skipped) {
+        alert(`Новость сохранена на сайте, но пост в VK не удался:\n${saved.vk.error || "ошибка"}`);
       }
       resetForm();
       await load();
@@ -406,6 +449,16 @@ export default function NewsPage() {
       alert("Ошибка: " + (err?.message || err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRepostVk = async (id) => {
+    if (!confirm("Опубликовать эту новость в группе VK?")) return;
+    try {
+      const res = await repostNewsToVk(id, authHeader);
+      alert(res?.wall_url ? `Опубликовано:\n${res.wall_url}` : "Опубликовано в VK");
+    } catch (err) {
+      alert("Не удалось опубликовать в VK: " + (err?.message || err));
     }
   };
 
@@ -490,6 +543,24 @@ export default function NewsPage() {
                   onChange={e => setContent(e.target.value)}
                   placeholder="Полный текст новости" />
               </label>
+              {vkStatus.configured ? (
+                <label className="artek-consent" style={{ marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={postToVk}
+                    onChange={(e) => setPostToVk(e.target.checked)}
+                  />
+                  <span>
+                    {editingId
+                      ? "Также опубликовать в группе VK (kaoiii)"
+                      : "Опубликовать в группе VK (kaoiii)"}
+                  </span>
+                </label>
+              ) : (
+                <p className="artek-muted" style={{ marginTop: 8 }}>
+                  Кросс-пост в VK не настроен: задайте VK_ACCESS_TOKEN на сервере.
+                </p>
+              )}
             </div>
 
             <div className="news-form-image-col">
@@ -558,7 +629,8 @@ export default function NewsPage() {
                     isEditor={isEditor}
                     onDelete={handleDelete}
                     onEdit={startEdit}
-                    style={{ animationDelay: `${Math.min(idx, 6) * 0.08}s` }}
+                    onRepostVk={handleRepostVk}
+                    showVk={Boolean(vkStatus.configured && vkStatus.enabled)}
                   />
                 ))}
               </div>

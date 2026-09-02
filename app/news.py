@@ -15,6 +15,7 @@ from .auth import require_editor
 from .db import get_session
 from .models import NewsItem, NewsSeedState
 from .storage import upload_image, is_s3_configured
+from .vk_crosspost import try_crosspost_news, vk_configured, vk_crosspost_enabled
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -376,6 +377,16 @@ def increment_view(news_id: str, session: Session = Depends(get_session)):
     return {"views": item.views}
 
 
+@router.get("/vk-status")
+def news_vk_status(_=Depends(require_editor)):
+    """Состояние кросс-постинга в VK (для формы редактора)."""
+    return {
+        "configured": vk_configured(),
+        "enabled": vk_crosspost_enabled(),
+        "group_screen_name": os.getenv("VK_GROUP_SCREEN_NAME", "kaoiii"),
+    }
+
+
 @router.get("/{news_id}")
 def get_news(news_id: str, session: Session = Depends(get_session)):
     item = session.get(NewsItem, news_id)
@@ -389,6 +400,7 @@ async def create_news(
     title: str = Form(...),
     description: str = Form(...),
     content: str = Form(""),
+    post_to_vk: str = Form("true"),
     images: List[UploadFile] = File(default=[]),
     _=Depends(require_editor),
     session: Session = Depends(get_session),
@@ -414,7 +426,14 @@ async def create_news(
     session.add(item)
     session.commit()
     session.refresh(item)
-    return _item_to_dict(item)
+
+    result = _item_to_dict(item)
+    want_vk = str(post_to_vk).strip().lower() in ("1", "true", "yes", "on")
+    if want_vk:
+        result["vk"] = try_crosspost_news(result)
+    else:
+        result["vk"] = {"ok": False, "skipped": True, "reason": "opted_out"}
+    return result
 
 
 @router.put("/{news_id}")
@@ -423,6 +442,7 @@ async def update_news(
     title: str = Form(...),
     description: str = Form(...),
     content: str = Form(""),
+    post_to_vk: str = Form("false"),
     images: List[UploadFile] = File(default=[]),
     _=Depends(require_editor),
     session: Session = Depends(get_session),
@@ -448,7 +468,26 @@ async def update_news(
     session.add(item)
     session.commit()
     session.refresh(item)
-    return _item_to_dict(item)
+
+    result = _item_to_dict(item)
+    want_vk = str(post_to_vk).strip().lower() in ("1", "true", "yes", "on")
+    if want_vk:
+        result["vk"] = try_crosspost_news(result)
+    else:
+        result["vk"] = {"ok": False, "skipped": True, "reason": "opted_out"}
+    return result
+
+
+@router.post("/{news_id}/repost-vk")
+def repost_news_to_vk(news_id: str, _=Depends(require_editor), session: Session = Depends(get_session)):
+    """Ручной повторный кросс-пост существующей новости в VK."""
+    item = session.get(NewsItem, news_id)
+    if not item:
+        raise HTTPException(404, "News not found")
+    result = try_crosspost_news(_item_to_dict(item))
+    if not result or not result.get("ok"):
+        raise HTTPException(status_code=502, detail=result or {"error": "VK post failed"})
+    return result
 
 
 @router.delete("/{news_id}")

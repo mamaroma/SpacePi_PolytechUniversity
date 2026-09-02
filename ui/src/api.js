@@ -80,11 +80,12 @@ export async function fetchNewsById(id) {
   return fetchJson(`${API_BASE}/api/news/${id}`);
 }
 
-export async function createNews({ title, description, content, images = [] }, authHeader = {}) {
+export async function createNews({ title, description, content, images = [], postToVk = true }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
   formData.append("content", content || description);
+  formData.append("post_to_vk", postToVk ? "true" : "false");
   images.forEach((img) => formData.append("images", img));
 
   const r = await fetch(`${API_BASE}/api/news`, {
@@ -99,17 +100,34 @@ export async function createNews({ title, description, content, images = [] }, a
   return r.json();
 }
 
-export async function updateNews(id, { title, description, content, images = [] }, authHeader = {}) {
+export async function updateNews(id, { title, description, content, images = [], postToVk = false }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
   formData.append("content", content || description);
+  formData.append("post_to_vk", postToVk ? "true" : "false");
   images.forEach((img) => formData.append("images", img));
 
   const r = await fetch(`${API_BASE}/api/news/${id}`, {
     method: "PUT",
     headers: { ...authHeader },
     body: formData,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+export async function fetchNewsVkStatus(authHeader = {}) {
+  return fetchJson(`${API_BASE}/api/news/vk-status`, { headers: { ...authHeader } });
+}
+
+export async function repostNewsToVk(id, authHeader = {}) {
+  const r = await fetch(`${API_BASE}/api/news/${encodeURIComponent(id)}/repost-vk`, {
+    method: "POST",
+    headers: { ...authHeader },
   });
   if (!r.ok) {
     const txt = await r.text().catch(() => "");
