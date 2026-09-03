@@ -247,11 +247,29 @@ def build_attachments(
         docs.append(f"{_site_url()}/news/{news_id}")
         return docs, "docs"
 
-    # Последний запасной вариант: публичные URL картинок + страница новости.
-    # VK подтянет превью по ссылке (обычно видно первое изображение).
-    urls = [to_public_url(u) for u in image_urls[:5] if u]
-    urls.append(f"{_site_url()}/news/{news_id}")
-    return urls, "public_urls"
+    # Последний запасной вариант: только ОДНА публичная ссылка в attachments.
+    # VK wall.post допускает максимум один share URL.
+    first_image_url = next((to_public_url(u) for u in image_urls if u), "")
+    if first_image_url:
+        return [first_image_url], "public_url_image"
+    return [f"{_site_url()}/news/{news_id}"], "public_url_news"
+
+
+def _sanitize_attachments(attachments: list[str]) -> list[str]:
+    """VK wall.post поддерживает только 1 share URL в attachments."""
+    cleaned: list[str] = []
+    first_url: Optional[str] = None
+    for att in attachments:
+        if not att:
+            continue
+        if att.startswith(("http://", "https://")):
+            if first_url is None:
+                first_url = att
+            continue
+        cleaned.append(att)
+    if first_url:
+        cleaned.append(first_url)
+    return cleaned
 
 
 def post_news_to_vk(
@@ -280,6 +298,7 @@ def post_news_to_vk(
         "from_group": 1,
         "message": message,
     }
+    attachments = _sanitize_attachments(attachments)
     if attachments:
         params["attachments"] = ",".join(attachments)
 
