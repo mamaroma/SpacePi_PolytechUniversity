@@ -53,6 +53,10 @@ def _site_url() -> str:
     return os.getenv("PUBLIC_SITE_URL", "https://poly-space.ru").rstrip("/")
 
 
+def _share_url(news_id: str) -> str:
+    return f"{_site_url()}/api/news/share/{news_id}"
+
+
 def _api_call(method: str, params: dict[str, Any], *, token: Optional[str] = None) -> Any:
     payload = dict(params)
     payload["access_token"] = token or _token()
@@ -103,7 +107,8 @@ def build_message(title: str, description: str, content: str, news_id: str) -> s
     if body and body not in (desc, title.strip()):
         preview = body if len(body) <= 2500 else body[:2490].rstrip() + "…"
         parts.append(preview)
-    parts.append(f"Подробнее: {_site_url()}/news/{news_id}")
+    # Ссылка на share-страницу с og:image: VK сможет подтянуть превью.
+    parts.append(f"Подробнее: {_share_url(news_id)}")
     return "\n\n".join(parts)
 
 
@@ -234,22 +239,20 @@ def build_attachments(
     token: Optional[str] = None,
 ) -> tuple[list[str], str]:
     """Return (attachments, mode) where mode describes how media was attached."""
-    share_url = f"{_site_url()}/api/news/share/{news_id}"
     if not image_urls:
-        return [share_url], "share_page"
+        return [], "no_media"
 
     photos = upload_wall_photos(image_urls, group_id, token=token)
     if photos:
-        photos.append(share_url)
         return photos, "photos"
 
     docs = upload_wall_docs(image_urls, group_id, token=token)
     if docs:
         return docs, "docs"
 
-    # Для ключа сообщества VK часто отклоняет прямые image URL в attachments
-    # (link_photo_sizing_rule). Фолбэк: одна share-страница с og:image.
-    return [share_url], "share_page"
+    # Для ключа сообщества VK часто отклоняет любые URL в attachments
+    # (link_photo_sizing_rule). Фолбэк: текст + ссылка в сообщении.
+    return [], "text_only"
 
 
 def _sanitize_attachments(attachments: list[str]) -> list[str]:
