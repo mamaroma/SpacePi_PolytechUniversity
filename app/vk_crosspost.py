@@ -234,12 +234,13 @@ def build_attachments(
     token: Optional[str] = None,
 ) -> tuple[list[str], str]:
     """Return (attachments, mode) where mode describes how media was attached."""
+    share_url = f"{_site_url()}/api/news/share/{news_id}"
     if not image_urls:
-        return [], "no_media"
+        return [share_url], "share_page"
 
     photos = upload_wall_photos(image_urls, group_id, token=token)
     if photos:
-        photos.append(f"{_site_url()}/news/{news_id}")
+        photos.append(share_url)
         return photos, "photos"
 
     docs = upload_wall_docs(image_urls, group_id, token=token)
@@ -247,8 +248,8 @@ def build_attachments(
         return docs, "docs"
 
     # Для ключа сообщества VK часто отклоняет прямые image URL в attachments
-    # (link_photo_sizing_rule). Фолбэк: публикуем без вложений.
-    return [], "text_only"
+    # (link_photo_sizing_rule). Фолбэк: одна share-страница с og:image.
+    return [share_url], "share_page"
 
 
 def _sanitize_attachments(attachments: list[str]) -> list[str]:

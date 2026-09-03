@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import os
 import uuid
@@ -8,7 +9,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlmodel import Session, select
 
 from .auth import require_editor
@@ -393,6 +394,45 @@ def get_news(news_id: str, session: Session = Depends(get_session)):
     if not item:
         raise HTTPException(404, "News not found")
     return _item_to_dict(item)
+
+
+@router.get("/share/{news_id}")
+def share_news(news_id: str, session: Session = Depends(get_session)):
+    """HTML with OpenGraph tags for VK link preview."""
+    item = session.get(NewsItem, news_id)
+    if not item:
+        raise HTTPException(404, "News not found")
+
+    data = _item_to_dict(item)
+    title = html.escape(data.get("title") or "Новость PolySpace")
+    description = html.escape(data.get("description") or "")
+    image_url = (data.get("images") or [None])[0]
+    if image_url:
+        if image_url.startswith("/"):
+            image_url = f"https://poly-space.ru{image_url}"
+        image_meta = f'<meta property="og:image" content="{html.escape(image_url)}" />'
+    else:
+        image_meta = ""
+
+    canonical = f"https://poly-space.ru/news/{news_id}"
+    body = f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>{title}</title>
+  <meta name="description" content="{description}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="PolySpace" />
+  <meta property="og:title" content="{title}" />
+  <meta property="og:description" content="{description}" />
+  <meta property="og:url" content="{canonical}" />
+  {image_meta}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta http-equiv="refresh" content="0; url={canonical}" />
+</head>
+<body>Redirecting to <a href="{canonical}">{canonical}</a></body>
+</html>"""
+    return HTMLResponse(body)
 
 
 @router.post("")

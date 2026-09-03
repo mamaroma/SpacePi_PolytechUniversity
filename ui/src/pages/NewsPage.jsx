@@ -442,7 +442,7 @@ export default function NewsPage() {
         const mode = saved.vk.attachment_mode || "?";
         const n = saved.vk.attachments ?? 0;
         alert(
-          `Новость сохранена.\nОпубликовано в VK:\n${saved.vk.wall_url}\n\nВложения: ${n} (режим: ${mode})\nphotos = обычные фото, docs = картинки-документы, public_urls = ссылки на фото.`
+          `Новость сохранена.\nОпубликовано в VK:\n${saved.vk.wall_url}\n\nВложения: ${n} (режим: ${mode})\nphotos = обычные фото, docs = картинки-документы, share_page = ссылка с превью изображения.`
         );
       } else if (postToVk && vkStatus.configured && saved?.vk && !saved.vk.ok && !saved.vk.skipped) {
         alert(`Новость сохранена на сайте, но пост в VK не удался:\n${saved.vk.error || "ошибка"}`);
