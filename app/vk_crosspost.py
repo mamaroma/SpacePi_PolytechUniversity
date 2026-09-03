@@ -235,7 +235,7 @@ def build_attachments(
 ) -> tuple[list[str], str]:
     """Return (attachments, mode) where mode describes how media was attached."""
     if not image_urls:
-        return [f"{_site_url()}/news/{news_id}"], "link_only"
+        return [], "no_media"
 
     photos = upload_wall_photos(image_urls, group_id, token=token)
     if photos:
@@ -244,15 +244,11 @@ def build_attachments(
 
     docs = upload_wall_docs(image_urls, group_id, token=token)
     if docs:
-        docs.append(f"{_site_url()}/news/{news_id}")
         return docs, "docs"
 
-    # Последний запасной вариант: только ОДНА публичная ссылка в attachments.
-    # VK wall.post допускает максимум один share URL.
-    first_image_url = next((to_public_url(u) for u in image_urls if u), "")
-    if first_image_url:
-        return [first_image_url], "public_url_image"
-    return [f"{_site_url()}/news/{news_id}"], "public_url_news"
+    # Для ключа сообщества VK часто отклоняет прямые image URL в attachments
+    # (link_photo_sizing_rule). Фолбэк: публикуем без вложений.
+    return [], "text_only"
 
 
 def _sanitize_attachments(attachments: list[str]) -> list[str]:
