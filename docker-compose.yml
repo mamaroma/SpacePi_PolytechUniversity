@@ -35,6 +35,8 @@ services:
     volumes:
       # Persist Telethon session file (re-use existing session)
       - ./telemetry_session.session:/app/telemetry_session.session
+      # Persist uploaded news images for API and VK crosspost
+      - ./data/news/images:/app/data/news/images
       # Mount SDR data directory (contains nothing.iq and recordings)
       - ./sdr/sdr_web_test/data:/app/sdr/sdr_web_test/data
       # Архив телеметрии и AIS (read-only) — на сервере положен в /opt/spacepi
