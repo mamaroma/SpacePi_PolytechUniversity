@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY app/            ./app/
 COPY AIS_sim/        ./AIS_sim/
+COPY scripts/        ./scripts/
 COPY telemetry_config.py .
 COPY collect.py      .
 
