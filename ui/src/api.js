@@ -80,11 +80,12 @@ export async function fetchNewsById(id) {
   return fetchJson(`${API_BASE}/api/news/${id}`);
 }
 
-export async function createNews({ title, description, content, images = [], postToVk = true }, authHeader = {}) {
+export async function createNews({ title, description, content, tags = [], images = [], postToVk = true }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
   formData.append("content", content || description);
+  formData.append("tags", Array.isArray(tags) ? tags.join(", ") : String(tags || ""));
   formData.append("post_to_vk", postToVk ? "true" : "false");
   images.forEach((img) => formData.append("images", img));
 
@@ -100,11 +101,14 @@ export async function createNews({ title, description, content, images = [], pos
   return r.json();
 }
 
-export async function updateNews(id, { title, description, content, images = [], postToVk = false }, authHeader = {}) {
+export async function updateNews(id, { title, description, content, tags, images = [], postToVk = false }, authHeader = {}) {
   const formData = new FormData();
   formData.append("title", title);
   formData.append("description", description);
   formData.append("content", content || description);
+  if (tags !== undefined) {
+    formData.append("tags", Array.isArray(tags) ? tags.join(", ") : String(tags || ""));
+  }
   formData.append("post_to_vk", postToVk ? "true" : "false");
   images.forEach((img) => formData.append("images", img));
 

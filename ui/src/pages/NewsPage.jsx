@@ -191,9 +191,11 @@ function NewsCalendar({ news, selectedDate, onSelectDate }) {
 /* ─── Single Feed Card ───────────────────────────────────────────────────── */
 function NewsFeedCard({ item, isEditor, onDelete, onEdit, onRepostVk, showVk }) {
   const hasImages = item.images?.length > 0;
+  const [expanded, setExpanded] = useState(false);
+  const tags = item.tags || [];
 
   return (
-    <article className="nf-card news-card-reveal">
+    <article className={`nf-card news-card-reveal${expanded ? " nf-card--expanded" : ""}`}>
       <div className="nf-card-inner">
         {/* Image strip (left on wide, top on narrow) */}
         {hasImages && (
@@ -238,10 +240,33 @@ function NewsFeedCard({ item, isEditor, onDelete, onEdit, onRepostVk, showVk }) 
           </div>
 
           <h2 className="nf-title">{item.title}</h2>
+          {tags.length > 0 && (
+            <div className="nf-tags">
+              {tags.map((t) => (
+                <span key={t} className="news-tag news-tag--sm">{t}</span>
+              ))}
+            </div>
+          )}
           <p className="nf-desc">{item.description}</p>
+          {expanded && (
+            <div className="nf-full-content">
+              {(item.content || item.description || "").split(/\n+/).filter(Boolean).map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </div>
+          )}
 
           <div className="nf-actions">
-            <Link to={`/news/${item.id}`} className="btn btn-sm btn-primary">Читать далее →</Link>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? "Свернуть новость" : "Развернуть новость"}
+            </button>
+            <Link to={`/news/${item.id}`} className="btn btn-sm">
+              Открыть страницу
+            </Link>
             {isEditor && (
               <button
                 type="button"
@@ -338,10 +363,13 @@ export default function NewsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTag, setActiveTag] = useState(null);
 
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [content,     setContent]     = useState("");
+  const [tagsInput,   setTagsInput]   = useState("");
   const [images,      setImages]      = useState([]);
   const [previews,    setPreviews]    = useState([]);
   const [postToVk,    setPostToVk]    = useState(true);
@@ -367,7 +395,15 @@ export default function NewsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => { setPage(1); }, [selectedDate]);
+  useEffect(() => { setPage(1); }, [selectedDate, searchQuery, activeTag]);
+
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const item of news) {
+      for (const t of item.tags || []) set.add(t);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [news]);
 
   const handleImagesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -389,6 +425,7 @@ export default function NewsPage() {
     setTitle("");
     setDescription("");
     setContent("");
+    setTagsInput("");
     setImages([]);
     setPreviews([]);
     setEditingId(null);
@@ -401,6 +438,7 @@ export default function NewsPage() {
     setTitle(item.title || "");
     setDescription(item.description || "");
     setContent(item.content || item.description || "");
+    setTagsInput((item.tags || []).join(", "));
     setImages([]);
     setPreviews([]);
     setPostToVk(false);
@@ -421,6 +459,7 @@ export default function NewsPage() {
             title: title.trim(),
             description: description.trim(),
             content: content.trim(),
+            tags: tagsInput,
             images,
             postToVk: Boolean(postToVk && vkStatus.configured),
           },
@@ -432,6 +471,7 @@ export default function NewsPage() {
             title: title.trim(),
             description: description.trim(),
             content: content.trim(),
+            tags: tagsInput,
             images,
             postToVk: Boolean(postToVk && vkStatus.configured),
           },
@@ -471,14 +511,25 @@ export default function NewsPage() {
     try { await deleteNews(id, authHeader); await load(); } catch {}
   };
 
-  // Sort newest first, then filter by selected date
+  // Sort newest first, then filter by date / search / tag
   const sortedNews = useMemo(() => {
     const sorted = [...news].sort((a, b) =>
       new Date(b.created_at) - new Date(a.created_at)
     );
-    if (!selectedDate) return sorted;
-    return sorted.filter(n => isoDay(n.created_at) === selectedDate);
-  }, [news, selectedDate]);
+    const q = searchQuery.trim().toLowerCase();
+    return sorted.filter((n) => {
+      if (selectedDate && isoDay(n.created_at) !== selectedDate) return false;
+      if (activeTag && !(n.tags || []).includes(activeTag)) return false;
+      if (!q) return true;
+      const hay = [
+        n.title,
+        n.description,
+        n.content,
+        ...(n.tags || []),
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [news, selectedDate, searchQuery, activeTag]);
 
   const totalPages = Math.max(1, Math.ceil(sortedNews.length / NEWS_PAGE_SIZE));
 
@@ -501,14 +552,52 @@ export default function NewsPage() {
     <div className="app-body news-page-body">
       <SpaceBackground />
 
-      <GuideBanner id="news-intro" icon={null}>
-        <strong>Новости проекта.</strong> Обновления наземной станции, запуски спутников,
-        активности образовательной программы. Нажмите на дату в календаре, чтобы
+      <GuideBanner id="news-intro-v2" icon={null}>
+        <strong>Новости проекта.</strong> Обновления наземной станции, запуски спутников
+        и активности образовательной программы. Анонсы смен и мероприятий также публикуем
+        в сообществе VK{" "}
+        <a href="https://vk.ru/kaoiii" target="_blank" rel="noopener noreferrer">
+          vk.ru/kaoiii
+        </a>
+        {" — "}вступайте, чтобы ничего не пропустить. Нажмите на дату в календаре, чтобы
         отфильтровать новости за этот день.
       </GuideBanner>
 
+      <section className="project-about" aria-label="О проекте">
+        <div className="project-about-grid">
+          <div className="project-about-main">
+            <p className="project-about-eyebrow">PolySpace · ИЭиТ СПбПУ</p>
+            <h2 className="project-about-title">Куда вы попали</h2>
+            <p className="project-about-text">
+              Площадка наземной станции Политеха: новости и материалы проекта{" "}
+              <strong>Space-π</strong>, работа со школьниками, конкурсы «Дежурный по планете»
+              и спутники серии <strong>Polytech Universe</strong>. Здесь следят за орбитой,
+              данными и образовательными сменами Института электроники и телекоммуникаций.
+            </p>
+          </div>
+          <ul className="project-about-points">
+            <li>
+              <span>Space-π</span>
+              Федеральный образовательный проект по космическим технологиям
+            </li>
+            <li>
+              <span>ИЭиТ</span>
+              Институт электроники и телекоммуникаций СПбПУ
+            </li>
+            <li>
+              <span>Школьники</span>
+              Конкурсы, экскурсии и смены «Дежурный по планете»
+            </li>
+            <li>
+              <span>Спутники</span>
+              Группировка Polytech Universe и наземный приём данных
+            </li>
+          </ul>
+        </div>
+      </section>
+
       {/* ── Top row: title + add button ── */}
-      <div className="news-header-row">
+      <div className="news-header-row" id="news-feed-top">
         <div>
           <h1 className="page-title">Новости PolySpace</h1>
           <p className="page-subtitle">Последние события и обновления наземной станции</p>
@@ -520,6 +609,40 @@ export default function NewsPage() {
           >
             {showForm ? "Отмена" : "+ Добавить новость"}
           </button>
+        )}
+      </div>
+
+      <div className="news-filters">
+        <label className="news-search">
+          <span className="news-search-icon" aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            className="form-input news-search-input"
+            placeholder="Поиск по новостям…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
+        {allTags.length > 0 && (
+          <div className="news-tag-row" role="list">
+            <button
+              type="button"
+              className={`news-tag${activeTag == null ? " news-tag--active" : ""}`}
+              onClick={() => setActiveTag(null)}
+            >
+              Все
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className={`news-tag${activeTag === tag ? " news-tag--active" : ""}`}
+                onClick={() => setActiveTag((prev) => (prev === tag ? null : tag))}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -546,6 +669,16 @@ export default function NewsPage() {
                 <textarea className="form-textarea" rows={5} value={content}
                   onChange={e => setContent(e.target.value)}
                   placeholder="Полный текст новости" />
+              </label>
+              <label className="form-label">
+                Теги (через запятую)
+                <input
+                  type="text"
+                  className="form-input"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="Space-π, Конкурс, ИЭиТ"
+                />
               </label>
               {vkStatus.configured ? (
                 <label className="artek-consent" style={{ marginTop: 8 }}>

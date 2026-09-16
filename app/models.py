@@ -53,6 +53,7 @@ class NewsItem(SQLModel, table=True):
     content: str = ""
     image_url: Optional[str] = None   # legacy single image (kept for migration)
     images_json: Optional[str] = None  # JSON array of image URLs
+    tags_json: Optional[str] = None    # JSON array of tag strings
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     views: int = Field(default=0)
 

@@ -46,6 +46,7 @@ def init_db(retries: int = 5, delay: float = 2.0):
                     add_col("battery_capacity_pct", "battery_capacity_pct REAL")
                     add_col("solar_voltage_mv", "solar_voltage_mv INTEGER")
                     add_col("images_json", "images_json TEXT", table="newsitem")
+                    add_col("tags_json", "tags_json TEXT", table="newsitem")
 
                     # User profile fields (Макаров)
                     add_col("last_name",  "last_name TEXT",  table="users")
@@ -79,6 +80,7 @@ def init_db(retries: int = 5, delay: float = 2.0):
                     add_col("battery_capacity_pct", "battery_capacity_pct DOUBLE PRECISION")
                     add_col("solar_voltage_mv", "solar_voltage_mv INTEGER")
                     add_col("images_json", "images_json TEXT", table="newsitem")
+                    add_col("tags_json", "tags_json TEXT", table="newsitem")
 
                     # User profile fields (Макаров)
                     add_col("last_name",  "last_name TEXT",  table="users")

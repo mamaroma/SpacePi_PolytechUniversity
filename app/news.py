@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/news", tags=["news"])
 
 IMAGES_DIR = Path(__file__).resolve().parent.parent / "data" / "news" / "images"
 
-def _ni(id, title, desc, content, y, mo, d, views, imgs=None, hour=10):
+def _ni(id, title, desc, content, y, mo, d, views, imgs=None, hour=10, tags=None):
     """Сокращённый конструктор NewsItem для читаемого seed-списка."""
     return NewsItem(
         id=id,
@@ -32,6 +32,7 @@ def _ni(id, title, desc, content, y, mo, d, views, imgs=None, hour=10):
         created_at=datetime(y, mo, d, hour, 0, 0, tzinfo=timezone.utc),
         views=views,
         images_json=json.dumps(imgs) if imgs else None,
+        tags_json=json.dumps(tags, ensure_ascii=False) if tags else None,
     )
 
 
@@ -270,6 +271,42 @@ _SEED_VIEWS_ON_REV: dict[str, int] = {
     "n33": 76,
 }
 
+# Стартовые теги (Саша Ковалев уточнит список позже).
+_NEWS_TAGS: dict[str, list[str]] = {
+    "welcome": ["PolySpace", "ИЭиТ"],
+    "pu5-launch": ["Спутники", "Polytech Universe"],
+    "n01": ["Спутники", "Polytech Universe", "Space-π"],
+    "n02": ["Спутники", "Polytech Universe"],
+    "n03": ["Спутники", "Телеметрия"],
+    "n04": ["Образование", "Space-π"],
+    "n05": ["Образование", "Space-π", "Школьники"],
+    "n06": ["Лаборатория", "ИЭиТ"],
+    "n07": ["Мероприятия", "ИЭиТ"],
+    "n08": ["Спутники", "AIS"],
+    "n09": ["Образование", "Конкурс"],
+    "n10": ["Space-π", "Образование"],
+    "n11": ["Лаборатория", "ИЭиТ"],
+    "n12": ["Спутники", "Телеметрия"],
+    "n13": ["Мероприятия", "Образование"],
+    "n14": ["Space-π", "Школьники"],
+    "n15": ["Конкурс", "ДПП"],
+    "n16": ["Образование", "ИЭиТ"],
+    "n17": ["Спутники", "Polytech Universe"],
+    "n18": ["Лаборатория", "Space-π"],
+    "n19": ["Мероприятия", "Школьники"],
+    "n20": ["Образование", "Space-π"],
+    "n21": ["Лаборатория", "ИЭиТ"],
+    "n22": ["Конкурс", "ДПП", "Смена"],
+    "n23": ["Space-π", "Образование", "ИЭиТ"],
+    "n24": ["Спутники", "Наземная станция"],
+    "n25": ["Конкурс", "ДПП", "Школьники"],
+    "n29": ["Экскурсии", "ИЭиТ", "Школьники"],
+    "n30": ["Конкурс", "ДПП", "AIS"],
+    "n31": ["Экскурсии", "ИЭиТ", "Space-π"],
+    "n32": ["Конкурс", "ДПП", "Смена", "Итоги"],
+    "n33": ["Space-π", "Смена", "Образование"],
+}
+
 
 def _get_images(item: NewsItem) -> list[str]:
     """Return the list of image URLs for a news item (supports legacy single image_url)."""
@@ -281,6 +318,45 @@ def _get_images(item: NewsItem) -> list[str]:
     if item.image_url:
         return [item.image_url]
     return []
+
+
+def _get_tags(item: NewsItem) -> list[str]:
+    if item.tags_json:
+        try:
+            tags = json.loads(item.tags_json)
+            if isinstance(tags, list):
+                return [str(t).strip() for t in tags if str(t).strip()]
+        except Exception:
+            pass
+    return []
+
+
+def _parse_tags_form(raw: str) -> list[str]:
+    if not raw or not str(raw).strip():
+        return []
+    text = str(raw).strip()
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return [str(t).strip() for t in parsed if str(t).strip()]
+    except Exception:
+        pass
+    parts = [p.strip() for p in text.replace(";", ",").split(",")]
+    return [p for p in parts if p]
+
+
+def _apply_seed_tags(existing: NewsItem, default: NewsItem) -> bool:
+    """Подтянуть теги из seed, если в БД их ещё нет."""
+    seed_tags = _NEWS_TAGS.get(default.id)
+    if not seed_tags:
+        if default.tags_json and not existing.tags_json:
+            existing.tags_json = default.tags_json
+            return True
+        return False
+    if existing.tags_json:
+        return False
+    existing.tags_json = json.dumps(seed_tags, ensure_ascii=False)
+    return True
 
 
 def _apply_seed_text_revision(session: Session, existing: NewsItem, default: NewsItem) -> bool:
@@ -327,6 +403,8 @@ def _seed_default_news(session: Session):
     for default in _DEFAULT_NEWS:
         existing = session.get(NewsItem, default.id)
         if existing is None:
+            if default.id in _NEWS_TAGS and not default.tags_json:
+                default.tags_json = json.dumps(_NEWS_TAGS[default.id], ensure_ascii=False)
             session.add(default)
             rev = _SEED_TEXT_REV.get(default.id, 0)
             if rev:
@@ -340,6 +418,10 @@ def _seed_default_news(session: Session):
             session.add(existing)
             changed = True
 
+        if _apply_seed_tags(existing, default):
+            session.add(existing)
+            changed = True
+
         if _apply_seed_text_revision(session, existing, default):
             changed = True
 
@@ -349,6 +431,7 @@ def _seed_default_news(session: Session):
 
 def _item_to_dict(item: NewsItem) -> dict:
     images = _get_images(item)
+    tags = _get_tags(item)
     return {
         "id": item.id,
         "title": item.title,
@@ -356,6 +439,7 @@ def _item_to_dict(item: NewsItem) -> dict:
         "content": item.content,
         "image_url": images[0] if images else None,
         "images": images,
+        "tags": tags,
         "created_at": item.created_at.isoformat() if item.created_at else None,
         "views": item.views,
     }
@@ -464,6 +548,7 @@ async def create_news(
     title: str = Form(...),
     description: str = Form(...),
     content: str = Form(""),
+    tags: str = Form(""),
     post_to_vk: str = Form("true"),
     images: List[UploadFile] = File(default=[]),
     _=Depends(require_editor),
@@ -478,6 +563,7 @@ async def create_news(
         if url:
             urls.append(url)
 
+    tag_list = _parse_tags_form(tags)
     item = NewsItem(
         id=news_id,
         title=title,
@@ -485,6 +571,7 @@ async def create_news(
         content=content or description,
         image_url=urls[0] if urls else None,
         images_json=json.dumps(urls) if urls else None,
+        tags_json=json.dumps(tag_list, ensure_ascii=False) if tag_list else None,
         created_at=datetime.now(timezone.utc),
     )
     session.add(item)
@@ -506,6 +593,7 @@ async def update_news(
     title: str = Form(...),
     description: str = Form(...),
     content: str = Form(""),
+    tags: Optional[str] = Form(None),
     post_to_vk: str = Form("false"),
     images: List[UploadFile] = File(default=[]),
     _=Depends(require_editor),
@@ -518,6 +606,9 @@ async def update_news(
     item.title = title
     item.description = description
     item.content = content or description
+    if tags is not None:
+        tag_list = _parse_tags_form(tags)
+        item.tags_json = json.dumps(tag_list, ensure_ascii=False) if tag_list else None
 
     valid_images = [img for img in images if img and img.filename]
     if valid_images:
