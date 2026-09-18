@@ -34,7 +34,7 @@ class SatelliteInfo(BaseModel):
     protocol: str | None = None
     form_factor: str | None = None
     mass_kg: float | None = None
-    status: str = "active"               # active | inactive | lost
+    status: str = "active"               # active | inactive | lost | announced
     description: str = ""
     mission: str = ""
     image_url: str | None = None
@@ -197,59 +197,73 @@ _DEFAULT: list[dict] = [
         "name_en": "Polytech Universe-7",
         "norad": None,
         "launch_date": None,
-        "orbit_alt_km": 550,
-        "frequency_mhz": 437.5,
-        "protocol": "LoRa (план)",
-        "form_factor": "CubeSat",
-        "mass_kg": None,
+        "orbit_alt_km": 625,
+        "frequency_mhz": 435.0,
+        "protocol": "9600 bps / УКВ",
+        "form_factor": "6U CubeSat",
+        "mass_kg": 12.0,
         "status": "announced",
-        "mission": "Анонсированный аппарат серии Polytech Universe",
+        "mission": "Межспутниковая оптическая связь с КА Twin-S (Space-π / «Дежурный по планете»)",
         "description": (
-            "Анонсированный спутник PU-7. Карточка и позиция на карте показаны "
-            "заранее — до появления публичных TLE и телеметрии."
+            "Планируемый аппарат ООО «Телеком-Политехник» формата 6U. "
+            "Предназначен для организации межспутникового оптического канала "
+            "связи с КА Twin-S в интересах космического мониторинга. "
+            "Полезная нагрузка: одноколлиматорная система межспутниковой "
+            "оптической связи (λ = 1550 нм, ≥ 200 Мбит/с) и звёздный датчик "
+            "ориентации. Орбита ССО 600–650 км, ДУ — есть, срок службы "
+            "2 года (до 3). Управление — из ЦУП на базе СПбПУ."
         ),
         "image_url": None,
         "source_url": "https://spacepi.space",
     },
     {
-        "id": "polytech-universe-8",
-        "name": "Политех Юниверс-8",
-        "name_en": "Polytech Universe-8",
+        "id": "cstp-5-2",
+        "name": "CSTP-5.2",
+        "name_en": "CSTP-5.2",
         "norad": None,
         "launch_date": None,
-        "orbit_alt_km": 540,
-        "frequency_mhz": 437.5,
-        "protocol": "LoRa (план)",
+        "orbit_alt_km": 625,
+        "frequency_mhz": 435.25,
+        "protocol": "9600 bps / УКВ",
         "form_factor": "3U CubeSat",
-        "mass_kg": None,
+        "mass_kg": 4.5,
         "status": "announced",
-        "mission": "Анонсированный 3U CubeSat",
+        "mission": "Измерение ЭМИ (100 МГц – 18 ГГц) для 3D-модели и территориальных карт",
         "description": (
-            "Анонсированный аппарат PU-8 формата 3U. Отображается на карте "
-            "флота вместе с действующими спутниками."
+            "Планируемый малый КА СПбПУ формата 3U (сертификат общего вида, "
+            "авг. 2026). Вместе с CSTP-5.3 предназначен для измерения уровней "
+            "электромагнитного излучения в широком диапазоне частот, построения "
+            "трёхмерной нестационарной модели распределения ЭМИ и "
+            "территориальных карт для долгосрочного анализа. ПН — "
+            "широкополосный радиоприёмник 100 МГц – 18 ГГц (1,2 кг / 1U). "
+            "Орбита ССО 600–650 км, без ДУ, средняя мощность 8 Вт. "
+            "Управление — ЦУП «Политех Спейс», СПбПУ."
         ),
         "image_url": None,
-        "source_url": "https://spacepi.space",
+        "source_url": "https://www.spbstu.ru",
     },
     {
-        "id": "polytech-universe-9",
-        "name": "Политех Юниверс-9",
-        "name_en": "Polytech Universe-9",
+        "id": "cstp-5-3",
+        "name": "CSTP-5.3",
+        "name_en": "CSTP-5.3",
         "norad": None,
         "launch_date": None,
-        "orbit_alt_km": 545,
-        "frequency_mhz": 437.5,
-        "protocol": "LoRa (план)",
+        "orbit_alt_km": 625,
+        "frequency_mhz": 435.25,
+        "protocol": "9600 bps / УКВ",
         "form_factor": "3U CubeSat",
-        "mass_kg": None,
+        "mass_kg": 4.5,
         "status": "announced",
-        "mission": "Анонсированный 3U CubeSat",
+        "mission": "Измерение ЭМИ (100 МГц – 18 ГГц) для 3D-модели и территориальных карт",
         "description": (
-            "Анонсированный аппарат PU-9 формата 3U. Отображается на карте "
-            "флота вместе с действующими спутниками."
+            "Планируемый парный аппарат к CSTP-5.2 (сертификат общего вида "
+            "СПбПУ, авг. 2026). Те же ТТХ: 3U / 4,5 кг, ССО 600–650 км, "
+            "передатчик 435,250 МГц · 9600 бит/с, широкополосный радиоприёмник "
+            "100 МГц – 18 ГГц. Совместная миссия — карта ЭМИ и статистический "
+            "анализ радиационного фона. Управление — ЦУП «Политех Спейс»."
         ),
         "image_url": None,
-        "source_url": "https://spacepi.space",
+        "source_url": "https://www.spbstu.ru",
     },
 ]
 
@@ -276,12 +290,32 @@ def _load() -> list[dict]:
             it["image_url"] = NEW_PU3
             changed = True
 
-    # Добавляем анонсированные PU-7/8/9, если их ещё нет в JSON.
-    have = {it.get("id") for it in items}
+    # Планируемые: актуальные карточки PU-7 / CSTP-5.2 / CSTP-5.3.
+    # Удаляем устаревшие заглушки PU-8/PU-9 и подтягиваем поля из _DEFAULT.
+    LEGACY_ANNOUNCED = {"polytech-universe-8", "polytech-universe-9"}
+    before = len(items)
+    items = [it for it in items if it.get("id") not in LEGACY_ANNOUNCED]
+    if len(items) != before:
+        changed = True
+
+    by_id = {it.get("id"): it for it in items}
     for d in _DEFAULT:
-        if d["id"] not in have and d.get("status") == "announced":
+        if d.get("status") != "announced":
+            continue
+        existing = by_id.get(d["id"])
+        if existing is None:
             items.append(dict(d))
             changed = True
+            continue
+        # Обновляем ТТХ у планируемых карточек (сертификаты Волвенко / СПбПУ).
+        for key in (
+            "name", "name_en", "orbit_alt_km", "frequency_mhz", "protocol",
+            "form_factor", "mass_kg", "mission", "description", "source_url",
+            "status",
+        ):
+            if existing.get(key) != d.get(key):
+                existing[key] = d.get(key)
+                changed = True
 
     if changed:
         try:

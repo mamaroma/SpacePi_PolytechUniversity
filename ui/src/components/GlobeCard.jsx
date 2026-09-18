@@ -266,8 +266,8 @@ const SAT_ICON_SHAPE = {
   "Polytech_Universe-5": "triangle",
   "Polytech_Universe-6": "diamond",
   "Polytech_Universe-7": "hex",
-  "Polytech_Universe-8": "square",
-  "Polytech_Universe-9": "circle",
+  "CSTP-5.2": "square",
+  "CSTP-5.3": "circle",
 };
 
 function satShortNum(name) {
@@ -419,9 +419,9 @@ const ORBIT_ALT_KM = {
   "Polytech_Universe-4": 575,
   "Polytech_Universe-5": 575,
   "Polytech_Universe-6": 580,
-  "Polytech_Universe-7": 550,
-  "Polytech_Universe-8": 540,
-  "Polytech_Universe-9": 545,
+  "Polytech_Universe-7": 625,
+  "CSTP-5.2": 625,
+  "CSTP-5.3": 625,
 };
 export function orbitAltKmForSat(name) {
   return ORBIT_ALT_KM[name] ?? 565;

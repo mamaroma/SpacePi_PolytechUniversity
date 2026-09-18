@@ -91,10 +91,10 @@ SATELLITE_FLEET = [
     {"name": "Polytech_Universe-4", "active": True,  "color": "#38bdf8"},
     {"name": "Polytech_Universe-5", "active": True,  "color": "#a3e635"},
     {"name": "Polytech_Universe-6", "active": True,  "color": "#f97316"},
-    # Анонсированные
-    {"name": "Polytech_Universe-7", "active": False, "announced": True, "color": "#22d3ee", "form": "CubeSat"},
-    {"name": "Polytech_Universe-8", "active": False, "announced": True, "color": "#fbbf24", "form": "3U"},
-    {"name": "Polytech_Universe-9", "active": False, "announced": True, "color": "#4ade80", "form": "3U"},
+    # Планируемые (сертификаты ООО «Телеком-Политехник» / СПбПУ, авг. 2026)
+    {"name": "Polytech_Universe-7", "active": False, "announced": True, "color": "#22d3ee", "form": "6U"},
+    {"name": "CSTP-5.2",            "active": False, "announced": True, "color": "#fbbf24", "form": "3U"},
+    {"name": "CSTP-5.3",            "active": False, "announced": True, "color": "#4ade80", "form": "3U"},
 ]
 
 # ----------------------------

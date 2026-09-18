@@ -429,6 +429,7 @@ function SatellitesIndex() {
         {SATELLITE_DOCS.map((sat) => {
           const accent = sat.status === "active" ? "#6cc77b"
                        : sat.status === "lost"   ? "#f39768"
+                       : sat.status === "announced" ? "#22d3ee"
                        : "#9460b8";
           return (
             <Link
@@ -515,6 +516,7 @@ function SatelliteDetail() {
 
   const accent = sat.status === "active" ? "#6cc77b"
                : sat.status === "lost"   ? "#f39768"
+               : sat.status === "announced" ? "#22d3ee"
                : "#9460b8";
 
   return (

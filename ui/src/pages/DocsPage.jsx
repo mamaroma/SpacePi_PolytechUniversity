@@ -7,9 +7,10 @@ import {
 } from "../api";
 
 const STATUS_LABEL = {
-  active:   { label: "На орбите",       color: "var(--accent)" },
-  inactive: { label: "Неактивен",       color: "var(--orange)" },
-  lost:     { label: "Сошёл с орбиты",  color: "var(--orange-2)" },
+  active:    { label: "На орбите",       color: "var(--accent)" },
+  inactive:  { label: "Неактивен",       color: "var(--orange)" },
+  lost:      { label: "Сошёл с орбиты",  color: "var(--orange-2)" },
+  announced: { label: "Планируется",     color: "#22d3ee" },
 };
 
 function Field({ label, value, mono }) {
@@ -66,7 +67,11 @@ function SatelliteCard({ sat, isEditor, onDelete }) {
       <div className="sat-doc-grid">
         <Field label="NORAD"       value={sat.norad}                     mono />
         <Field label="Запуск"      value={sat.launch_date}               mono />
-        <Field label="Орбита"      value={sat.orbit_alt_km && `${sat.orbit_alt_km} км`} mono />
+        <Field label="Орбита"      value={sat.orbit_alt_km && (
+          sat.status === "announced" && (sat.id === "polytech-universe-7" || sat.id?.startsWith("cstp-5"))
+            ? "600–650 км · ССО"
+            : `${sat.orbit_alt_km} км`
+        )} mono />
         <Field label="Частота"     value={sat.frequency_mhz && `${sat.frequency_mhz} МГц`} mono />
         <Field label="Протокол"    value={sat.protocol} />
         <Field label="Форм-фактор" value={sat.form_factor} />
@@ -169,7 +174,8 @@ function SatelliteForm({ onSubmit, onCancel, busy }) {
           <select className="form-input" value={form.status} onChange={set("status")}>
             <option value="active">На орбите</option>
             <option value="inactive">Неактивен</option>
-            <option value="lost">Потерян</option>
+            <option value="lost">Сошёл с орбиты</option>
+            <option value="announced">Планируется</option>
           </select>
         </label>
       </div>

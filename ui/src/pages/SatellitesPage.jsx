@@ -86,7 +86,7 @@ function genFakeRows(satName, lastContactLabel, count = 60) {
 }
 
 /* Только официально завершившие миссию аппараты.
-   PU-6 — действующий (оживлён по запросу). PU-7/8/9 — анонсированные. */
+   PU-6 — действующий. Планируемые: PU-7, CSTP-5.2, CSTP-5.3. */
 const DEAD_SATELLITES = {
   "Polytech_Universe-1": {
     current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
@@ -158,19 +158,19 @@ function makeAnnouncedOrbit(raanDeg, inclinationDeg = 97.4, altitudeKm = 545) {
 
 const ANNOUNCED_SATELLITES = {
   "Polytech_Universe-7": {
-    ...makeAnnouncedOrbit(40, 97.5, 550),
-    form: "CubeSat",
-    note: "Анонсированный аппарат серии Polytech Universe",
+    ...makeAnnouncedOrbit(40, 97.5, 625),
+    form: "6U",
+    note: "Межспутниковая оптическая связь с Twin-S · ССО 600–650 км",
   },
-  "Polytech_Universe-8": {
-    ...makeAnnouncedOrbit(110, 97.3, 540),
+  "CSTP-5.2": {
+    ...makeAnnouncedOrbit(110, 97.4, 625),
     form: "3U",
-    note: "Анонсированный 3U CubeSat",
+    note: "Широкополосный ЭМИ 100 МГц–18 ГГц · ССО 600–650 км",
   },
-  "Polytech_Universe-9": {
-    ...makeAnnouncedOrbit(220, 97.6, 545),
+  "CSTP-5.3": {
+    ...makeAnnouncedOrbit(220, 97.4, 625),
     form: "3U",
-    note: "Анонсированный 3U CubeSat",
+    note: "Парный к CSTP-5.2 · ЭМИ-мониторинг · ССО 600–650 км",
   },
 };
 
@@ -182,8 +182,8 @@ const SAT_ICON_META = {
   "Polytech_Universe-5": { shape: "▲", label: "5" },
   "Polytech_Universe-6": { shape: "◆", label: "6" },
   "Polytech_Universe-7": { shape: "⬡", label: "7" },
-  "Polytech_Universe-8": { shape: "■", label: "8" },
-  "Polytech_Universe-9": { shape: "●", label: "9" },
+  "CSTP-5.2":            { shape: "■", label: "5.2" },
+  "CSTP-5.3":            { shape: "●", label: "5.3" },
 };
 
 // Кэшируем, чтобы не пересчитывать на каждый ререндер
@@ -267,7 +267,7 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, isAnnounced,
             {showDeadLabel
               ? `⚫ INACTIVE · посл. контакт ${deadInfo?.lastContact || "—"}`
               : isAnnounced
-                ? `🔵 АНОНС${announcedInfo?.form ? ` · ${announcedInfo.form}` : ""}`
+                ? `🔵 ПЛАНИРУЕТСЯ${announcedInfo?.form ? ` · ${announcedInfo.form}` : ""}`
                 : isWarm
                   ? "🟠 АРХИВ · данные последнего пролёта"
                   : "🟢 ACTIVE"}
@@ -290,6 +290,24 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, isAnnounced,
           Аппарат вне сети. Ниже — <strong style={{ color: "var(--orange)" }}>последний
           снимок</strong> телеметрии перед потерей связи (архив, замороженные
           данные).
+        </div>
+      )}
+
+      {isAnnounced && (
+        <div style={{
+          background: "rgba(34,211,238,0.08)",
+          border: "1px dashed #22d3ee88",
+          borderRadius: 10,
+          padding: "8px 10px",
+          marginBottom: 12,
+          fontSize: 11,
+          color: "var(--text-dim)",
+          lineHeight: 1.45,
+        }}>
+          Планируемый КА — публичных TLE и телеметрии пока нет.
+          {announcedInfo?.note ? (
+            <> Орбита на карте синтетическая. <strong style={{ color: "#22d3ee" }}>{announcedInfo.note}</strong></>
+          ) : null}
         </div>
       )}
 
@@ -608,9 +626,9 @@ export default function SatellitesPage() {
     <div className="app-body telemetry-page">
       <GuideBanner id="telemetry-intro-v3" icon={null}>
         <strong>Телеметрия Polytech Universe.</strong> По умолчанию на глобусе весь
-        флот (включая анонсированные PU-7/8/9). Клик по легенде слева переносит
-        камеру на спутник. Официально завершили миссию только <b>PU-1</b> и{" "}
-        <b>PU-2</b>; <b>PU-6</b> снова активен.
+        флот (включая планируемые PU-7, CSTP-5.2, CSTP-5.3). Клик по легенде слева
+        переносит камеру на спутник. Официально завершили миссию только <b>PU-1</b> и{" "}
+        <b>PU-2</b>; <b>PU-6</b> активен.
       </GuideBanner>
 
       <div className="controls-card">
@@ -632,7 +650,7 @@ export default function SatellitesPage() {
                       <span style={{ opacity: s.active || s.announced ? 1 : 0.75 }}>
                         {s.name.replace("Polytech_Universe-", "PU-")}
                       </span>
-                      {s.announced && <span className="sat-badge-announced">анонс</span>}
+                      {s.announced && <span className="sat-badge-announced">план</span>}
                       {!s.active && !s.announced && (
                         <span className="sat-badge-dead">архив</span>
                       )}
@@ -642,7 +660,7 @@ export default function SatellitesPage() {
                 <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                   <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map((s) => s.name)))}>Все</button>
                   <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set())}>Нет</button>
-                  <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter((s) => s.active || s.announced).map((s) => s.name)))}>Активные+анонс</button>
+                  <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter((s) => s.active || s.announced).map((s) => s.name)))}>Активные+план</button>
                 </div>
               </div>
             )}
@@ -716,7 +734,7 @@ export default function SatellitesPage() {
 
             {announcedFleet.length > 0 && (
               <div className="telemetry-legend-group">
-                <div className="telemetry-legend-label">Анонсированные</div>
+                <div className="telemetry-legend-label">Планируемые</div>
                 {announcedFleet.map((s) => {
                   const icon = SAT_ICON_META[s.name] || { shape: "●", label: "?" };
                   const short = s.name.replace("Polytech_Universe-", "PU-");
@@ -801,13 +819,13 @@ export default function SatellitesPage() {
             <div className="telemetry-side-title" style={{ marginTop: 14 }}>Проект</div>
             <p>
               Серия <b>Polytech Universe</b> (Space-π / ИЭиТ СПбПУ): мониторинг ЭМИ,
-              AIS и образовательные смены. Анонсы PU-7…9 на карте до публикации TLE.
+              AIS и образовательные смены. Планируемые КА — на карте до публикации TLE.
             </p>
             <ul className="telemetry-side-list">
               <li><span style={{ color: "#f97316" }}>◆6</span> PU-6 — активный 16U</li>
-              <li><span style={{ color: "#22d3ee" }}>⬡7</span> PU-7 — анонс</li>
-              <li><span style={{ color: "#fbbf24" }}>■8</span> PU-8 — анонс 3U</li>
-              <li><span style={{ color: "#4ade80" }}>●9</span> PU-9 — анонс 3U</li>
+              <li><span style={{ color: "#22d3ee" }}>⬡7</span> PU-7 — план · 6U · оптика</li>
+              <li><span style={{ color: "#fbbf24" }}>■5.2</span> CSTP-5.2 — план · ЭМИ</li>
+              <li><span style={{ color: "#4ade80" }}>●5.3</span> CSTP-5.3 — план · ЭМИ</li>
             </ul>
           </aside>
         </div>
