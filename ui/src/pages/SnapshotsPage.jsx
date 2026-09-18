@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { MapContainer, TileLayer, Marker, Tooltip, AttributionControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { GuideBanner, Hint } from "../components/Hint";
+import Hint, { GuideBanner } from "../components/Hint";
 
 /* Манифест с реально выгруженными в бакет Yandex Cloud снимками. */
 const MANIFEST_URL = "/snapshots-manifest.json";
