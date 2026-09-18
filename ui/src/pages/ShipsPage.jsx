@@ -44,140 +44,290 @@ function seededRng(seed) {
   };
 }
 
-/** Генерация большого количества псевдо-судов в "горячих" зонах вокруг
- *  России, СНГ, Северной Европы, Китая, Юго-Восточной Азии и Арктики. */
+const REGION_META = {
+  rf_sea:   { label: "РФ · моря",   color: "#f39768" },
+  rf_river: { label: "РФ · реки",   color: "#6cc77b" },
+  cis:      { label: "СНГ",         color: "#9460b8" },
+  eu:       { label: "Европа",      color: "#5ad6ff" },
+  asia:     { label: "Азия",        color: "#cbb98c" },
+};
+
+/** Имена/MMSI «как из агрегаторов» (gloap-подобные) — РФ и СНГ. */
+const AGGREGATOR_VESSELS = [
+  { name: "VOLGO-BALT 210", mmsi: 273314510, type: "cargo" },
+  { name: "VOLGO-DON 5055", mmsi: 273358140, type: "cargo" },
+  { name: "NEVA-LEADER 1", mmsi: 273442190, type: "cargo" },
+  { name: "KAMA-TRADER", mmsi: 273381220, type: "cargo" },
+  { name: "MOSKVA REKA", mmsi: 273218340, type: "passenger" },
+  { name: "SIBERIAN STAR", mmsi: 273459880, type: "cargo" },
+  { name: "OB RIVER", mmsi: 273367710, type: "tanker" },
+  { name: "YENISEY PATH", mmsi: 273391450, type: "cargo" },
+  { name: "LENA NORTH", mmsi: 273405560, type: "cargo" },
+  { name: "AMUR BRIDGE", mmsi: 273422670, type: "cargo" },
+  { name: "BAIKAL TUG", mmsi: 273198220, type: "tug" },
+  { name: "LADY VOLGA", mmsi: 273276540, type: "passenger" },
+  { name: "DON TANKER", mmsi: 273334890, type: "tanker" },
+  { name: "ASTRAKHAN OIL", mmsi: 273351120, type: "tanker" },
+  { name: "CASPIAN PEARL", mmsi: 423001450, type: "tanker" },
+  { name: "BAKU TRADER", mmsi: 423002880, type: "cargo" },
+  { name: "AKTAY FISH", mmsi: 436000910, type: "fishing" },
+  { name: "TURKMENBASHI", mmsi: 434001220, type: "cargo" },
+  { name: "DNIPRO CARGO", mmsi: 272011340, type: "cargo" },
+  { name: "POTI FERRY", mmsi: 213001780, type: "passenger" },
+  { name: "MURMANSK ICE", mmsi: 273449010, type: "cargo" },
+  { name: "YAMAL LNG", mmsi: 273380660, type: "tanker" },
+  { name: "VLADIVOSTOK TUG", mmsi: 273412230, type: "tug" },
+  { name: "SAKHALIN FISHER", mmsi: 273398770, type: "fishing" },
+  { name: "KRONSTADT PATROL", mmsi: 273215440, type: "military" },
+];
+
+/** Речные коридоры РФ/СНГ — суда ставятся вдоль полилинии (как в агрегаторах). */
+const RIVER_CORRIDORS = [
+  {
+    name: "Волга", region: "rf_river", density: 42,
+    types: ["cargo", "tanker", "passenger", "tug"],
+    path: [[45.9, 48.0], [46.4, 48.0], [48.7, 44.5], [51.5, 46.0], [53.2, 50.1], [55.8, 49.1], [56.3, 44.0], [57.6, 39.9], [58.1, 38.8]],
+  },
+  {
+    name: "Кама", region: "rf_river", density: 22,
+    types: ["cargo", "tug", "tanker"],
+    path: [[58.0, 56.2], [56.1, 54.0], [55.8, 52.0], [55.7, 49.2]],
+  },
+  {
+    name: "Дон", region: "rf_river", density: 20,
+    types: ["cargo", "tanker", "tug"],
+    path: [[47.2, 39.7], [47.5, 40.8], [48.7, 42.3], [49.0, 44.0]],
+  },
+  {
+    name: "Ока", region: "rf_river", density: 14,
+    types: ["cargo", "passenger", "tug"],
+    path: [[54.2, 37.6], [54.6, 39.7], [55.4, 42.0], [56.3, 44.0]],
+  },
+  {
+    name: "Москва-река / канал", region: "rf_river", density: 16,
+    types: ["passenger", "cargo", "tug"],
+    path: [[55.7, 37.5], [56.0, 37.2], [56.7, 37.0], [56.8, 38.5]],
+  },
+  {
+    name: "Обь", region: "rf_river", density: 28,
+    types: ["cargo", "tanker", "tug", "fishing"],
+    path: [[55.0, 82.9], [56.5, 84.9], [61.3, 73.4], [66.5, 66.5], [66.6, 71.0]],
+  },
+  {
+    name: "Иртыш", region: "rf_river", density: 16,
+    types: ["cargo", "tug", "tanker"],
+    path: [[55.0, 73.4], [58.2, 68.3], [61.1, 68.8], [61.3, 73.4]],
+  },
+  {
+    name: "Енисей", region: "rf_river", density: 24,
+    types: ["cargo", "tanker", "tug"],
+    path: [[56.0, 92.9], [58.5, 92.2], [64.0, 87.5], [69.4, 86.2], [73.5, 80.5]],
+  },
+  {
+    name: "Лена", region: "rf_river", density: 18,
+    types: ["cargo", "tug", "fishing"],
+    path: [[62.0, 129.7], [63.5, 128.0], [67.5, 123.5], [71.5, 127.0], [73.0, 126.5]],
+  },
+  {
+    name: "Амур", region: "rf_river", density: 20,
+    types: ["cargo", "tug", "passenger", "fishing"],
+    path: [[50.3, 127.5], [50.6, 137.0], [53.1, 140.7], [52.0, 141.3]],
+  },
+  {
+    name: "Северная Двина", region: "rf_river", density: 12,
+    types: ["cargo", "tug"],
+    path: [[61.3, 47.0], [62.5, 43.5], [64.5, 40.5]],
+  },
+  {
+    name: "Днепр (СНГ)", region: "cis", density: 14,
+    types: ["cargo", "tug", "passenger"],
+    path: [[50.4, 30.5], [48.7, 31.5], [46.6, 32.6], [46.5, 32.0]],
+  },
+  {
+    name: "Урал-река", region: "cis", density: 10,
+    types: ["cargo", "fishing", "tug"],
+    path: [[51.2, 51.4], [49.0, 51.5], [47.1, 51.9], [46.8, 51.2]],
+  },
+];
+
+/** Точка на полилинии реки + лёгкий снос «поперёк русла». */
+function pointOnPath(path, t, jitter = 0.08, rng = Math.random) {
+  const segs = path.length - 1;
+  const f = Math.max(0, Math.min(0.999, t)) * segs;
+  const i = Math.floor(f);
+  const u = f - i;
+  const a = path[i];
+  const b = path[Math.min(i + 1, path.length - 1)];
+  const lat = a[0] + (b[0] - a[0]) * u;
+  const lon = a[1] + (b[1] - a[1]) * u;
+  const dLat = b[0] - a[0];
+  const dLon = b[1] - a[1];
+  const len = Math.hypot(dLat, dLon) || 1;
+  const nx = -dLon / len;
+  const ny = dLat / len;
+  const j = (rng() - 0.5) * 2 * jitter;
+  const course = ((Math.atan2(dLon, dLat) * 180) / Math.PI + 360) % 360;
+  return { lat: lat + nx * j, lon: lon + ny * j, course };
+}
+
+/**
+ * Архивная выборка: через день в 10:00 и 22:00 UTC — меньше вес, больше месяцев.
+ * Покрытие: март–август 2026 (учебный год DISPLAY).
+ */
+function buildArchiveSnapshots() {
+  const out = [];
+  const start = Date.UTC(2026, 2, 1); // 1 Mar 2026
+  const end = Date.UTC(2026, 7, 31);  // 31 Aug 2026
+  for (let day = start; day <= end; day += 2 * 86400000) {
+    for (const hour of [10, 22]) {
+      out.push(day + hour * 3600000);
+    }
+  }
+  return out;
+}
+
+const ARCHIVE_SNAPSHOTS = buildArchiveSnapshots();
+
+/** Генерация флота: моря РФ/СНГ + речные коридоры + умеренная Азия/Европа. */
 function buildShipFleet() {
-  // Зоны: [centerLat, centerLon, radiusDeg, density, biasTypes]
-  // density — относительный вес, влияет на количество кораблей в зоне.
-  // Особый фокус — РФ и СНГ: расширенный набор морей и речных артерий.
   const ZONES = [
-    // ── РФ / СНГ — Балтика ─────────────────────────────────────────
-    { name: "Балтика — СПб",         lat: 60.0, lon: 28.5,  rLat: 1.6, rLon: 4.2,  density: 48, types: ["cargo","tanker","passenger","tug","fishing"] },
-    { name: "Финский залив",         lat: 59.7, lon: 25.0,  rLat: 1.0, rLon: 5.0,  density: 36, types: ["cargo","tanker","passenger"] },
-    { name: "Балтика — центр",       lat: 56.5, lon: 18.0,  rLat: 2.0, rLon: 5.0,  density: 32, types: ["cargo","passenger","tanker"] },
-    { name: "Калининград — Балтийск", lat: 54.7, lon: 19.9, rLat: 0.7, rLon: 1.5,  density: 22, types: ["cargo","tanker","military","tug","passenger"] },
-    { name: "Ладожское озеро",       lat: 60.8, lon: 31.5,  rLat: 1.4, rLon: 1.5,  density: 16, types: ["cargo","passenger","fishing","tug"] },
-    { name: "Онежское озеро",        lat: 61.7, lon: 35.6,  rLat: 1.5, rLon: 1.0,  density: 14, types: ["cargo","fishing","passenger"] },
-    { name: "Беломорско-Балтийский канал", lat: 64.7, lon: 34.9, rLat: 1.8, rLon: 0.7, density: 10, types: ["cargo","tug","tanker"] },
+    // ── РФ · моря / озёра ──────────────────────────────────────────
+    { name: "Балтика — СПб", region: "rf_sea", lat: 60.0, lon: 28.5, rLat: 1.6, rLon: 4.2, density: 56, types: ["cargo","tanker","passenger","tug","fishing"] },
+    { name: "Финский залив", region: "rf_sea", lat: 59.7, lon: 25.0, rLat: 1.0, rLon: 5.0, density: 40, types: ["cargo","tanker","passenger"] },
+    { name: "Балтика — центр", region: "rf_sea", lat: 56.5, lon: 18.0, rLat: 2.0, rLon: 5.0, density: 28, types: ["cargo","passenger","tanker"] },
+    { name: "Калининград — Балтийск", region: "rf_sea", lat: 54.7, lon: 19.9, rLat: 0.7, rLon: 1.5, density: 26, types: ["cargo","tanker","military","tug","passenger"] },
+    { name: "Ладожское озеро", region: "rf_sea", lat: 60.8, lon: 31.5, rLat: 1.4, rLon: 1.5, density: 22, types: ["cargo","passenger","fishing","tug"] },
+    { name: "Онежское озеро", region: "rf_sea", lat: 61.7, lon: 35.6, rLat: 1.5, rLon: 1.0, density: 18, types: ["cargo","fishing","passenger"] },
+    { name: "Беломорско-Балтийский канал", region: "rf_river", lat: 64.7, lon: 34.9, rLat: 1.8, rLon: 0.7, density: 14, types: ["cargo","tug","tanker"] },
+    { name: "Баренцево / Мурманск", region: "rf_sea", lat: 69.5, lon: 35.0, rLat: 3.0, rLon: 9.0, density: 36, types: ["cargo","tanker","military","fishing"] },
+    { name: "Архангельск — Белое", region: "rf_sea", lat: 64.6, lon: 40.5, rLat: 1.6, rLon: 3.5, density: 26, types: ["cargo","tanker","fishing","tug"] },
+    { name: "Новая Земля — Печора", region: "rf_sea", lat: 70.0, lon: 53.0, rLat: 2.5, rLon: 6.0, density: 16, types: ["tanker","cargo","military"] },
+    { name: "СМП — Карское", region: "rf_sea", lat: 73.0, lon: 65.0, rLat: 3.0, rLon: 12.0, density: 22, types: ["cargo","tanker","fishing"] },
+    { name: "СМП — Лаптевых", region: "rf_sea", lat: 75.5, lon: 125.0, rLat: 2.5, rLon: 14.0, density: 16, types: ["cargo","tanker"] },
+    { name: "Восточно-Сибирское", region: "rf_sea", lat: 73.5, lon: 160.0, rLat: 2.5, rLon: 14.0, density: 14, types: ["cargo","tanker","fishing"] },
+    { name: "Чукотское / Берингово", region: "rf_sea", lat: 64.0, lon: 178.0, rLat: 3.0, rLon: 10.0, density: 16, types: ["cargo","fishing","tanker"] },
+    { name: "Чёрное море", region: "rf_sea", lat: 43.5, lon: 35.0, rLat: 2.5, rLon: 5.0, density: 44, types: ["cargo","tanker","passenger","military"] },
+    { name: "Новороссийск", region: "rf_sea", lat: 44.7, lon: 37.7, rLat: 0.7, rLon: 1.2, density: 26, types: ["tanker","cargo","tug","military"] },
+    { name: "Севастополь", region: "rf_sea", lat: 44.6, lon: 33.5, rLat: 0.8, rLon: 1.4, density: 24, types: ["military","cargo","tug","passenger"] },
+    { name: "Сочи / Туапсе", region: "rf_sea", lat: 43.9, lon: 39.4, rLat: 0.7, rLon: 1.0, density: 18, types: ["passenger","cargo","tug","tanker"] },
+    { name: "Азовское море", region: "rf_sea", lat: 46.0, lon: 36.5, rLat: 1.5, rLon: 2.0, density: 28, types: ["cargo","fishing","tug","tanker"] },
+    { name: "Керченский пролив", region: "rf_sea", lat: 45.2, lon: 36.5, rLat: 0.5, rLon: 0.8, density: 18, types: ["cargo","tanker","tug"] },
+    { name: "Японское море", region: "rf_sea", lat: 41.0, lon: 134.0, rLat: 4.5, rLon: 6.0, density: 34, types: ["cargo","tanker","fishing","passenger"] },
+    { name: "Владивосток", region: "rf_sea", lat: 43.0, lon: 132.0, rLat: 1.5, rLon: 2.5, density: 30, types: ["cargo","tanker","military","tug"] },
+    { name: "Находка", region: "rf_sea", lat: 42.8, lon: 132.9, rLat: 0.6, rLon: 1.0, density: 18, types: ["tanker","cargo","tug"] },
+    { name: "Сахалин — Корсаков", region: "rf_sea", lat: 46.6, lon: 142.8, rLat: 1.5, rLon: 2.0, density: 20, types: ["cargo","tanker","passenger","fishing"] },
+    { name: "Татарский пролив", region: "rf_sea", lat: 50.0, lon: 142.0, rLat: 3.0, rLon: 2.5, density: 16, types: ["cargo","tanker","fishing"] },
+    { name: "Камчатка — Авача", region: "rf_sea", lat: 53.0, lon: 158.6, rLat: 1.5, rLon: 2.5, density: 20, types: ["fishing","cargo","military","passenger"] },
+    { name: "Магадан", region: "rf_sea", lat: 59.6, lon: 150.8, rLat: 1.6, rLon: 4.0, density: 16, types: ["cargo","tanker","fishing"] },
 
-    // ── РФ — Север ─────────────────────────────────────────────────
-    { name: "Баренцево / Мурманск",  lat: 69.5, lon: 35.0,  rLat: 3.0, rLon: 9.0,  density: 30, types: ["cargo","tanker","military","fishing"] },
-    { name: "Архангельск — Белое",   lat: 64.6, lon: 40.5,  rLat: 1.6, rLon: 3.5,  density: 22, types: ["cargo","tanker","fishing","tug"] },
-    { name: "Новая Земля — Печора",  lat: 70.0, lon: 53.0,  rLat: 2.5, rLon: 6.0,  density: 14, types: ["tanker","cargo","military"] },
+    // ── СНГ ───────────────────────────────────────────────────────
+    { name: "Каспий — Север", region: "cis", lat: 45.5, lon: 49.5, rLat: 2.0, rLon: 2.5, density: 24, types: ["tanker","cargo","fishing"] },
+    { name: "Каспий — Центр", region: "cis", lat: 41.5, lon: 50.5, rLat: 4.5, rLon: 2.5, density: 22, types: ["cargo","tanker","fishing"] },
+    { name: "Махачкала", region: "rf_sea", lat: 43.0, lon: 47.5, rLat: 0.6, rLon: 1.0, density: 14, types: ["cargo","tanker","tug"] },
+    { name: "Баку", region: "cis", lat: 40.4, lon: 50.0, rLat: 0.5, rLon: 1.2, density: 18, types: ["tanker","cargo","fishing"] },
+    { name: "Туркменбаши", region: "cis", lat: 40.0, lon: 53.0, rLat: 0.7, rLon: 1.2, density: 14, types: ["tanker","cargo","fishing"] },
+    { name: "Актау", region: "cis", lat: 43.6, lon: 51.2, rLat: 0.6, rLon: 1.0, density: 12, types: ["tanker","cargo","tug"] },
+    { name: "Одесса", region: "cis", lat: 46.4, lon: 30.7, rLat: 0.8, rLon: 1.4, density: 20, types: ["cargo","tanker","passenger","tug"] },
+    { name: "Поти / Батуми", region: "cis", lat: 42.0, lon: 41.5, rLat: 0.6, rLon: 1.2, density: 16, types: ["cargo","tanker","passenger"] },
 
-    // ── РФ — Северный морской путь ────────────────────────────────
-    { name: "СМП — Карское",         lat: 73.0, lon: 65.0,  rLat: 3.0, rLon: 12.0, density: 18, types: ["cargo","tanker","fishing"] },
-    { name: "СМП — Лаптевых",        lat: 75.5, lon: 125.0, rLat: 2.5, rLon: 14.0, density: 14, types: ["cargo","tanker"] },
-    { name: "Восточно-Сибирское",    lat: 73.5, lon: 160.0, rLat: 2.5, rLon: 14.0, density: 12, types: ["cargo","tanker","fishing"] },
-    { name: "Чукотское / Берингово", lat: 64.0, lon: 178.0, rLat: 3.0, rLon: 10.0, density: 14, types: ["cargo","fishing","tanker"] },
+    // ── Европа (масштаб) ──────────────────────────────────────────
+    { name: "Босфор", region: "eu", lat: 41.05, lon: 29.0, rLat: 0.6, rLon: 0.8, density: 20, types: ["cargo","tanker","passenger"] },
+    { name: "Северное море", region: "eu", lat: 56.0, lon: 4.5, rLat: 4.0, rLon: 4.5, density: 18, types: ["cargo","tanker","fishing"] },
 
-    // ── РФ — Чёрное / Азовское ────────────────────────────────────
-    { name: "Чёрное море",           lat: 43.5, lon: 35.0,  rLat: 2.5, rLon: 5.0,  density: 38, types: ["cargo","tanker","passenger","military"] },
-    { name: "Новороссийск",          lat: 44.7, lon: 37.7,  rLat: 0.7, rLon: 1.2,  density: 22, types: ["tanker","cargo","tug","military"] },
-    { name: "Севастополь",           lat: 44.6, lon: 33.5,  rLat: 0.8, rLon: 1.4,  density: 22, types: ["military","cargo","tug","passenger"] },
-    { name: "Сочи / Туапсе",         lat: 43.9, lon: 39.4,  rLat: 0.7, rLon: 1.0,  density: 16, types: ["passenger","cargo","tug","tanker"] },
-    { name: "Азовское море",         lat: 46.0, lon: 36.5,  rLat: 1.5, rLon: 2.0,  density: 22, types: ["cargo","fishing","tug","tanker"] },
-    { name: "Керченский пролив",     lat: 45.2, lon: 36.5,  rLat: 0.5, rLon: 0.8,  density: 16, types: ["cargo","tanker","tug"] },
-
-    // ── СНГ — Каспий ───────────────────────────────────────────────
-    { name: "Каспий — Север",        lat: 45.5, lon: 49.5,  rLat: 2.0, rLon: 2.5,  density: 18, types: ["tanker","cargo","fishing"] },
-    { name: "Каспий — Центр",        lat: 41.5, lon: 50.5,  rLat: 4.5, rLon: 2.5,  density: 18, types: ["cargo","tanker","fishing"] },
-    { name: "Махачкала",             lat: 43.0, lon: 47.5,  rLat: 0.6, rLon: 1.0,  density: 12, types: ["cargo","tanker","tug"] },
-    { name: "Баку",                  lat: 40.4, lon: 50.0,  rLat: 0.5, rLon: 1.2,  density: 14, types: ["tanker","cargo","fishing"] },
-    { name: "Туркменбаши",           lat: 40.0, lon: 53.0,  rLat: 0.7, rLon: 1.2,  density: 12, types: ["tanker","cargo","fishing"] },
-
-    // ── РФ — Волга / Дон / Кама ───────────────────────────────────
-    { name: "Волга — Астрахань",     lat: 46.4, lon: 48.0,  rLat: 1.5, rLon: 1.5,  density: 18, types: ["cargo","tanker","fishing","tug"] },
-    { name: "Волга — Волгоград",     lat: 48.7, lon: 44.5,  rLat: 1.4, rLon: 1.0,  density: 14, types: ["cargo","tanker","passenger","tug"] },
-    { name: "Волга — Самара",        lat: 53.2, lon: 50.1,  rLat: 1.2, rLon: 1.0,  density: 12, types: ["cargo","passenger","tug"] },
-    { name: "Волга — Нижний Новг.",  lat: 56.3, lon: 44.0,  rLat: 1.2, rLon: 1.0,  density: 12, types: ["cargo","passenger","tug"] },
-    { name: "Волго-Балт — Рыбинск",  lat: 58.0, lon: 38.8,  rLat: 1.6, rLon: 1.2,  density: 12, types: ["cargo","tug","passenger"] },
-    { name: "Дон — Ростов",          lat: 47.2, lon: 39.6,  rLat: 0.7, rLon: 1.6,  density: 14, types: ["cargo","tanker","tug"] },
-
-    // ── РФ — Дальний Восток ───────────────────────────────────────
-    { name: "Японское море",         lat: 41.0, lon: 134.0, rLat: 4.5, rLon: 6.0,  density: 30, types: ["cargo","tanker","fishing","passenger"] },
-    { name: "Владивосток",           lat: 43.0, lon: 132.0, rLat: 1.5, rLon: 2.5,  density: 26, types: ["cargo","tanker","military","tug"] },
-    { name: "Находка",               lat: 42.8, lon: 132.9, rLat: 0.6, rLon: 1.0,  density: 16, types: ["tanker","cargo","tug"] },
-    { name: "Сахалин — Корсаков",    lat: 46.6, lon: 142.8, rLat: 1.5, rLon: 2.0,  density: 18, types: ["cargo","tanker","passenger","fishing"] },
-    { name: "Татарский пролив",      lat: 50.0, lon: 142.0, rLat: 3.0, rLon: 2.5,  density: 14, types: ["cargo","tanker","fishing"] },
-    { name: "Камчатка — Авача",      lat: 53.0, lon: 158.6, rLat: 1.5, rLon: 2.5,  density: 18, types: ["fishing","cargo","military","passenger"] },
-    { name: "Магадан",               lat: 59.6, lon: 150.8, rLat: 1.6, rLon: 4.0,  density: 14, types: ["cargo","tanker","fishing"] },
-
-    // ── СНГ — Чёрное море (Украина, Грузия, Молдова Дунай) ────────
-    { name: "Одесса",                lat: 46.4, lon: 30.7,  rLat: 0.8, rLon: 1.4,  density: 18, types: ["cargo","tanker","passenger","tug"] },
-    { name: "Поти / Батуми",         lat: 42.0, lon: 41.5,  rLat: 0.6, rLon: 1.2,  density: 14, types: ["cargo","tanker","passenger"] },
-
-    // ── ЕС соседи ─────────────────────────────────────────────────
-    { name: "Босфор",                lat: 41.05, lon: 29.0, rLat: 0.6, rLon: 0.8,  density: 24, types: ["cargo","tanker","passenger"] },
-    { name: "Северное море",         lat: 56.0, lon: 4.5,   rLat: 4.0, rLon: 4.5,  density: 24, types: ["cargo","tanker","fishing"] },
-
-    // ── Азия (для масштаба) ───────────────────────────────────────
-    { name: "Жёлтое море",           lat: 36.5, lon: 122.5, rLat: 3.0, rLon: 4.0,  density: 36, types: ["cargo","tanker","fishing"] },
-    { name: "Шанхай",                lat: 31.0, lon: 122.5, rLat: 2.0, rLon: 3.0,  density: 38, types: ["cargo","tanker","passenger"] },
-    { name: "Южный Китай",           lat: 23.0, lon: 116.0, rLat: 4.0, rLon: 5.5,  density: 32, types: ["cargo","tanker","fishing"] },
-    { name: "Тайваньский пролив",    lat: 24.5, lon: 119.5, rLat: 2.5, rLon: 2.0,  density: 24, types: ["cargo","tanker","fishing"] },
-    { name: "Гонконг — устье",       lat: 22.4, lon: 114.0, rLat: 1.0, rLon: 1.5,  density: 26, types: ["cargo","passenger","tug"] },
-    { name: "Малаккский пролив",     lat:  3.0, lon: 101.5, rLat: 2.0, rLon: 4.0,  density: 30, types: ["cargo","tanker"] },
-    { name: "Сингапур",              lat:  1.3, lon: 103.9, rLat: 0.6, rLon: 1.0,  density: 24, types: ["cargo","tanker","passenger"] },
+    // ── Азия — меньше, чтобы не забивать РФ ───────────────────────
+    { name: "Жёлтое море", region: "asia", lat: 36.5, lon: 122.5, rLat: 3.0, rLon: 4.0, density: 22, types: ["cargo","tanker","fishing"] },
+    { name: "Шанхай", region: "asia", lat: 31.0, lon: 122.5, rLat: 2.0, rLon: 3.0, density: 24, types: ["cargo","tanker","passenger"] },
+    { name: "Южный Китай", region: "asia", lat: 23.0, lon: 116.0, rLat: 4.0, rLon: 5.5, density: 18, types: ["cargo","tanker","fishing"] },
+    { name: "Сингапур", region: "asia", lat: 1.3, lon: 103.9, rLat: 0.6, rLon: 1.0, density: 16, types: ["cargo","tanker","passenger"] },
   ];
 
   const NAMES = [
-    "NORDIC STAR","ATLANTIC SPIRIT","PACIFIC VOYAGER","OCEAN BREEZE","SEA GUARDIAN",
-    "LIBERTY WAVE","EMERALD QUEEN","CORAL DREAM","GOLDEN HARVEST","SILVER MOON",
-    "CAPE RUNNER","ATLAS PIONEER","DRAGON PEARL","NEVA TRADER","BALTIC FERRY",
-    "KRONSTADT TUG","PETERHOF FISHER","LADOGA TANKER","AURORA SAILING","VYBORG TRADER",
-    "BALTIYSK PATROL","MURMANSK ICE","ARCTIC PATROL","YAMAL LNG","SOCHI SUNRISE",
-    "NOVOROSSIYSK OIL","ISTANBUL FERRY","GENOVA CARGO","PALERMO TANKER","PIRAEUS TRADER",
-    "ZHEJIANG STAR","FUJIAN PEARL","SHANGHAI GIANT","HONG KONG FERRY","SINGAPORE PASSAGE",
-    "MALACCA RUNNER","TOKYO BAY EXPRESS","OSAKA TRADER","BUSAN STAR","VLADIVOSTOK TUG",
-    "HAMBURG EXPRESS","STOCKHOLM LINK","HELSINKI CARGO","COPENHAGEN BREEZE","OSLO PRIDE",
+    "NORDIC STAR","NEVA TRADER","BALTIC FERRY","KRONSTADT TUG","LADOGA TANKER",
+    "MURMANSK ICE","ARCTIC PATROL","YAMAL LNG","SOCHI SUNRISE","NOVOROSSIYSK OIL",
+    "VLADIVOSTOK TUG","SAKHALIN FISHER","CASPIAN PEARL","BAKU TRADER","DNIPRO CARGO",
+    "HAMBURG EXPRESS","STOCKHOLM LINK","HELSINKI CARGO","SHANGHAI GIANT","SINGAPORE PASSAGE",
   ];
-  const CENTRY_PREFIX = ["NORD","BALT","ARCT","NEVA","DON","VOLGA","KAMA","OB","LENA","ENISEY","AMUR","HAN","WU","XI","YAN","FENG","SHAN","DA","HEI","LONG","JIN"];
-  const CENTRY_SUFFIX = ["TRADER","STAR","PEARL","HARVEST","PATROL","CARGO","TANKER","BREEZE","RUNNER","VOYAGER","WAVE","SPIRIT","TUG","DREAM"];
+  const PREFIX = ["NORD","BALT","ARCT","NEVA","DON","VOLGA","KAMA","OB","LENA","ENISEY","AMUR","IRTYSH","CASP","DNIPRO"];
+  const SUFFIX = ["TRADER","STAR","PEARL","HARVEST","PATROL","CARGO","TANKER","BREEZE","RUNNER","VOYAGER","TUG","DREAM"];
 
-  const MMSI_BASES = {
-    russia: 273000000,
-    china:  412800000,
-    eu:     211000000,
-    finland: 230000000,
-    estonia: 276000000,
-    denmark: 219000000,
-    japan: 431000000,
-    korea: 440000000,
-    germany: 211400000,
-    norway: 257000000,
+  const MMSI_BY_REGION = {
+    rf_sea: 273000000, rf_river: 273200000, cis: 423000000, eu: 211000000, asia: 412800000,
   };
 
   const ships = [];
   let id = 1;
+  let aggIdx = 0;
+
+  const pushShip = (base, rng) => {
+    const region = base.region || "rf_sea";
+    const useAgg = region !== "asia" && region !== "eu" && rng() < 0.35 && aggIdx < AGGREGATOR_VESSELS.length * 3;
+    const agg = AGGREGATOR_VESSELS[aggIdx % AGGREGATOR_VESSELS.length];
+    if (useAgg) aggIdx += 1;
+    const name = useAgg
+      ? agg.name
+      : (rng() < 0.5
+        ? NAMES[Math.floor(rng() * NAMES.length)]
+        : `${PREFIX[Math.floor(rng() * PREFIX.length)]} ${SUFFIX[Math.floor(rng() * SUFFIX.length)]}`);
+    const type = useAgg ? agg.type : base.type;
+    const mmsiBase = MMSI_BY_REGION[region] || 273000000;
+    const mmsi = useAgg
+      ? agg.mmsi + Math.floor(rng() * 90)
+      : mmsiBase + Math.floor(rng() * 799000) + id;
+    ships.push({
+      id: id++,
+      mmsi,
+      name,
+      type,
+      lat: base.lat,
+      lon: base.lon,
+      course: base.course,
+      speed: base.speed,
+      zone: base.zone,
+      region,
+      river: !!base.river,
+      path: base.path || null,
+      pathT: base.pathT ?? null,
+      zoneLat: base.zoneLat,
+      zoneLon: base.zoneLon,
+      zoneRLat: base.zoneRLat,
+      zoneRLon: base.zoneRLon,
+      source: useAgg ? "aggregator" : "model",
+    });
+  };
 
   for (const z of ZONES) {
-    const rng = seededRng(z.lat * 91 + z.lon * 13);
+    const rng = seededRng(Math.floor(z.lat * 91 + z.lon * 13));
     for (let i = 0; i < z.density; i++) {
-      // равномерно по эллипсу зоны
       const lat = z.lat + (rng() - 0.5) * 2 * z.rLat;
       const lon = z.lon + (rng() - 0.5) * 2 * z.rLon;
       const type = z.types[Math.floor(rng() * z.types.length)];
-      // имя: смесь либо готовое, либо префикс+суффикс
-      const name = rng() < 0.55
-        ? NAMES[Math.floor(rng() * NAMES.length)]
-        : `${CENTRY_PREFIX[Math.floor(rng() * CENTRY_PREFIX.length)]} ${CENTRY_SUFFIX[Math.floor(rng() * CENTRY_SUFFIX.length)]}`;
-      // курс: вдоль зоны (главная ось)
       const courseBase = z.rLon > z.rLat ? 90 : 0;
       const course = (courseBase + (rng() - 0.5) * 60 + 360) % 360;
-      const speed = +(8 + rng() * 14).toFixed(1);
-      const baseMmsi = Object.values(MMSI_BASES)[Math.floor(rng() * Object.values(MMSI_BASES).length)];
-      const mmsi = baseMmsi + Math.floor(rng() * 999000) + 1;
-      ships.push({
-        id: id++, mmsi, name, type, lat, lon, course, speed,
-        // Запоминаем bounding-box зоны и центр — нужно, чтобы при перемотке
-        // времени корабль не «выкатывался» из своей акватории на сушу.
-        zone: z.name,
-        zoneLat: z.lat, zoneLon: z.lon,
-        zoneRLat: z.rLat, zoneRLon: z.rLon,
-      });
+      const speed = +(6 + rng() * 14).toFixed(1);
+      pushShip({
+        region: z.region, type, lat, lon, course, speed,
+        zone: z.name, zoneLat: z.lat, zoneLon: z.lon, zoneRLat: z.rLat, zoneRLon: z.rLon,
+      }, rng);
     }
   }
+
+  for (const riv of RIVER_CORRIDORS) {
+    const rng = seededRng(riv.name.length * 97 + riv.path[0][0] * 11);
+    const types = riv.types.filter((t) => SHIP_TYPES[t]);
+    for (let i = 0; i < riv.density; i++) {
+      const t0 = (i + 0.5) / riv.density;
+      const pt = pointOnPath(riv.path, t0, 0.06, rng);
+      const type = types[Math.floor(rng() * types.length)] || "cargo";
+      const speed = +(4 + rng() * 8).toFixed(1);
+      pushShip({
+        region: riv.region, type, river: true,
+        lat: pt.lat, lon: pt.lon, course: pt.course, speed,
+        zone: riv.name, path: riv.path, pathT: t0,
+        zoneLat: pt.lat, zoneLon: pt.lon, zoneRLat: 0.35, zoneRLon: 0.45,
+      }, rng);
+    }
+  }
+
   return ships;
 }
 
@@ -238,7 +388,49 @@ function advance(ship, minutes) {
   return { lat, lon };
 }
 
+/** Позиция судна на выбранный архивный снимок (без хранения треков). */
+function positionAtSnapshot(ship, snapIdx) {
+  const rng = seededRng(ship.mmsi ^ (snapIdx * 9973));
+  if (ship.path && ship.path.length >= 2) {
+    const drift = (rng() - 0.5) * 0.08;
+    const t = Math.max(0.02, Math.min(0.98, (ship.pathT ?? 0.5) + drift));
+    const pt = pointOnPath(ship.path, t, 0.05, rng);
+    return { lat: pt.lat, lon: pt.lon, course: pt.course };
+  }
+  // Море: лёгкое «дыхание» вокруг якорной позиции, clamp в зоне.
+  const minutes = (rng() - 0.5) * 180;
+  const moved = advance(ship, minutes);
+  return { lat: moved.lat, lon: moved.lon, course: ship.course };
+}
+
+function fmtSnapLabel(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:00 UTC`;
+}
+
+function monthKey(ms) {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(key) {
+  const [y, m] = key.split("-");
+  const names = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  return `${names[Number(m) - 1]} ${y}`;
+}
+
 const FLEET = buildShipFleet();
+
+const ARCHIVE_MONTHS = (() => {
+  const seen = [];
+  const keys = new Set();
+  for (const ms of ARCHIVE_SNAPSHOTS) {
+    const k = monthKey(ms);
+    if (!keys.has(k)) { keys.add(k); seen.push(k); }
+  }
+  return seen;
+})();
 
 /* ─── Главный компонент: переключатель табов ─────────────────────────────── */
 export default function ShipsPage() {
@@ -249,7 +441,7 @@ export default function ShipsPage() {
         <div>
           <h1 className="page-title">AIS · корабли</h1>
           <p className="page-subtitle">
-            Демо-карта со сгенерированным трафиком и реальные данные, полученные со спутников.
+            Демо с акцентом на РФ/СНГ и реки (архивная выборка 10:00/22:00) плюс реальные приёмы со спутников.
           </p>
         </div>
       </div>
@@ -274,21 +466,40 @@ export default function ShipsPage() {
   );
 }
 
-/* ─── Таб «Демо-карта» — то, что было раньше на странице ─────────────────── */
+/* ─── Таб «Демо-карта» ───────────────────────────────────────────────────── */
 function DemoMapTab() {
   const [visibleTypes, setVisibleTypes] = useState(new Set(SHIP_TYPE_LIST));
-  const [tOffsetMin, setTOffsetMin] = useState(0);  // -360..0..+0 (минуты от "сейчас")
+  const [regionFilter, setRegionFilter] = useState(() => new Set(Object.keys(REGION_META)));
+  const [month, setMonth] = useState(ARCHIVE_MONTHS[ARCHIVE_MONTHS.length - 1] || ARCHIVE_MONTHS[0]);
+  const [snapIdx, setSnapIdx] = useState(() => Math.max(0, ARCHIVE_SNAPSHOTS.length - 1));
   const [playing, setPlaying] = useState(false);
   const playRef = useRef();
 
-  // Авто-проигрывание времени
+  const monthSnaps = useMemo(() => {
+    return ARCHIVE_SNAPSHOTS
+      .map((ms, i) => ({ ms, i }))
+      .filter((x) => monthKey(x.ms) === month);
+  }, [month]);
+
+  // При смене месяца — прыгаем на первый снимок месяца
   useEffect(() => {
-    if (!playing) return;
+    if (!monthSnaps.length) return;
+    if (!monthSnaps.some((s) => s.i === snapIdx)) {
+      setSnapIdx(monthSnaps[0].i);
+    }
+  }, [month, monthSnaps, snapIdx]);
+
+  useEffect(() => {
+    if (!playing || !monthSnaps.length) return;
     playRef.current = setInterval(() => {
-      setTOffsetMin((t) => (t >= 0 ? -360 : t + 5));
-    }, 220);
+      setSnapIdx((cur) => {
+        const pos = monthSnaps.findIndex((s) => s.i === cur);
+        const next = monthSnaps[(pos + 1) % monthSnaps.length];
+        return next.i;
+      });
+    }, 700);
     return () => clearInterval(playRef.current);
-  }, [playing]);
+  }, [playing, monthSnaps]);
 
   const toggleType = (t) => {
     setVisibleTypes((prev) => {
@@ -299,40 +510,119 @@ function DemoMapTab() {
     });
   };
 
-  const baseTs = useMemo(() => Date.now() + tOffsetMin * 60 * 1000, [tOffsetMin]);
-
-  // Считаем позиции на момент tOffsetMin (от текущего «момента съёмки»)
-  const ships = useMemo(() => {
-    return FLEET.filter((s) => visibleTypes.has(s.type)).map((s) => {
-      const adv = advance(s, tOffsetMin);
-      const rng = seededRng(s.mmsi + Math.floor(baseTs / 60000));
-      const moved = { ...s, lat: adv.lat, lon: adv.lon };
-      moved.lastPacket = buildAisPacket(moved, baseTs, rng);
-      return moved;
+  const toggleRegion = (r) => {
+    setRegionFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(r)) next.delete(r);
+      else next.add(r);
+      return next;
     });
-  }, [visibleTypes, tOffsetMin, baseTs]);
-
-  const fmtTimeLabel = () => {
-    const d = new Date(baseTs);
-    const pad = (n) => String(n).padStart(2, "0");
-    const ago = Math.abs(tOffsetMin);
-    const tag = tOffsetMin === 0 ? "сейчас" : `−${ago} мин назад`;
-    return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth()+1)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC · ${tag}`;
   };
+
+  const snapMs = ARCHIVE_SNAPSHOTS[snapIdx] ?? ARCHIVE_SNAPSHOTS[0];
+  const localIdxInMonth = Math.max(0, monthSnaps.findIndex((s) => s.i === snapIdx));
+
+  const ships = useMemo(() => {
+    return FLEET
+      .filter((s) => visibleTypes.has(s.type) && regionFilter.has(s.region))
+      .map((s) => {
+        const pos = positionAtSnapshot(s, snapIdx);
+        const rng = seededRng(s.mmsi + snapIdx);
+        const moved = { ...s, lat: pos.lat, lon: pos.lon, course: pos.course };
+        moved.lastPacket = buildAisPacket(moved, snapMs, rng);
+        return moved;
+      });
+  }, [visibleTypes, regionFilter, snapIdx, snapMs]);
+
+  const analytics = useMemo(() => {
+    const byRegion = {};
+    const byType = {};
+    let river = 0;
+    let sea = 0;
+    let aggregator = 0;
+    for (const s of ships) {
+      byRegion[s.region] = (byRegion[s.region] || 0) + 1;
+      byType[s.type] = (byType[s.type] || 0) + 1;
+      if (s.river) river += 1; else sea += 1;
+      if (s.source === "aggregator") aggregator += 1;
+    }
+    const maxR = Math.max(1, ...Object.values(byRegion));
+    return { byRegion, byType, river, sea, aggregator, maxR, total: ships.length };
+  }, [ships]);
 
   return (
     <>
-      <GuideBanner id="ais-intro">
-        <strong>Демо-карта AIS.</strong> Здесь показаны{" "}
-        <em>сгенерированные</em> суда в зонах активного судоходства (Россия, СНГ,
-        Китай, ЮВА). Это <b>учебная модель</b> — для работы с реальными
-        приёмами с орбиты переключитесь на вкладку «Данные со спутников».
+      <GuideBanner id="ais-intro-v3">
+        <strong>Демо-карта AIS.</strong> Фокус — <b>РФ и СНГ</b>, включая речной флот
+        (Волга, Обь, Енисей, Лена, Амур…). Архив: выборка{" "}
+        <b>через день в 10:00 и 22:00 UTC</b> за март–август 2026 — меньше вес,
+        больше месяцев. Имена частично как в агрегаторах. Реальные приёмы с орбиты —
+        вкладка «Данные со спутников».
       </GuideBanner>
+
+      <div className="ais-analytics">
+        <div className="ais-analytics-card">
+          <div className="ais-analytics-k">Суда на снимке</div>
+          <div className="ais-analytics-v">{analytics.total}</div>
+          <div className="ais-analytics-sub">флот {FLEET.length} · снимков {ARCHIVE_SNAPSHOTS.length}</div>
+        </div>
+        <div className="ais-analytics-card">
+          <div className="ais-analytics-k">Реки / моря</div>
+          <div className="ais-analytics-v">{analytics.river} <span>/ {analytics.sea}</span></div>
+          <div className="ais-analytics-sub">из них «агрегатор» · {analytics.aggregator}</div>
+        </div>
+        <div className="ais-analytics-card ais-analytics-card--wide">
+          <div className="ais-analytics-k">По регионам</div>
+          <div className="ais-analytics-bars">
+            {Object.entries(REGION_META).map(([key, meta]) => {
+              const n = analytics.byRegion[key] || 0;
+              const pct = Math.round((n / analytics.maxR) * 100);
+              return (
+                <div key={key} className="ais-analytics-bar-row">
+                  <span className="ais-analytics-bar-label" style={{ color: meta.color }}>{meta.label}</span>
+                  <div className="ais-analytics-bar-track">
+                    <div className="ais-analytics-bar-fill" style={{ width: `${pct}%`, background: meta.color }} />
+                  </div>
+                  <span className="ais-analytics-bar-n">{n}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="ais-analytics-card">
+          <div className="ais-analytics-k">Типы</div>
+          <div className="ais-analytics-types">
+            {SHIP_TYPE_LIST.map((t) => (
+              <span key={t} className="ais-analytics-type-chip" style={{ borderColor: SHIP_TYPES[t].color }}>
+                <i style={{ background: SHIP_TYPES[t].color }} />
+                {(analytics.byType[t] || 0)}
+              </span>
+            ))}
+          </div>
+          <div className="ais-analytics-sub">10:00 · 22:00 · через день</div>
+        </div>
+      </div>
 
       <div className="controls-card">
         <div className="ctrl-row" style={{ flexWrap: "wrap" }}>
+          <span className="ctrl-label" style={{ marginRight: 8 }}>Регион</span>
+          {Object.entries(REGION_META).map(([key, meta]) => (
+            <label key={key} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", marginRight: 10, userSelect: "none" }}>
+              <input
+                type="checkbox"
+                checked={regionFilter.has(key)}
+                onChange={() => toggleRegion(key)}
+                style={{ accentColor: meta.color }}
+              />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: meta.color, display: "inline-block" }} />
+              {meta.label}
+            </label>
+          ))}
+        </div>
+
+        <div className="ctrl-row" style={{ flexWrap: "wrap" }}>
           <span className="ctrl-label" style={{ marginRight: 8 }}>Типы судов</span>
-          <Hint text="Снимайте галочки, чтобы скрыть с карты лишние типы (танкеры, военные и т.д.)." />
+          <Hint text="Снимайте галочки, чтобы скрыть типы. Речной флот — в основном грузовые, танкеры и буксиры." />
           {SHIP_TYPE_LIST.map((t) => (
             <label key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer", marginRight: 12, userSelect: "none" }}>
               <input
@@ -346,46 +636,68 @@ function DemoMapTab() {
             </label>
           ))}
           <div className="ctrl-spacer" />
-          <span className="card-meta">{ships.length} судов · АИС-демо · архивные данные</span>
+          <span className="card-meta">{ships.length} судов · архивный снимок</span>
         </div>
 
-        {/* Time-scrubber */}
+        <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <span className="ctrl-label">Месяц</span>
+          <div className="ais-window-pills">
+            {ARCHIVE_MONTHS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`ais-window-pill${month === m ? " ais-window-pill--active" : ""}`}
+                onClick={() => { setMonth(m); setPlaying(false); }}
+              >
+                {monthLabel(m)}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <span className="ctrl-label">Время</span>
-          <Hint text="Перетащите бегунок, чтобы сдвинуть карту во времени. Каждый шаг = 5 минут. Кнопка ▶ запускает анимацию." />
-          <button
-            className="btn btn-sm"
-            onClick={() => setPlaying((p) => !p)}
-          >
+          <span className="ctrl-label">Снимок</span>
+          <Hint text="Выборка через день: 10:00 и 22:00 UTC. Так покрываем месяцы без тяжёлого непрерывного трека." />
+          <button className="btn btn-sm" onClick={() => setPlaying((p) => !p)}>
             {playing ? "❚❚ Пауза" : "▶ Воспроизвести"}
           </button>
           <button
             className="btn btn-sm"
-            onClick={() => { setTOffsetMin(0); setPlaying(false); }}
+            onClick={() => {
+              if (monthSnaps.length) setSnapIdx(monthSnaps[monthSnaps.length - 1].i);
+              setPlaying(false);
+            }}
           >
-            Сейчас
+            Конец месяца
           </button>
           <input
             type="range"
-            min={-360}
-            max={0}
-            step={5}
-            value={tOffsetMin}
-            onChange={(e) => setTOffsetMin(Number(e.target.value))}
+            min={0}
+            max={Math.max(0, monthSnaps.length - 1)}
+            step={1}
+            value={localIdxInMonth}
+            onChange={(e) => {
+              const s = monthSnaps[Number(e.target.value)];
+              if (s) setSnapIdx(s.i);
+            }}
             style={{ flex: 1, minWidth: 240, accentColor: "var(--orange)" }}
           />
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "var(--text-dim)" }}>
-            {fmtTimeLabel()}
+            {fmtSnapLabel(snapMs)} · {localIdxInMonth + 1}/{monthSnaps.length || 1}
           </span>
         </div>
       </div>
 
-      <div className="globe-card">
-        <div className="card-header">
-          <span className="card-title">Демо-карта · AIS Vessel Tracking</span>
-          <span className="card-meta">{ships.length} судов</span>
+      <div className="globe-card sat-monitor-shell">
+        <div className="sat-monitor-header">
+          <div>
+            <div className="sat-monitor-header-title">SAT-MONITOR</div>
+            <div className="sat-monitor-header-sub">
+              Демо-карта · AIS Vessel Tracking · {ships.length} судов · {fmtSnapLabel(snapMs)}
+            </div>
+          </div>
         </div>
-        <div className="globe-inner" style={{ height: 640 }}>
+        <div className="globe-inner" style={{ height: 640, borderRadius: 0 }}>
           <style>{`
             .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1b1530 !important; color: #f1ead2 !important; border: 1px solid #8a5ab0 !important; border-radius: 10px !important; box-shadow: 0 8px 24px rgba(0,0,0,.6) !important; }
             .leaflet-popup-content { margin: 10px 14px !important; }
@@ -394,7 +706,7 @@ function DemoMapTab() {
             .leaflet-control-attribution { background: rgba(26,50,32,.85) !important; color: #8aa090 !important; font-size: 10px !important; }
             .leaflet-control-attribution a { color: #f39768 !important; }
           `}</style>
-          <MapContainer center={[55, 60]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas={true}>
+          <MapContainer center={[58, 70]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas={true}>
             <AttributionControl position="bottomright" prefix={false} />
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -406,7 +718,7 @@ function DemoMapTab() {
               <Marker
                 key={s.id}
                 position={[s.lat, s.lon]}
-                icon={makeShipIcon(s.type, s.course, true)}
+                icon={makeShipIcon(s.type, s.course, s.river)}
               >
                 <Popup>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, minWidth: 260 }}>
@@ -416,6 +728,10 @@ function DemoMapTab() {
                     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px", marginBottom: 8 }}>
                       <span style={{ color: "#8aa090" }}>MMSI:</span><span>{s.mmsi}</span>
                       <span style={{ color: "#8aa090" }}>Тип:</span><span>{SHIP_TYPES[s.type]?.label}</span>
+                      <span style={{ color: "#8aa090" }}>Регион:</span>
+                      <span>{REGION_META[s.region]?.label || s.region}{s.river ? " · река" : ""}</span>
+                      <span style={{ color: "#8aa090" }}>Источник:</span>
+                      <span>{s.source === "aggregator" ? "агрегатор (выборка)" : "модель зоны"}</span>
                       <span style={{ color: "#8aa090" }}>Скорость:</span><span>{s.speed} уз</span>
                       <span style={{ color: "#8aa090" }}>Курс:</span><span>{Math.round(s.course)}°</span>
                       <span style={{ color: "#8aa090" }}>Зона:</span><span>{s.zone}</span>
@@ -432,19 +748,17 @@ function DemoMapTab() {
                       letterSpacing: 0.6,
                       textTransform: "uppercase",
                     }}>
-                      Последний AIS-пакет (архивные данные)
+                      AIS-пакет · архивный снимок
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 10px", fontSize: 10.5 }}>
-                      <span style={{ color: "#8aa090" }}>Принят:</span>
-                      <span>{new Date(s.lastPacket.receivedAt).toLocaleString("ru")}</span>
+                      <span style={{ color: "#8aa090" }}>Снимок:</span>
+                      <span>{fmtSnapLabel(snapMs)}</span>
                       <span style={{ color: "#8aa090" }}>Тип сообщ.:</span>
                       <span>AIS msg {s.lastPacket.msgType} (Pos.Report)</span>
                       <span style={{ color: "#8aa090" }}>NavStatus:</span>
                       <span>{s.lastPacket.navStatus}</span>
                       <span style={{ color: "#8aa090" }}>SOG / COG:</span>
                       <span>{s.lastPacket.sogKn} уз / {s.lastPacket.cogDeg}°</span>
-                      <span style={{ color: "#8aa090" }}>HDG / ROT:</span>
-                      <span>{s.lastPacket.headingDeg}° / {s.lastPacket.rotDegPerMin}°/мин</span>
                       <span style={{ color: "#8aa090" }}>RSSI / SNR:</span>
                       <span>{s.lastPacket.rssi_dbm} дБм · {s.lastPacket.snr_db} дБ</span>
                     </div>
@@ -471,13 +785,23 @@ const SAT_COLORS = {
   "unknown":   "#8aa090",
 };
 
-const SAT_ORDER = ["CSTP-2.1", "CSTP-2.2", "PU-4"];
+const SAT_ORDER = ["CSTP-2.1", "CSTP-2.2", "PU-4", "CSTP-2.10"];
+
+/** Пресеты «окна свежести» позиций (минуты). */
+const WINDOW_PRESETS = [
+  { min: 60,   label: "1 ч" },
+  { min: 360,  label: "6 ч" },
+  { min: 720,  label: "12 ч" },
+  { min: 1440, label: "1 сут" },
+  { min: 4320, label: "3 сут" },
+  { min: 8640, label: "6 сут" },
+];
 
 /** Последняя известная позиция каждого судна на момент ts.
  *  Берём все репорты не позже ts, но не старше windowMin — так на карте
  *  видно больше кораблей, а не только те, что попали в узкое ±окно. */
 function pointsAtTime(points, ts, windowMin = 360) {
-  const maxAge = windowMin * 60 * 1000;
+  const maxAge = Math.max(1, Number(windowMin) || 360) * 60 * 1000;
   const byMmsi = new Map();
   for (const p of points) {
     if (p._t > ts) continue;
@@ -515,7 +839,7 @@ function SatDataMapTab() {
   const [enabledSats, setEnabledSats] = useState(() => new Set(SAT_ORDER));
   const [tIdx, setTIdx] = useState(0);          // позиция бегунка (0..N-1)
   const [playing, setPlaying] = useState(false);
-  const [windowMin, setWindowMin] = useState(4320); // свежесть позиции, минут
+  const [windowMin, setWindowMin] = useState(1440); // свежесть позиции, минут
   const playRef = useRef();
 
   useEffect(() => {
@@ -547,12 +871,17 @@ function SatDataMapTab() {
 
   // строим временную ось — равномерные шаги по 5 минут от min до max
   const timeline = useMemo(() => {
-    if (!raw || !raw.min_ts || !raw.max_ts) return null;
-    const min = Date.parse(raw.min_ts);
-    const max = Date.parse(raw.max_ts);
+    if (!raw?.points?.length) return null;
+    // Берём min/max по фактическим точкам (после подмены года на бэке)
+    let min = Infinity;
+    let max = -Infinity;
+    for (const p of raw.points) {
+      if (p._t < min) min = p._t;
+      if (p._t > max) max = p._t;
+    }
     if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
     const stepMs = 5 * 60 * 1000;
-    const total = Math.ceil((max - min) / stepMs);
+    const total = Math.max(1, Math.ceil((max - min) / stepMs));
     return { min, max, stepMs, total };
   }, [raw]);
 
@@ -569,12 +898,22 @@ function SatDataMapTab() {
     return () => clearInterval(playRef.current);
   }, [playing, timeline]);
 
-  const currentTs = timeline ? timeline.min + tIdx * timeline.stepMs : 0;
+  const currentTs = timeline ? Math.min(timeline.max, timeline.min + tIdx * timeline.stepMs) : 0;
 
   const visiblePoints = useMemo(() => {
     if (!timeline) return [];
     return pointsAtTime(filteredAll, currentTs, windowMin);
   }, [filteredAll, currentTs, windowMin, timeline]);
+
+  // Сколько судов было бы видно при каждом пресете — для подсказки у кнопок
+  const windowPreviews = useMemo(() => {
+    if (!timeline) return {};
+    const out = {};
+    for (const w of WINDOW_PRESETS) {
+      out[w.min] = pointsAtTime(filteredAll, currentTs, w.min).length;
+    }
+    return out;
+  }, [filteredAll, currentTs, timeline]);
 
   const toggleSat = (s) => {
     setEnabledSats((prev) => {
@@ -583,6 +922,15 @@ function SatDataMapTab() {
       else next.add(s);
       return next;
     });
+  };
+
+  const applyWindow = (w) => {
+    setWindowMin(Number(w));
+    // Если окно больше текущего «хвоста» шкалы — подтягиваем бегунок к концу,
+    // чтобы пользователь сразу видел эффект длинного окна.
+    if (timeline && tIdx < timeline.total * 0.15) {
+      setTIdx(timeline.total);
+    }
   };
 
   const mapCenter = [72, 60];
@@ -595,31 +943,33 @@ function SatDataMapTab() {
     return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth()+1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
   };
 
+  const rangeLabel = useMemo(() => {
+    if (!timeline) return "";
+    const a = new Date(timeline.min);
+    const b = new Date(timeline.max);
+    const f = (d) => d.toLocaleDateString("ru", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return `${f(a)} — ${f(b)}`;
+  }, [timeline]);
+
   return (
     <>
-      <GuideBanner id="ais-sat-intro">
-        <strong>Данные со спутников.</strong> Реальные AIS-репорты, принятые
-        спутниками <b>CSTP-2.1</b>, <b>CSTP-2.2</b> и <b>PU-4</b> над Арктикой
-        в феврале 2025 г. Чекбоксами выбирайте, какие источники
-        отображать; бегунком — момент времени. Если выбраны все три — на карте
-        все суда сразу.
+      <GuideBanner id="ais-sat-intro-v2" icon={null}>
+        <strong>Данные со спутников.</strong> AIS-репорты CSTP-2.1 / CSTP-2.2 / PU-4
+        (арктические пролёты). Календарные даты показаны как <b>2026</b> — пока нет
+        свежего архива, год подменён для учебной шкалы. Чекбоксы — источники;
+        бегунок — момент времени; кнопки окна — насколько «свежей» должна быть
+        последняя позиция судна.
       </GuideBanner>
 
-      <div className="controls-card">
+      <div className="controls-card ais-controls">
         <div className="ctrl-row" style={{ flexWrap: "wrap", gap: 12 }}>
           <span className="ctrl-label">Источник AIS</span>
           <Hint text="Эти чекбоксы фильтруют точки по тому, какой спутник их принял." />
           {SAT_ORDER.map((s) => (
             <label
               key={s}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                cursor: "pointer",
-                userSelect: "none",
-              }}
+              className="ais-sat-chip"
+              style={{ "--sat-color": SAT_COLORS[s] }}
             >
               <input
                 type="checkbox"
@@ -627,15 +977,10 @@ function SatDataMapTab() {
                 onChange={() => toggleSat(s)}
                 style={{ accentColor: SAT_COLORS[s] }}
               />
-              <span style={{
-                width: 10, height: 10, borderRadius: "50%",
-                background: SAT_COLORS[s], display: "inline-block",
-              }} />
+              <span className="ais-sat-dot" />
               <span style={{ color: "var(--text)" }}>{s}</span>
-              {raw && raw.by_sat && (
-                <span style={{ color: "var(--text-muted)", fontFamily: "'Space Mono', monospace" }}>
-                  · {raw.by_sat[s] || 0}
-                </span>
+              {raw?.by_sat && (
+                <span className="ais-sat-count">{raw.by_sat[s] || 0}</span>
               )}
             </label>
           ))}
@@ -644,84 +989,113 @@ function SatDataMapTab() {
 
           <span className="card-meta">
             {raw ? `${raw.total} точек · ${Object.keys(raw.sessions || {}).length} сессий` : "…"}
+            {rangeLabel ? ` · ${rangeLabel}` : ""}
           </span>
         </div>
 
-        <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div className="ctrl-row ais-time-row">
           <span className="ctrl-label">Время</span>
           <Hint text="Перетащите бегунок, чтобы увидеть позиции кораблей в выбранный момент. ▶ запускает анимацию." />
-          <button
-            className="btn btn-sm"
-            onClick={() => setPlaying((p) => !p)}
-            disabled={!timeline}
-          >
-            {playing ? "❚❚ Пауза" : "▶ Воспроизвести"}
-          </button>
-          <button
-            className="btn btn-sm"
-            onClick={() => { setTIdx(timeline?.total || 0); setPlaying(false); }}
-            disabled={!timeline}
-          >
-            В конец
-          </button>
-          <button
-            className="btn btn-sm"
-            onClick={() => { setTIdx(0); setPlaying(false); }}
-            disabled={!timeline}
-          >
-            В начало
-          </button>
+          <div className="ais-play-btns">
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setPlaying((p) => !p)}
+              disabled={!timeline}
+            >
+              {playing ? "❚❚ Пауза" : "▶ Воспроизвести"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => { setTIdx(timeline?.total || 0); setPlaying(false); }}
+              disabled={!timeline}
+            >
+              В конец
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => { setTIdx(0); setPlaying(false); }}
+              disabled={!timeline}
+            >
+              В начало
+            </button>
+          </div>
           <input
             type="range"
+            className="ais-timeline"
             min={0}
             max={timeline?.total ?? 0}
             step={1}
-            value={tIdx}
-            onChange={(e) => setTIdx(Number(e.target.value))}
+            value={Math.min(tIdx, timeline?.total ?? 0)}
+            onChange={(e) => { setPlaying(false); setTIdx(Number(e.target.value)); }}
             disabled={!timeline}
-            style={{ flex: 1, minWidth: 240, accentColor: "var(--orange)" }}
           />
-          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "var(--text-dim)" }}>
-            {fmtCurrent()}
-          </span>
+          <span className="ais-time-readout">{fmtCurrent()}</span>
         </div>
 
-        <div className="ctrl-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <span className="ctrl-label">Свежесть позиций</span>
-          <Hint text="Показываем последнюю позицию судна, если её репорт не старше выбранного интервала относительно текущего момента на шкале." />
-          {[60, 360, 720, 1440, 4320].map((w) => (
-            <button
-              key={w}
-              className={`btn btn-sm ${windowMin === w ? "active" : ""}`}
-              onClick={() => setWindowMin(w)}
-            >
-              {w >= 1440 ? `${w / 1440} сут` : w >= 60 ? `${w / 60} ч` : `${w} мин`}
-            </button>
-          ))}
+        <div className="ctrl-row ais-window-row">
+          <span className="ctrl-label">Окно свежести</span>
+          <Hint text="Показываем последнюю позицию судна, если репорт не старше выбранного интервала относительно момента на шкале. 3 и 6 суток покрывают почти весь арктический архив." />
+          <div className="ais-window-pills" role="group" aria-label="Окно свежести позиций">
+            {WINDOW_PRESETS.map((w) => (
+              <button
+                key={w.min}
+                type="button"
+                className={`ais-window-pill${windowMin === w.min ? " ais-window-pill--active" : ""}`}
+                onClick={() => applyWindow(w.min)}
+                title={`Показать суда с репортом не старше ${w.label} · сейчас ~${windowPreviews[w.min] ?? "—"}`}
+              >
+                <span>{w.label}</span>
+                <span className="ais-window-pill-n">{windowPreviews[w.min] ?? "—"}</span>
+              </button>
+            ))}
+          </div>
+          <label className="ais-window-slider">
+            <span>точно</span>
+            <input
+              type="range"
+              min={30}
+              max={10080}
+              step={30}
+              value={windowMin}
+              onChange={(e) => applyWindow(Number(e.target.value))}
+            />
+            <span className="ais-window-slider-val">
+              {windowMin >= 1440
+                ? `${(windowMin / 1440).toFixed(windowMin % 1440 === 0 ? 0 : 1)} сут`
+                : windowMin >= 60
+                  ? `${Math.round(windowMin / 60)} ч`
+                  : `${windowMin} мин`}
+            </span>
+          </label>
           <div className="ctrl-spacer" />
           <span className="card-meta">
-            На экране: {visiblePoints.length} судов
+            На экране: <b style={{ color: "var(--orange)" }}>{visiblePoints.length}</b> судов
           </span>
         </div>
       </div>
 
-      <div className="globe-card">
-        <div className="card-header">
-          <span className="card-title">AIS · реальные приёмы со спутников</span>
-          <span className="card-meta">
-            {raw && raw.min_ts && raw.max_ts
-              ? `${new Date(raw.min_ts).toLocaleDateString("ru")} — ${new Date(raw.max_ts).toLocaleDateString("ru")}`
-              : "—"}
-          </span>
+      <div className="globe-card sat-monitor-shell">
+        <div className="sat-monitor-header">
+          <div>
+            <div className="sat-monitor-header-title">SAT-MONITOR</div>
+            <div className="sat-monitor-header-sub">
+              AIS · приёмы со спутников
+              {rangeLabel ? ` · ${rangeLabel}` : ""}
+              {raw?.display_year ? ` · даты → ${raw.display_year}` : ""}
+            </div>
+          </div>
         </div>
-        <div className="globe-inner" style={{ height: 640 }}>
+        <div className="globe-inner" style={{ height: 640, borderRadius: 0 }}>
           {error ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--orange-2)" }}>
               Не удалось загрузить данные: {error}
             </div>
           ) : loading ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-              Загрузка реальных AIS-данных…
+              Загрузка AIS-данных…
             </div>
           ) : (
             <MapContainer
@@ -744,7 +1118,7 @@ function SatDataMapTab() {
                 const hasCourse = Number.isFinite(p.cog);
                 return (
                   <Marker
-                    key={`${p.mmsi}-${i}`}
+                    key={`${p.mmsi}-${p._t}-${i}`}
                     position={[p.lat, p.lon]}
                     icon={makeSatVesselIcon(color, hasCourse ? p.cog : 0)}
                   >
@@ -753,6 +1127,7 @@ function SatDataMapTab() {
                         <div style={{ color, fontWeight: 700, marginBottom: 6, fontSize: 13 }}>
                           MMSI {p.mmsi || "—"}
                           {p.name ? ` · ${p.name}` : ""}
+                          {p.synthetic ? " · synth" : ""}
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px" }}>
                           <span style={{ color: "#8aa090" }}>Принят:</span>

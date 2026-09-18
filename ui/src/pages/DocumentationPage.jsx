@@ -660,7 +660,10 @@ export default function DocumentationPage() {
               <div>
                 <h1 className="page-title">Документация</h1>
                 <p className="page-subtitle">
-                  Технические руководства и описания каждого спутника серии Polytech Universe.
+                  Справочник по станции и спутникам: как устроен приём на Земле
+                  и что умеет каждый аппарат Polytech Universe. Нужен, чтобы
+                  разобраться в железе, форматах данных и миссиях PU-1…PU-6
+                  до работы с картой, телеметрией и кейсами.
                 </p>
               </div>
             </div>

@@ -270,9 +270,48 @@ export async function fetchDemoEmiPackets() {
   return fetchJson(`${API_BASE}/api/storage/_demo_emi`);
 }
 
+export async function fetchEmiBands() {
+  return fetchJson(`${API_BASE}/api/storage/_emi_bands`);
+}
+
+export async function generateEmiDataset({ seed = 42, zones = 20, pointsPerZone = 40, days = 5 } = {}) {
+  const qs = new URLSearchParams({
+    seed: String(seed),
+    zones: String(zones),
+    points_per_zone: String(pointsPerZone),
+    days: String(days),
+  });
+  return fetchJson(`${API_BASE}/api/storage/_emi_generate?${qs}`);
+}
+
+export async function seedDemoEmiFromGenerator(params, authHeader) {
+  const qs = new URLSearchParams({
+    seed: String(params?.seed ?? 42),
+    zones: String(params?.zones ?? 20),
+    points_per_zone: String(params?.pointsPerZone ?? 40),
+  });
+  const r = await fetch(`${API_BASE}/api/storage/_emi_generate/seed-demo?${qs}`, {
+    method: "POST",
+    headers: { ...authHeader },
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(t || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
 /* ── Tele-AIS archive (real data from server) ───────────── */
 export async function fetchTeleaisTelemetryList() {
   return fetchJson(`${API_BASE}/api/teleais/telemetry/list`);
+}
+
+export async function fetchTeleaisTelemetryPreview(satCode, limit = 12) {
+  const qs = new URLSearchParams({
+    sat: String(satCode || ""),
+    limit: String(limit),
+  });
+  return fetchJson(`${API_BASE}/api/teleais/telemetry/preview?${qs}`);
 }
 
 export function teleaisTelemetryDownloadUrl(satCode) {

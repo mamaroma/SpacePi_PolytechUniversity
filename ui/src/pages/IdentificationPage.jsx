@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../AuthContext";
 import { fetchGallery, uploadGalleryPhoto, deleteGalleryPhoto } from "../api";
+import { GuideBanner } from "../components/Hint";
 
 // ── Lightbox ───────────────────────────────────────────────────────────────────
 function Lightbox({ photos, index, onClose }) {
@@ -32,7 +33,6 @@ function Lightbox({ photos, index, onClose }) {
         display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
-      {/* Prev */}
       <button
         onClick={e => { e.stopPropagation(); prev(); }}
         style={{
@@ -44,7 +44,6 @@ function Lightbox({ photos, index, onClose }) {
         }}
       >‹</button>
 
-      {/* Image */}
       <div onClick={e => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", display: "flex", flexDirection: "column", gap: 10 }}>
         <img
           src={photo.url}
@@ -70,7 +69,6 @@ function Lightbox({ photos, index, onClose }) {
         </div>
       </div>
 
-      {/* Next */}
       <button
         onClick={e => { e.stopPropagation(); next(); }}
         style={{
@@ -82,7 +80,6 @@ function Lightbox({ photos, index, onClose }) {
         }}
       >›</button>
 
-      {/* Close */}
       <button
         onClick={onClose}
         style={{
@@ -96,53 +93,54 @@ function Lightbox({ photos, index, onClose }) {
   );
 }
 
-/* Категории тренировочного набора.
- *
- * Сам набор снимков лежит в /ui/public/snimki/{ships,icebergs,bloom_water,fuel}.
- * Это снимки, которые загрузил автор проекта (см. /ui/public/snimki/manifest.json).
- *
- * Пользователь может также через UI загрузить свои фотографии — они попадают
- * в общую «галерею» (`photos`) и отображаются в разделе «Дополнительные снимки».
- */
+/* Категории распознавания: зачем класс нужен станции / Space-π. */
 const PHOTO_CATEGORIES = [
   {
     key: "icebergs",
     folder: "icebergs",
     title: "Айсберги",
+    label: "Iceberg",
     accent: "#5ad6ff",
-    description:
-      "Снимки полярных областей — отделение и дрейф айсбергов в Северном и Южном океанах.",
+    demoScore: 0.92,
+    description: "Дрейф и отделение айсбергов в полярных океанах.",
+    why: "Для Севморпути и полярных миссий: отличить лёд от судна на снимке с КА и предупредить об опасности на маршруте.",
+    uses: ["навигация СМП", "ледовая обстановка", "стыковка с AIS"],
   },
   {
     key: "ships",
     folder: "ships",
     title: "Корабли",
+    label: "Ship",
     accent: "#f39768",
-    description:
-      "Детектирование морских судов в открытом море и портах по форме и кильватерному следу.",
+    demoScore: 0.81,
+    description: "Суда в море и портах по силуэту и кильватеру.",
+    why: "Дополняет спутниковый AIS: найти «молчащие» суда и сверить визуальный контакт с радиопакетами.",
+    uses: ["AIS + оптика", "поиск «тёмных» судов", "портовый мониторинг"],
   },
   {
     key: "blooming",
     folder: "bloom_water",
     title: "Цветущие воды",
+    label: "Bloom",
     accent: "#6cc77b",
-    description:
-      "Цветение фитопланктона — окраска поверхности воды вследствие массового роста микроорганизмов.",
+    demoScore: 0.95,
+    description: "Цветение фитопланктона — окраска поверхности воды.",
+    why: "Экология и рыболовство: ранний сигнал о bloom-событиях, которые видны с орбиты раньше береговых станций.",
+    uses: ["экология", "рыбный промысел", "цвет океана"],
   },
   {
     key: "oil",
     folder: "fuel",
     title: "Разливы нефти",
+    label: "Oil",
     accent: "#b765e3",
-    description:
-      "Обнаружение нефтяных плёнок: характерные радужные пятна на поверхности воды.",
+    demoScore: 0.88,
+    description: "Нефтяные плёнки — радужные пятна на воде.",
+    why: "Экстренный мониторинг разливов: локализовать пятно и связать с судовым трафиком / зоной интереса.",
+    uses: ["экология", "ЧС на море", "контроль акваторий"],
   },
 ];
 
-/* Группировка по локальным папкам snimki/*.
- * `snimkiManifest` — { ships: ['01.png', ...], icebergs: [...], ... }
- *  Если манифеста нет (например при build без snimki) — категории просто пустые.
- *  Все фотографии, загруженные пользователем через UI, идут в «Дополнительные». */
 function groupPhotos(photos, snimkiManifest) {
   const buckets = PHOTO_CATEGORIES.map((c) => {
     const files = (snimkiManifest && snimkiManifest[c.folder]) || [];
@@ -153,11 +151,89 @@ function groupPhotos(photos, snimkiManifest) {
         url: `/snimki/${c.folder}/${name}`,
         filename: name,
         isBuiltin: true,
+        label: c.label,
+        accent: c.accent,
+        demoScore: c.demoScore,
       })),
     };
   });
   const extras = photos || [];
   return { buckets, extras };
+}
+
+/** Схема: снимок → CNN → классы → применение на станции. */
+function PipelineViz() {
+  const steps = [
+    { t: "Снимок с КА", d: "кадр бортовой камеры / архив" },
+    { t: "CNN", d: "детектор объектов на воде и льду" },
+    { t: "Классы", d: "айсберг · судно · bloom · разлив" },
+    { t: "Станция", d: "сверка с AIS, картой, кейсами" },
+  ];
+  return (
+    <div className="id-pipeline">
+      {steps.map((s, i) => (
+        <React.Fragment key={s.t}>
+          <div className="id-pipeline-step">
+            <div className="id-pipeline-n">{String(i + 1).padStart(2, "0")}</div>
+            <div className="id-pipeline-t">{s.t}</div>
+            <div className="id-pipeline-d">{s.d}</div>
+          </div>
+          {i < steps.length - 1 && <div className="id-pipeline-arrow" aria-hidden>→</div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Мини-визуализация детекции: рамка + score, как в выдаче модели. */
+function DetectionPreview({ accent, label, score, url }) {
+  return (
+    <div className="id-det-preview" style={{ "--id-accent": accent }}>
+      <div className="id-det-frame">
+        {url ? (
+          <img src={url} alt="" loading="lazy" />
+        ) : (
+          <div className="id-det-placeholder" />
+        )}
+        <div className="id-det-box">
+          <span className="id-det-tag">{label}: {score.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClassWhyCards({ buckets }) {
+  const max = Math.max(1, ...buckets.map((b) => b.photos.length));
+  return (
+    <div className="id-class-grid">
+      {buckets.map((b) => (
+        <article key={b.key} className="id-class-card" style={{ "--id-accent": b.accent }}>
+          <div className="id-class-top">
+            <DetectionPreview
+              accent={b.accent}
+              label={b.label}
+              score={b.demoScore}
+              url={b.photos[0]?.url}
+            />
+            <div className="id-class-meta">
+              <div className="id-class-title">{b.title}</div>
+              <div className="id-class-count">{b.photos.length} снимков в галерее</div>
+              <div className="id-class-bar">
+                <i style={{ width: `${Math.round((b.photos.length / max) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
+          <p className="id-class-why"><strong>Зачем:</strong> {b.why}</p>
+          <div className="id-class-uses">
+            {b.uses.map((u) => (
+              <span key={u} className="id-class-use">{u}</span>
+            ))}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 // ── Gallery grid ───────────────────────────────────────────────────────────────
@@ -240,12 +316,20 @@ export default function IdentificationPage() {
 
   return (
     <div className="page-wrap">
-      {/* ── Header ── */}
+      <GuideBanner id="identification-intro-v1">
+        <strong>Зачем «Идентификация».</strong> Это витрина работы нейросети (CNN)
+        по снимкам с орбиты и полярных архивов: модель ищет на кадре объекты
+        (айсберг, судно, цветение, разлив) и показывает результат рамкой.
+        Раздел нужен, чтобы связать <em>картинку с КА</em> с задачами станции —
+        AIS, ледовая обстановка, экология — до запуска своих кейсов.
+      </GuideBanner>
+
       <div className="page-header-row">
         <div>
           <h1 className="page-title">Идентификация</h1>
           <p className="page-subtitle">
-            CNN-галерея — снимки и результаты работы нейросети
+            Галерея распознавания: что видит CNN на снимке и зачем эти классы
+            нужны наземной станции Space-π / Polytech Universe
           </p>
         </div>
         {isEditor && (
@@ -275,6 +359,11 @@ export default function IdentificationPage() {
         )}
       </div>
 
+      <div className="id-overview">
+        <div className="id-overview-title">Как это устроено</div>
+        <PipelineViz />
+      </div>
+
       {uploadError && (
         <div style={{
           marginBottom: 16, padding: "10px 16px", borderRadius: 8,
@@ -285,7 +374,6 @@ export default function IdentificationPage() {
         </div>
       )}
 
-      {/* ── Loading ── */}
       {loading && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 260, gap: 12, color: "var(--text-muted)" }}>
           <span className="spinner" />
@@ -293,7 +381,6 @@ export default function IdentificationPage() {
         </div>
       )}
 
-      {/* ── Error ── */}
       {!loading && error && (
         <div style={{
           padding: 24, borderRadius: 12, textAlign: "center",
@@ -310,53 +397,35 @@ export default function IdentificationPage() {
         </div>
       )}
 
-      {/* ── Grid ── */}
       {!loading && !error && (() => {
         const { buckets, extras } = groupPhotos(photos, snimkiManifest);
 
         const renderPhotoCell = (photo) => {
           const idx = allPhotos.indexOf(photo);
           const isBuiltin = !!photo.isBuiltin;
+          const accent = photo.accent || "#9460b8";
+          const score = photo.demoScore != null
+            ? photo.demoScore
+            : (0.75 + ((String(photo.key).length * 17) % 20) / 100);
           return (
             <div
               key={photo.key}
-              style={{
-                position: "relative", borderRadius: 10, overflow: "hidden",
-                background: "var(--surface-1)", border: "1px solid var(--border)",
-                aspectRatio: "1 / 1", cursor: "pointer",
-                transition: "border-color 0.18s, box-shadow 0.18s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(114,71,150,0.7)"; e.currentTarget.style.boxShadow = "0 0 16px rgba(114,71,150,0.22)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
+              className="id-photo-cell"
+              style={{ "--id-accent": accent }}
               onClick={() => setLightboxIdx(idx)}
             >
-              <img
-                src={photo.url}
-                alt=""
-                loading="lazy"
-                style={{
-                  width: "100%", height: "100%",
-                  objectFit: "cover", display: "block",
-                  transition: "transform 0.2s, filter 0.2s",
-                  imageRendering: "auto",
-                  filter: "saturate(1.05) contrast(1.04) brightness(1.02)",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.04)"; e.currentTarget.style.filter = "saturate(1.12) contrast(1.08) brightness(1.04)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "saturate(1.05) contrast(1.04) brightness(1.02)"; }}
-              />
+              <img src={photo.url} alt="" loading="lazy" />
+              {isBuiltin && (
+                <div className="id-photo-det">
+                  <span>{photo.label || "Object"}: {Number(score).toFixed(2)}</span>
+                </div>
+              )}
               {isEditor && !isBuiltin && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDelete(photo); }}
                   disabled={deleteId === photo.key}
                   title="Удалить фото"
-                  style={{
-                    position: "absolute", top: 7, right: 7,
-                    width: 28, height: 28, borderRadius: 6, cursor: "pointer",
-                    background: "rgba(10,5,20,0.75)", border: "1px solid rgba(218,73,39,0.5)",
-                    color: "#f39768", fontSize: 14, display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    opacity: deleteId === photo.key ? 0.5 : 1,
-                  }}
+                  className="id-photo-del"
                 >
                   {deleteId === photo.key ? "…" : "✕"}
                 </button>
@@ -367,69 +436,35 @@ export default function IdentificationPage() {
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            <section>
+              <div className="id-overview-title" style={{ marginBottom: 12 }}>
+                Подразделы распознавания — зачем каждый класс
+              </div>
+              <ClassWhyCards buckets={buckets} />
+            </section>
+
             {buckets.map((bucket) => (
-              <section key={bucket.key}>
-                <header
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 10,
-                    marginBottom: 10,
-                    paddingBottom: 8,
-                    borderBottom: `1px solid ${bucket.accent}33`,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      background: bucket.accent,
-                      boxShadow: `0 0 12px ${bucket.accent}99`,
-                      display: "inline-block",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: 18,
-                      fontWeight: 700,
-                      color: "var(--text)",
-                      letterSpacing: 0.2,
-                    }}
-                  >
-                    {bucket.title}
-                  </h2>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {bucket.photos.length}
-                  </span>
-                  <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
-                    {bucket.description}
-                  </span>
+              <section key={bucket.key} className="id-gallery-section" style={{ "--id-accent": bucket.accent }}>
+                <header className="id-gallery-head">
+                  <div className="id-gallery-head-main">
+                    <span className="id-gallery-dot" />
+                    <h2>{bucket.title}</h2>
+                    <span className="id-gallery-n">{bucket.photos.length}</span>
+                  </div>
+                  <p className="id-gallery-why">{bucket.why}</p>
+                  <div className="id-class-uses">
+                    {bucket.uses.map((u) => (
+                      <span key={u} className="id-class-use">{u}</span>
+                    ))}
+                  </div>
                 </header>
 
                 {bucket.photos.length === 0 ? (
-                  <div
-                    style={{
-                      padding: 24,
-                      border: "1px dashed var(--border)",
-                      borderRadius: 10,
-                      textAlign: "center",
-                      color: "var(--text-muted)",
-                      fontSize: 13,
-                    }}
-                  >
+                  <div className="id-gallery-empty">
                     Снимки этой категории пока не загружены.
                   </div>
                 ) : (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                      gap: 12,
-                    }}
-                  >
+                  <div className="id-gallery-grid">
                     {bucket.photos.map(renderPhotoCell)}
                   </div>
                 )}
@@ -437,37 +472,19 @@ export default function IdentificationPage() {
             ))}
 
             {extras.length > 0 && (
-              <section>
-                <header
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 10,
-                    marginBottom: 10,
-                    paddingBottom: 8,
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10, height: 10, borderRadius: "50%",
-                      background: "var(--text-muted)", display: "inline-block", flexShrink: 0,
-                    }}
-                  />
-                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text)" }}>
-                    Дополнительные снимки
-                  </h2>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {extras.length}
-                  </span>
+              <section className="id-gallery-section">
+                <header className="id-gallery-head">
+                  <div className="id-gallery-head-main">
+                    <span className="id-gallery-dot" style={{ background: "var(--text-muted)", boxShadow: "none" }} />
+                    <h2>Дополнительные снимки</h2>
+                    <span className="id-gallery-n">{extras.length}</span>
+                  </div>
+                  <p className="id-gallery-why">
+                    Загрузки пользователей для расширения набора. Их можно разобрать
+                    вручную или позже прогнать через тот же пайплайн CNN.
+                  </p>
                 </header>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                    gap: 12,
-                  }}
-                >
+                <div className="id-gallery-grid">
                   {extras.map(renderPhotoCell)}
                 </div>
               </section>
@@ -476,7 +493,6 @@ export default function IdentificationPage() {
         );
       })()}
 
-      {/* ── Lightbox ── */}
       {lightboxIdx !== null && (
         <Lightbox
           photos={allPhotos}

@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 
+const CONTACT_EMAIL = "spacepicontest@mail.ru";
+const CONTACT_TG = "encrypted_eleven";
+const CONTACT_VK = "https://vk.ru/kaoiii";
+
 /* darkBg: логотипы со светлыми цветами — показываем на тёмном фоне (наш зелёный).
    lightBg: логотипы с тёмными/чёрными цветами — показываем на белом прямоугольнике. */
 const PARTNERS = [
@@ -37,31 +41,28 @@ const PARTNERS = [
     logo: "/ieit-logo.png",
     bg: "light",
     href: "https://et.spbstu.ru/",
-    // эта карточка визуально особая — крупный логотип и название справа,
-    // как у политеха. Сигнальный флаг используется в PartnerCard.
-    big: true,
   },
 ];
 
 function PartnerCard({ p }) {
   return (
     <a
-      className={`partner-card${p.big ? " partner-card--big" : ""}`}
+      className="partner-card"
       href={p.href}
       target="_blank"
       rel="noopener noreferrer"
       title={`${p.name} — ${p.role}`}
     >
-      <div className={`partner-logo-img-wrap partner-logo-img-wrap--${p.bg}${p.big ? " partner-logo-img-wrap--big" : ""}`}>
+      <div className={`partner-logo-img-wrap partner-logo-img-wrap--${p.bg}`}>
         <img
           src={p.logo}
           alt={p.name}
-          className={`partner-logo-img${p.big ? " partner-logo-img--big" : ""}`}
+          className="partner-logo-img"
           loading="lazy"
         />
       </div>
-      <div className={`partner-name${p.big ? " partner-name--right" : ""}`}>{p.name}</div>
-      <div className={`partner-role${p.big ? " partner-role--right" : ""}`}>{p.role}</div>
+      <div className="partner-name">{p.name}</div>
+      <div className="partner-role">{p.role}</div>
     </a>
   );
 }
@@ -77,17 +78,17 @@ function ContactsBlock() {
       <div className="contact-buttons">
         <a
           className="contact-btn contact-btn--email"
-          href="mailto:mrvelialman@gmail.com"
+          href={`mailto:${CONTACT_EMAIL}`}
         >
           <span className="contact-btn-icon" aria-hidden="true">✉</span>
           <span className="contact-btn-label">
             <span className="small">Email</span>
-            <span className="big">mrvelialman@gmail.com</span>
+            <span className="big">{CONTACT_EMAIL}</span>
           </span>
         </a>
         <a
           className="contact-btn contact-btn--telegram"
-          href="https://t.me/roosterwq"
+          href={`https://t.me/${CONTACT_TG}`}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -98,7 +99,23 @@ function ContactsBlock() {
           </span>
           <span className="contact-btn-label">
             <span className="small">Telegram</span>
-            <span className="big">@roosterwq</span>
+            <span className="big">@{CONTACT_TG}</span>
+          </span>
+        </a>
+        <a
+          className="contact-btn contact-btn--vk"
+          href={CONTACT_VK}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span className="contact-btn-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.8 17.5c-5.6 0-8.8-3.8-8.9-10.2h2.8c.1 4.7 2.2 6.7 3.8 7.1V7.3h2.6v4.1c1.6-.2 3.3-2 3.8-4.1h2.6c-.4 2.4-2.2 4.2-3.5 4.9 1.3.6 3.4 2.2 4.2 5.3h-2.9c-.6-1.9-2.2-3.4-4.2-3.6v3.6h-.3Z" fill="#1a3220"/>
+            </svg>
+          </span>
+          <span className="contact-btn-label">
+            <span className="small">ВКонтакте</span>
+            <span className="big">vk.ru/kaoiii</span>
           </span>
         </a>
       </div>
@@ -120,7 +137,7 @@ function FeedbackForm() {
     const body = encodeURIComponent(
       `Имя: ${name}\nEmail: ${email}\n\n${message}`
     );
-    window.location.href = `mailto:mrvelialman@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
     setSent(true);
     setTimeout(() => setSent(false), 6000);
   };

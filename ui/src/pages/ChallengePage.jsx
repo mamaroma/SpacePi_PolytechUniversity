@@ -1,14 +1,16 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, BarChart, Bar,
 } from "recharts";
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   fetchTelemetry, isoDaysAgo,
   decodeAisFile, decodeTelemetryFile, demodulateIqFile, decodeBinaryFile,
+  generateEmiDataset, seedDemoEmiFromGenerator,
 } from "../api";
+import { useAuth } from "../AuthContext";
 
 // ─── Shared styles ─────────────────────────────────────────────────────────────
 const S = {
@@ -2028,11 +2030,194 @@ function IqDemodActivity() {
   );
 }
 
+// ─── Activity: EMI generator ───────────────────────────────────────────────────
+function intensityColorGen(v) {
+  const n = (Number(v) - 23) / 7;
+  if (n < 0.25) return "#5b8def";
+  if (n < 0.45) return "#2ecc71";
+  if (n < 0.65) return "#f1c40f";
+  if (n < 0.85) return "#e67e22";
+  return "#e74c3c";
+}
+
+function EmiGeneratorActivity() {
+  const { isEditor, authHeader } = useAuth();
+  const [seed, setSeed] = useState(42);
+  const [zones, setZones] = useState(20);
+  const [pointsPerZone, setPointsPerZone] = useState(40);
+  const [days, setDays] = useState(5);
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [error, setError] = useState("");
+
+  const run = async () => {
+    setBusy(true); setError(""); setMsg("");
+    try {
+      const res = await generateEmiDataset({ seed, zones, pointsPerZone, days });
+      setData(res);
+      setMsg(`Сгенерировано ${res.packets?.length || 0} точек · ${res.coverage_zones?.length || 0} зон`);
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = () => {
+    if (!data) return;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `emi_generator_seed${seed}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const seedDemo = async () => {
+    if (!isEditor) return;
+    setBusy(true); setError(""); setMsg("");
+    try {
+      const r = await seedDemoEmiFromGenerator({ seed, zones, pointsPerZone }, authHeader);
+      setMsg(`Записано в хранилище demo_emi: ${r.points} точек, ${r.zones} зон`);
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => { run(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sample = useMemo(() => (data?.packets || []).slice(0, 400), [data]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, padding: 18 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-dim)", marginBottom: 14 }}>
+          Генератор синтетической ЭМ-обстановки для обучения и дозаполнения базы,
+          когда реальных спектров нет. Полосы — только гражданские (без Wi-Fi и военных).
+          Шкала интенсивности 23…30 усл. ед. согласована с архивом SAT-MONITOR на странице ЭМИ.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Seed
+            <input type="number" style={S.input} value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
+          </label>
+          <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Зон покрытия
+            <input type="number" min={3} max={20} style={S.input} value={zones} onChange={(e) => setZones(Number(e.target.value))} />
+          </label>
+          <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Точек / зона
+            <input type="number" min={5} max={120} style={S.input} value={pointsPerZone} onChange={(e) => setPointsPerZone(Number(e.target.value))} />
+          </label>
+          <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Дней
+            <input type="number" min={1} max={15} style={S.input} value={days} onChange={(e) => setDays(Number(e.target.value))} />
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" style={S.btnPrim} disabled={busy} onClick={run}>
+            {busy ? "Генерация…" : "Сгенерировать"}
+          </button>
+          <button type="button" style={S.btnSec} disabled={!data} onClick={download}>Скачать JSON</button>
+          {isEditor && (
+            <button type="button" style={S.btnSec} disabled={busy} onClick={seedDemo}>
+              Записать в «Хранилище → демоЭМИ»
+            </button>
+          )}
+        </div>
+        {msg && <div style={{ marginTop: 10, color: "var(--accent-2)", fontSize: 13 }}>{msg}</div>}
+        {error && <div style={{ marginTop: 10, color: "#da4927", fontSize: 13 }}>{error}</div>}
+      </div>
+
+      {data?.meta?.bands && (
+        <div style={{ ...S.card, padding: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--orange)", textTransform: "uppercase", marginBottom: 8 }}>
+            Диапазоны (без Wi-Fi / военных)
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {data.meta.bands.map((b) => (
+              <div key={b.id} style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.45 }}>
+                <strong style={{ color: "var(--text)" }}>{b.label}</strong>
+                {" · "}{b.from_mhz}–{b.to_mhz} МГц
+                <div style={{ color: "var(--text-muted)" }}>{b.systems}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+        <div className="sat-monitor-header">
+          <div>
+            <div className="sat-monitor-header-title">SAT-MONITOR</div>
+            <div className="sat-monitor-header-sub">Превью генератора · зоны + точки</div>
+          </div>
+        </div>
+        <div style={{ height: 480 }}>
+          <MapContainer center={[20, 40]} zoom={2} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas>
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" subdomains="abcd" />
+            {(data?.coverage_zones || []).map((z) => (
+              <Circle
+                key={z.id}
+                center={[z.lat, z.lon]}
+                radius={z.radius_km * 1000}
+                pathOptions={{ color: intensityColorGen(z.intensity), weight: 1.2, fill: false, opacity: 0.55 }}
+              />
+            ))}
+            {sample.map((p) => (
+              <CircleMarker
+                key={p.id}
+                center={[p.lat, p.lon]}
+                radius={4}
+                pathOptions={{
+                  color: intensityColorGen(p.intensity),
+                  fillColor: intensityColorGen(p.intensity),
+                  fillOpacity: 0.5,
+                  weight: 1,
+                }}
+              >
+                <Popup>
+                  <div style={{ fontSize: 11 }}>
+                    <div><b>{p.intensity_label}</b> · {p.intensity}</div>
+                    <div>{p.power_dbm} дБм · {p.freq_mhz} МГц</div>
+                    <div>{p.band_label}</div>
+                    <div>{p.region}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
+          </MapContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Challenge Page ────────────────────────────────────────────────────────
 //
 // `howto` — пошаговая инструкция, как пользоваться активностью. Выводится
 // под кнопкой «Назад» в виде подсказки. По требованию пользователя.
 const ACTIVITIES = [
+  {
+    key: "emi",
+    icon: null,
+    title: "ЭМИ-генератор",
+    difficulty: "Средне",
+    diffColor: "#e94560",
+    badge: "ЭМИ",
+    badgeColor: "#e94560",
+    desc: "Сгенерируй зоны покрытия и точки спектра (гражданские полосы, без Wi-Fi и военных), согласованные со шкалой SAT-MONITOR. Можно скачать JSON или дозаполнить «демоЭМИ».",
+    skills: ["ЭМ-обстановка", "Зоны покрытия", "Интенсивность 23…30"],
+    howto: [
+      "Задайте seed, число зон и точек — нажмите «Сгенерировать».",
+      "На карте появятся контуры зон и точки; цвет = интенсивность (та же шкала, что на /emi).",
+      "Скачайте JSON или (если вы редактор) запишите пакеты в «Хранилище → демоЭМИ» для демо-карты.",
+      "На странице ЭМИ откройте «Демо-карта» — те же диапазоны и уровни.",
+    ],
+  },
   {
     key: "graph",
     icon: null,
@@ -2364,6 +2549,7 @@ export default function ChallengePage() {
         </details>
       )}
 
+      {activity === "emi"       && <EmiGeneratorActivity />}
       {activity === "graph"     && <GraphActivity />}
       {activity === "decode"    && <PacketDecodeActivity />}
       {activity === "ais"       && <AisDecodeActivity />}

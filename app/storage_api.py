@@ -161,6 +161,53 @@ def public_demo_emi():
         return []
 
 
+@router.get("/_emi_bands")
+def public_emi_bands():
+    """Гражданские диапазоны ЭМИ (без Wi-Fi и военных) — общая шкала для /emi и кейсов."""
+    from .emi_generator import list_bands
+    return {"bands": list_bands()}
+
+
+@router.get("/_emi_generate")
+def public_emi_generate(
+    seed: int = 42,
+    zones: int = 20,
+    points_per_zone: int = 40,
+    days: int = 5,
+):
+    """ЭМИ-генератор: синтетические зоны покрытия + пакеты для демо/кейсов."""
+    from .emi_generator import generate_emi
+    return generate_emi(
+        seed=seed,
+        zones=zones,
+        points_per_zone=max(5, min(points_per_zone, 120)),
+        days=max(1, min(days, 15)),
+    )
+
+
+@router.post("/_emi_generate/seed-demo")
+def seed_demo_from_generator(
+    seed: int = 42,
+    zones: int = 20,
+    points_per_zone: int = 40,
+    user: User = Depends(require_editor),
+):
+    """Редактор: перезаписать demo_emi_packets.json результатом генератора."""
+    import json as _json
+    from .emi_generator import generate_emi
+    payload = generate_emi(seed=seed, zones=zones, points_per_zone=points_per_zone, days=5)
+    out_dir = ROOT / "demo_emi"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "demo_emi_packets.json"
+    path.write_text(_json.dumps(payload["packets"], ensure_ascii=False, indent=2), encoding="utf-8")
+    return {
+        "ok": True,
+        "path": str(path),
+        "points": len(payload["packets"]),
+        "zones": len(payload["coverage_zones"]),
+    }
+
+
 # ─── seed: положим демо-файлы при первом запуске ────────────────────────────
 def seed_demo_storage() -> None:
     ais_demo = ROOT / "ais" / "demo_ais_raw.txt"
@@ -215,86 +262,10 @@ def seed_demo_storage() -> None:
     # ─── Демонстрационные пакеты ЭМИ-карты ───────────────────────────────
     emi_demo = ROOT / "demo_emi" / "demo_emi_packets.json"
     if not emi_demo.exists():
-        import json as _json, random as _random
-        _random.seed(42)
-
-        # Реалистичные «горячие точки» по миру (мегаполисы + промышленность)
-        SEEDS = [
-            ("St. Petersburg",     59.93,  30.30),
-            ("Moscow",             55.75,  37.61),
-            ("Berlin",             52.52,  13.40),
-            ("Paris",              48.85,   2.35),
-            ("London",             51.50,  -0.12),
-            ("Stockholm",          59.32,  18.07),
-            ("Helsinki",           60.16,  24.93),
-            ("Tokyo",              35.68, 139.76),
-            ("Seoul",              37.56, 126.97),
-            ("Beijing",            39.90, 116.40),
-            ("Shanghai",           31.23, 121.47),
-            ("Hong Kong",          22.30, 114.17),
-            ("Singapore",           1.30, 103.85),
-            ("Mumbai",             18.97,  72.83),
-            ("Dubai",              25.27,  55.30),
-            ("New York",           40.71, -74.00),
-            ("Los Angeles",        34.05,-118.24),
-            ("San Francisco",      37.77,-122.42),
-            ("Mexico City",        19.43, -99.13),
-            ("Sao Paulo",         -23.55, -46.63),
-            ("Rio de Janeiro",    -22.91, -43.17),
-            ("Buenos Aires",      -34.61, -58.38),
-            ("Cape Town",         -33.92,  18.42),
-            ("Lagos",               6.52,   3.38),
-            ("Cairo",              30.04,  31.24),
-            ("Sydney",            -33.87, 151.21),
-            ("Melbourne",         -37.81, 144.96),
-            ("Murmansk",           68.97,  33.08),
-            ("Krasnoyarsk",        56.01,  92.85),
-            ("Vladivostok",        43.13, 131.91),
-        ]
-        FREQS = [145.8, 433.0, 437.5, 868.0, 915.0, 2400.0, 5800.0]
-        # Только спутниковые / эфирные источники, без мелких наземных
-        # излучателей (WiFi/микроволновки/сотовые) — карта про космический
-        # сегмент, а не про бытовую RF-засветку.
-        SOURCES = [
-            "Satellite downlink noise",
-            "CubeSat beacon (UHF)",
-            "Atmospheric ducting",
-            "Ionospheric scintillation",
-            "VHF broadcast interference",
-            "UHF uplink noise",
-            "LoRa satellite uplink",
-            "Solar radio burst",
-            "Industrial RF",
-        ]
-
-        out = []
-        idx = 0
-        # Вокруг каждого центра разбрасываем по 35–60 точек, чтобы получилось
-        # ~1300 точек по миру. Этого хватит, чтобы карта была насыщенной.
-        for name, clat, clon in SEEDS:
-            for _ in range(_random.randint(35, 65)):
-                lat = clat + (_random.random() - 0.5) * 5.0
-                lon = clon + (_random.random() - 0.5) * 5.0
-                freq = _random.choice(FREQS)
-                # Сила связана с близостью к центру
-                d2 = (lat - clat) ** 2 + (lon - clon) ** 2
-                base = -30 - d2 * 2.5
-                power = base + (_random.random() - 0.5) * 12
-                power = max(-110, min(-22, power))
-                ts = (
-                    f"2026-{_random.randint(1, 4):02d}-{_random.randint(1, 28):02d}"
-                    f"T{_random.randint(0, 23):02d}:{_random.randint(0, 59):02d}:00Z"
-                )
-                idx += 1
-                out.append({
-                    "id":         idx,
-                    "lat":        round(lat, 4),
-                    "lon":        round(lon, 4),
-                    "freq_mhz":   freq,
-                    "power_dbm":  round(power, 1),
-                    "source":     _random.choice(SOURCES),
-                    "ts":         ts,
-                    "region":     name,
-                })
-
-        emi_demo.write_text(_json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        import json as _json
+        from .emi_generator import generate_emi
+        payload = generate_emi(seed=42, zones=20, points_per_zone=45, days=5)
+        emi_demo.write_text(
+            _json.dumps(payload["packets"], ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )

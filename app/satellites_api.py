@@ -191,6 +191,66 @@ _DEFAULT: list[dict] = [
         "image_url": "/pu6-photo.jpg",
         "source_url": "https://spacepi.space/satellites/politeh-yunivers-6/",
     },
+    {
+        "id": "polytech-universe-7",
+        "name": "Политех Юниверс-7",
+        "name_en": "Polytech Universe-7",
+        "norad": None,
+        "launch_date": None,
+        "orbit_alt_km": 550,
+        "frequency_mhz": 437.5,
+        "protocol": "LoRa (план)",
+        "form_factor": "CubeSat",
+        "mass_kg": None,
+        "status": "announced",
+        "mission": "Анонсированный аппарат серии Polytech Universe",
+        "description": (
+            "Анонсированный спутник PU-7. Карточка и позиция на карте показаны "
+            "заранее — до появления публичных TLE и телеметрии."
+        ),
+        "image_url": None,
+        "source_url": "https://spacepi.space",
+    },
+    {
+        "id": "polytech-universe-8",
+        "name": "Политех Юниверс-8",
+        "name_en": "Polytech Universe-8",
+        "norad": None,
+        "launch_date": None,
+        "orbit_alt_km": 540,
+        "frequency_mhz": 437.5,
+        "protocol": "LoRa (план)",
+        "form_factor": "3U CubeSat",
+        "mass_kg": None,
+        "status": "announced",
+        "mission": "Анонсированный 3U CubeSat",
+        "description": (
+            "Анонсированный аппарат PU-8 формата 3U. Отображается на карте "
+            "флота вместе с действующими спутниками."
+        ),
+        "image_url": None,
+        "source_url": "https://spacepi.space",
+    },
+    {
+        "id": "polytech-universe-9",
+        "name": "Политех Юниверс-9",
+        "name_en": "Polytech Universe-9",
+        "norad": None,
+        "launch_date": None,
+        "orbit_alt_km": 545,
+        "frequency_mhz": 437.5,
+        "protocol": "LoRa (план)",
+        "form_factor": "3U CubeSat",
+        "mass_kg": None,
+        "status": "announced",
+        "mission": "Анонсированный 3U CubeSat",
+        "description": (
+            "Анонсированный аппарат PU-9 формата 3U. Отображается на карте "
+            "флота вместе с действующими спутниками."
+        ),
+        "image_url": None,
+        "source_url": "https://spacepi.space",
+    },
 ]
 
 
@@ -215,6 +275,14 @@ def _load() -> list[dict]:
         if it.get("id") == "polytech-universe-3" and it.get("image_url") in OLD_PU3:
             it["image_url"] = NEW_PU3
             changed = True
+
+    # Добавляем анонсированные PU-7/8/9, если их ещё нет в JSON.
+    have = {it.get("id") for it in items}
+    for d in _DEFAULT:
+        if d["id"] not in have and d.get("status") == "announced":
+            items.append(dict(d))
+            changed = True
+
     if changed:
         try:
             _save(items)

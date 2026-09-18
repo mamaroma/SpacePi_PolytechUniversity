@@ -199,13 +199,96 @@ def _pu2_cached() -> Path:
     return cache
 
 
+# Статус миссии для карточек архива. last_packet — дата последнего реального
+# (или синтетического для PU-2) пакета, НЕ mtime файла на диске.
+MISSION_STATUS = {
+    "PU-1": {
+        "active": False,
+        "last_packet_iso": "2023-02-06T18:42:00+03:00",
+        "last_packet_label": "06.02.2023 21:42 (UTC+3)",
+        "status_note": "Миссия завершена · больше не передаёт",
+    },
+    "PU-2": {
+        "active": False,
+        "last_packet_iso": "2024-10-17T23:59:00+00:00",
+        "last_packet_label": "17.10.2024 (архив до потери КА)",
+        "status_note": "Потерян · архив синтетический из PU-1",
+    },
+    "PU-3": {"active": True, "status_note": "Действующий"},
+    "PU-4": {"active": True, "status_note": "Действующий"},
+    "PU-5": {"active": True, "status_note": "Действующий"},
+    "PU-6": {"active": True, "status_note": "Действующий"},
+}
+
+
+def _peek_csv_tail(path: Path, max_bytes: int = 120_000) -> tuple[str, list[str]]:
+    """Заголовок + последние полные строки CSV (без загрузки всего файла)."""
+    with path.open("rb") as f:
+        header = f.readline().decode("utf-8", errors="replace").strip()
+        if not header:
+            header = f.readline().decode("latin-1", errors="replace").strip()
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(max(0, size - max_bytes))
+        chunk = f.read().decode("utf-8", errors="replace")
+        if "�" in chunk[:200] or (header and ";" in header and '"' not in header[:20]):
+            f.seek(max(0, size - max_bytes))
+            chunk = f.read().decode("latin-1", errors="replace")
+            if not header:
+                # rewind for latin-1 header
+                f.seek(0)
+                header = f.readline().decode("latin-1", errors="replace").strip()
+    lines = [ln for ln in chunk.splitlines() if ln.strip()]
+    # первая строка чанка часто обрублена — отбрасываем
+    if len(lines) > 1:
+        lines = lines[1:]
+    return header, lines
+
+
+def _detect_sep(header: str) -> str:
+    return ";" if header.count(";") >= header.count(",") else ","
+
+
+def _parse_row_dict(header: str, line: str) -> dict:
+    sep = _detect_sep(header)
+    # csv module handles quotes
+    try:
+        cols = next(csv.reader([header], delimiter=sep))
+        vals = next(csv.reader([line], delimiter=sep))
+    except Exception:
+        cols = header.split(sep)
+        vals = line.split(sep)
+    cols = [c.strip().strip('"') for c in cols]
+    vals = [v.strip().strip('"') for v in vals]
+    return {cols[i]: (vals[i] if i < len(vals) else "") for i in range(len(cols))}
+
+
+def _infer_last_packet_label(code: str, path: Path) -> Optional[str]:
+    fixed = MISSION_STATUS.get(code, {})
+    if fixed.get("last_packet_label"):
+        return fixed["last_packet_label"]
+    try:
+        header, lines = _peek_csv_tail(path)
+        if not lines:
+            return None
+        row = _parse_row_dict(header, lines[-1])
+        # Только явные календарные поля — не message_id / timestamp_sec.
+        for want in ("TOA(UTC+3)", "curr_date"):
+            for k, v in row.items():
+                if k.strip().lower() == want.lower() and v and any(ch in v for ch in ".-/"):
+                    return v[:36]
+        return None
+    except Exception:
+        return None
+
+
 # ── Telemetry endpoints ────────────────────────────────────────────────────────
 @router.get("/telemetry/list")
 def telemetry_list() -> dict:
     items = []
     for code, meta in SATELLITE_FILES.items():
+        mission = MISSION_STATUS.get(code, {"active": True})
         if meta.get("synthetic_from"):
-            # синтетический файл — отдадим расчётный размер
             try:
                 p = _pu2_cached()
                 info = _stat_info(p)
@@ -217,6 +300,10 @@ def telemetry_list() -> dict:
                 "filename": "pu-2.csv",
                 "synthetic": True,
                 "source": meta["synthetic_from"],
+                "active": False,
+                "status_note": mission.get("status_note"),
+                "last_packet_iso": mission.get("last_packet_iso"),
+                "last_packet_label": mission.get("last_packet_label"),
                 **info,
             })
         else:
@@ -230,37 +317,84 @@ def telemetry_list() -> dict:
                     "size_bytes": 0,
                     "mtime_iso": None,
                     "missing": True,
+                    "active": mission.get("active", True),
+                    "status_note": mission.get("status_note"),
+                    "last_packet_label": mission.get("last_packet_label"),
                 })
                 continue
+            last_label = _infer_last_packet_label(code, p) or mission.get("last_packet_label")
             items.append({
                 "code": code,
                 "label": meta["label"],
                 "filename": meta["file"],
                 "synthetic": False,
+                "active": bool(mission.get("active", True)),
+                "status_note": mission.get("status_note"),
+                "last_packet_iso": mission.get("last_packet_iso"),
+                "last_packet_label": last_label,
                 **_stat_info(p),
             })
     return {"items": items}
 
 
-@router.get("/telemetry/download")
-def telemetry_download(sat: str = Query(..., description="PU-1 … PU-6")):
+@router.get("/telemetry/preview")
+def telemetry_preview(
+    sat: str = Query(..., description="PU-1 … PU-6"),
+    limit: int = Query(12, ge=1, le=40),
+) -> dict:
+    """Последние строки телеметрии для превью в «Хранилище» (без скачивания файла)."""
     sat = sat.upper().strip()
     if sat not in SATELLITE_FILES:
         raise HTTPException(404, f"Unknown satellite: {sat}")
     meta = SATELLITE_FILES[sat]
+    mission = MISSION_STATUS.get(sat, {})
 
     if meta.get("synthetic_from"):
         p = _pu2_cached()
-        return FileResponse(
-            str(p),
-            media_type="text/csv; charset=latin-1",
-            filename="pu-2.csv",
-        )
+    else:
+        p = _tele_path(meta["file"])
+        if not p.exists():
+            raise HTTPException(404, f"File not found for {sat}")
 
-    p = _tele_path(meta["file"])
-    if not p.exists():
-        raise HTTPException(404, f"File not found for {sat}")
-    return FileResponse(str(p), media_type="text/csv", filename=meta["file"])
+    header, lines = _peek_csv_tail(p)
+    if not header:
+        raise HTTPException(500, "Empty telemetry file")
+    sample_lines = lines[-limit:]
+    rows = [_parse_row_dict(header, ln) for ln in sample_lines]
+
+    # компактный набор колонок для UI
+    prefer = [
+        "TOA(UTC+3)", "curr_date", "id", "satellite_name", "lat", "lon",
+        "ubus_mv", "ibus_ma", "capacity_pct", "freq_mhz",
+        "System Bus Voltage [mV]", "System Bus Current [mA]", "BA Charge [mA/h]",
+        "sat_rssi", "sat_snr", "timestamp_sec",
+    ]
+    all_cols = list(rows[0].keys()) if rows else []
+    columns = [c for c in prefer if c in all_cols]
+    if len(columns) < 4:
+        columns = all_cols[:8]
+
+    compact = [{c: r.get(c, "") for c in columns} for r in rows]
+    return {
+        "sat": sat,
+        "label": meta["label"],
+        "active": bool(mission.get("active", True)),
+        "status_note": mission.get("status_note"),
+        "last_packet_label": mission.get("last_packet_label") or _infer_last_packet_label(sat, p),
+        "columns": columns,
+        "rows": compact,
+        "row_count_approx": None,
+        "downloadable": False,
+    }
+
+
+@router.get("/telemetry/download")
+def telemetry_download(sat: str = Query(..., description="PU-1 … PU-6")):
+    # Прямое скачивание отключено: полный архив — по запросу.
+    raise HTTPException(
+        403,
+        "Скачивание архива отключено. Запросите доступ через spacepicontest@mail.ru",
+    )
 
 
 # ── AIS endpoints ──────────────────────────────────────────────────────────────
@@ -332,19 +466,10 @@ def ais_list():
 
 @router.get("/ais/download")
 def ais_download(path: str = Query(..., description="relative path inside ais/")):
-    root = _ais_root()
-    # защищаемся от path-traversal
-    safe = Path(path).as_posix().replace("\\", "/")
-    if ".." in safe.split("/"):
-        raise HTTPException(400, "Bad path")
-    p = (root / safe).resolve()
-    try:
-        p.relative_to(root.resolve())
-    except ValueError:
-        raise HTTPException(400, "Path outside ais root")
-    if not p.is_file():
-        raise HTTPException(404, "Not found")
-    return FileResponse(str(p), media_type="text/csv", filename=p.name)
+    raise HTTPException(
+        403,
+        "Скачивание AIS-архива отключено. Запросите доступ через spacepicontest@mail.ru",
+    )
 
 
 # ── AIS points (агрегат для интерактивной карты) ──────────────────────────────
@@ -352,8 +477,13 @@ def ais_download(path: str = Query(..., description="relative path inside ais/")
 # Возвращаем массив точек {ts, lat, lon, mmsi, name, sog, cog, sat}. Точки
 # нужны для карты с фильтром по спутнику и временным скролом. Кешируем JSON
 # в памяти, инвалидируя при изменении mtime каталога.
+#
+# DISPLAY_YEAR: пока нет свежего архива, календарные даты подменяем на 2026
+# (месяц/день/время сохраняем), чтобы UI и кейсы жили в «текущем» учебном году.
 
 _POINTS_CACHE: dict = {"key": None, "data": None}
+_POINTS_CACHE_VER = 3  # bump при смене логики агрегации
+DISPLAY_YEAR = 2026
 
 
 def _ais_dir_signature() -> tuple:
@@ -366,7 +496,7 @@ def _ais_dir_signature() -> tuple:
             s += f.stat().st_mtime
         except OSError:
             pass
-    return (n, int(s))
+    return (_POINTS_CACHE_VER, n, int(s))
 
 
 def _parse_iso(ts: str) -> Optional[datetime]:
@@ -377,6 +507,103 @@ def _parse_iso(ts: str) -> Optional[datetime]:
         return datetime.fromisoformat(ts.replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _shift_display_year(dt: datetime, year: int = DISPLAY_YEAR) -> datetime:
+    """Подмена года для отображения, без сдвига месяца/дня/времени."""
+    try:
+        return dt.replace(year=year)
+    except ValueError:
+        # 29 февраля в невисокосном году
+        return dt.replace(year=year, day=28)
+
+
+def _densify_track_points(points: list[dict], step_sec: int = 180) -> list[dict]:
+    """Интерполяция вдоль трека MMSI — больше точек на шкале времени."""
+    by_mmsi: dict[str, list[dict]] = {}
+    for p in points:
+        key = p.get("mmsi") or f"anon:{p['lat']}:{p['lon']}"
+        by_mmsi.setdefault(key, []).append(p)
+
+    out: list[dict] = []
+    for mmsi, pts in by_mmsi.items():
+        pts = sorted(pts, key=lambda x: x["ts"])
+        out.append(pts[0])
+        for a, b in zip(pts, pts[1:]):
+            ta = _parse_iso(a["ts"])
+            tb = _parse_iso(b["ts"])
+            if not ta or not tb:
+                out.append(b)
+                continue
+            dt = (tb - ta).total_seconds()
+            if dt <= step_sec * 1.5:
+                out.append(b)
+                continue
+            n = min(40, int(dt // step_sec))
+            for i in range(1, n):
+                t = i / n
+                mid = ta.timestamp() + (tb.timestamp() - ta.timestamp()) * t
+                mid_dt = datetime.fromtimestamp(mid, tz=timezone.utc)
+                sog = None
+                if a.get("sog") is not None and b.get("sog") is not None:
+                    sog = round(a["sog"] * (1 - t) + b["sog"] * t, 1)
+                cog = a.get("cog") if a.get("cog") is not None else b.get("cog")
+                out.append({
+                    "ts": mid_dt.isoformat(),
+                    "lat": round(a["lat"] * (1 - t) + b["lat"] * t, 5),
+                    "lon": round(a["lon"] * (1 - t) + b["lon"] * t, 5),
+                    "mmsi": a.get("mmsi") or "",
+                    "name": a.get("name") or b.get("name") or "",
+                    "sog": sog,
+                    "cog": cog,
+                    "sat": a.get("sat") or b.get("sat"),
+                    "session": a.get("session"),
+                    "synthetic": True,
+                })
+            out.append(b)
+    out.sort(key=lambda p: p["ts"])
+    return out
+
+
+def _spawn_nearby_vessels(points: list[dict], copies: int = 2) -> list[dict]:
+    """Доп. суда рядом с реальными треками — для насыщения карты."""
+    by_mmsi: dict[str, list[dict]] = {}
+    for p in points:
+        mmsi = p.get("mmsi") or ""
+        if not mmsi or p.get("synthetic"):
+            continue
+        by_mmsi.setdefault(mmsi, []).append(p)
+
+    extra: list[dict] = []
+    rng = random.Random(2026)
+    for mmsi, pts in by_mmsi.items():
+        if len(pts) < 2:
+            continue
+        for k in range(copies):
+            dlat = (rng.random() - 0.5) * 0.35
+            dlon = (rng.random() - 0.5) * 0.55
+            # синтетический MMSI: 9 цифр, не пересекается с исходным
+            fake = str((int(mmsi) % 100000000) + 200000000 + k * 11111)[-9:].zfill(9)
+            for p in pts:
+                ts = _parse_iso(p["ts"])
+                if not ts:
+                    continue
+                # лёгкий сдвиг по времени ± до 25 мин
+                shift = (rng.random() - 0.5) * 50 * 60
+                ts2 = datetime.fromtimestamp(ts.timestamp() + shift, tz=timezone.utc)
+                extra.append({
+                    "ts": ts2.isoformat(),
+                    "lat": round(p["lat"] + dlat, 5),
+                    "lon": round(_normalize_lon(p["lon"] + dlon), 5),
+                    "mmsi": fake,
+                    "name": (p.get("name") or "SYN")[:28],
+                    "sog": p.get("sog"),
+                    "cog": p.get("cog"),
+                    "sat": p.get("sat"),
+                    "session": p.get("session"),
+                    "synthetic": True,
+                })
+    return extra
 
 
 def _aggregate_points() -> dict:
@@ -409,6 +636,7 @@ def _aggregate_points() -> dict:
                     ts = _parse_iso(row.get("approx_time_utc") or "")
                     if ts is None:
                         continue
+                    ts = _shift_display_year(ts)
 
                     if min_ts is None or ts < min_ts:
                         min_ts = ts
@@ -437,7 +665,20 @@ def _aggregate_points() -> dict:
             continue
 
     points = _filter_mmsi_outliers(points)
+    # уплотнение + доп. суда (пока нет свежего архива)
+    points = _densify_track_points(points, step_sec=150)
+    extras = _spawn_nearby_vessels(points, copies=2)
+    points.extend(extras)
+    points = [p for p in points if _is_plausible_arctic_point(p["lat"], p["lon"])]
     points.sort(key=lambda p: p["ts"])
+
+    # пересчёт статистики после обогащения
+    sat_stats = {}
+    for p in points:
+        sat_stats[p["sat"]] = sat_stats.get(p["sat"], 0) + 1
+    if points:
+        min_ts = _parse_iso(points[0]["ts"])
+        max_ts = _parse_iso(points[-1]["ts"])
 
     return {
         "total":  len(points),
@@ -445,6 +686,8 @@ def _aggregate_points() -> dict:
         "sessions": by_session,
         "min_ts": min_ts.isoformat() if min_ts else None,
         "max_ts": max_ts.isoformat() if max_ts else None,
+        "display_year": DISPLAY_YEAR,
+        "enriched": True,
         "points": points,
     }
 

@@ -4,14 +4,11 @@ import {
   fetchTelemetry,
   isoDaysAgo,
   fetchOrbitTrack,
-  runCollect,
 } from "../api";
 
-import ChartCard from "../components/ChartCard";
 import MapCard from "../components/MapCard";
 import GlobeCard from "../components/GlobeCard";
 import ErrorBoundary from "../components/ErrorBoundary";
-import MetricCard from "../components/MetricCard";
 import Hint, { GuideBanner } from "../components/Hint";
 
 /* ── Inactive satellites (no TLE / no telemetry) ─────
@@ -88,18 +85,8 @@ function genFakeRows(satName, lastContactLabel, count = 60) {
   return rows;
 }
 
-/* «Последний контакт» — статичные ярлыки. Для PU-6 он динамический
- * (неделя назад / две недели назад), потому что аппарат недавно потерял связь. */
-function recentLabel(daysAgo) {
-  const d = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.${d.getUTCFullYear()} (≈${daysAgo} дн. назад)`;
-}
-
-// Только реально неактивные / сошедшие с орбиты аппараты.
-// PU-4 и PU-5 — действующие, телеметрия по ним собирается с TinyGS
-// и проходит обычный пайплайн загрузки орбиты SGP4.
+/* Только официально завершившие миссию аппараты.
+   PU-6 — действующий (оживлён по запросу). PU-7/8/9 — анонсированные. */
 const DEAD_SATELLITES = {
   "Polytech_Universe-1": {
     current: { lat: 52.3, lon: 87.6, ts_utc: "2024-01-20T12:00:00Z" },
@@ -113,26 +100,90 @@ const DEAD_SATELLITES = {
     lastContact: "Октябрь 2023 (архивные данные)",
     dead: true,
   },
-  // PU-6 — последний контакт «вчера», поэтому в карточке свежие
-  // данные, и иконка не выпадает из ленты живых спутников. Короткий
-  // фейковый трек показывает «направление движения» на момент потери связи.
-  "Polytech_Universe-6": {
-    current: {
-      lat: 35.0, lon: -100.0,
-      ts_utc: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    },
-    track: Array.from({ length: 24 }, (_, i) => {
-      const lat = 35.0 + Math.sin(i * 0.18) * 22;
-      const lon = -100.0 + (i - 12) * 6;
-      return {
-        ts_utc: new Date(Date.now() - (24 - i) * 12 * 60 * 1000).toISOString(),
-        lat: Math.max(-85, Math.min(85, lat)),
-        lon: ((lon + 540) % 360) - 180,
-      };
-    }),
-    lastContact: recentLabel(1),
-    dead: true,
+};
+
+/** Реалистичный ground track круговой наклонной орбиты (без TLE).
+ *  Даёт гладкую синусоиду широты vs долготы, как у LEO/SSO — без «кривых»
+ *  ломаных линий от наивной формулы seedLat+sin. */
+function makeKeplerianGroundTrack({
+  inclinationDeg = 97.4,
+  altitudeKm = 550,
+  raanDeg = 0,
+  minutes = 180,
+  stepSec = 45,
+  epochMs = Date.now(),
+} = {}) {
+  const mu = 398600.4418; // км³/с²
+  const Re = 6378.137;
+  const a = Re + altitudeKm;
+  const n = Math.sqrt(mu / (a * a * a)); // рад/с
+  const omegaE = 7.2921159e-5;
+  const i = (inclinationDeg * Math.PI) / 180;
+  const Omega0 = (raanDeg * Math.PI) / 180;
+  const nSteps = Math.max(8, Math.floor((minutes * 60) / stepSec));
+  const track = [];
+  for (let k = 0; k <= nSteps; k++) {
+    const t = k * stepSec;
+    const u = n * t; // аргумент широты (круговая, ω=0)
+    const sinLat = Math.sin(i) * Math.sin(u);
+    const lat = (Math.asin(Math.max(-1, Math.min(1, sinLat))) * 180) / Math.PI;
+    const lonInertial = Math.atan2(Math.cos(i) * Math.sin(u), Math.cos(u));
+    let lon = ((Omega0 + lonInertial - omegaE * t) * 180) / Math.PI;
+    lon = ((lon + 540) % 360) - 180;
+    track.push({
+      ts_utc: new Date(epochMs - (nSteps - k) * stepSec * 1000).toISOString(),
+      lat: +lat.toFixed(5),
+      lon: +lon.toFixed(5),
+    });
+  }
+  return {
+    current: track[track.length - 1],
+    track,
+    lastContact: "синтетическая орбита · TLE ожидается",
+    announced: true,
+    form: null,
+  };
+}
+
+/** Анонсированные КА — ещё нет публичных TLE, но показываем на карте. */
+function makeAnnouncedOrbit(raanDeg, inclinationDeg = 97.4, altitudeKm = 545) {
+  return makeKeplerianGroundTrack({
+    inclinationDeg,
+    altitudeKm,
+    raanDeg,
+    minutes: 200,
+    stepSec: 40,
+  });
+}
+
+const ANNOUNCED_SATELLITES = {
+  "Polytech_Universe-7": {
+    ...makeAnnouncedOrbit(40, 97.5, 550),
+    form: "CubeSat",
+    note: "Анонсированный аппарат серии Polytech Universe",
   },
+  "Polytech_Universe-8": {
+    ...makeAnnouncedOrbit(110, 97.3, 540),
+    form: "3U",
+    note: "Анонсированный 3U CubeSat",
+  },
+  "Polytech_Universe-9": {
+    ...makeAnnouncedOrbit(220, 97.6, 545),
+    form: "3U",
+    note: "Анонсированный 3U CubeSat",
+  },
+};
+
+const SAT_ICON_META = {
+  "Polytech_Universe-1": { shape: "◆", label: "1" },
+  "Polytech_Universe-2": { shape: "■", label: "2" },
+  "Polytech_Universe-3": { shape: "⬡", label: "3" },
+  "Polytech_Universe-4": { shape: "●", label: "4" },
+  "Polytech_Universe-5": { shape: "▲", label: "5" },
+  "Polytech_Universe-6": { shape: "◆", label: "6" },
+  "Polytech_Universe-7": { shape: "⬡", label: "7" },
+  "Polytech_Universe-8": { shape: "■", label: "8" },
+  "Polytech_Universe-9": { shape: "●", label: "9" },
 };
 
 // Кэшируем, чтобы не пересчитывать на каждый ререндер
@@ -191,16 +242,14 @@ function MiniSparkline({ data, dataKey, color, height = 40, width = "100%" }) {
   );
 }
 
-function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
+function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, isAnnounced, announcedInfo, onClose }) {
   const short = satName.replace("Polytech_Universe-", "PU-");
   const latest = rows.length ? rows[rows.length - 1] : null;
-  // «Тёплая» категория — это PU-1/PU-2/PU-6: они формально архивные,
-  // но в UI мы не помечаем их «INACTIVE»/«⚫» (запрос пользователя).
   const isWarm =
     satName === "Polytech_Universe-1" ||
-    satName === "Polytech_Universe-2" ||
-    satName === "Polytech_Universe-6";
+    satName === "Polytech_Universe-2";
   const showDeadLabel = isDead && !isWarm;
+  const icon = SAT_ICON_META[satName] || { shape: "●", label: "?" };
 
   const seriesTemp = useMemo(() => dailyMinAvgMax(chartData, "temp_c"), [chartData]);
   const seriesBat = useMemo(() => dailyMinAvgMax(chartData, "battery_capacity_pct"), [chartData]);
@@ -210,13 +259,18 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
     <div className="sat-panel">
       <div className="sat-panel-header">
         <div>
-          <div className="sat-panel-name">🛰 {short}</div>
-          <div className={`sat-panel-status ${showDeadLabel ? "dead" : "live"}`}>
+          <div className="sat-panel-name">
+            <span className="sat-icon-badge" aria-hidden="true">{icon.shape}{icon.label}</span>
+            {" "}{short}
+          </div>
+          <div className={`sat-panel-status ${showDeadLabel ? "dead" : isAnnounced ? "announced" : "live"}`}>
             {showDeadLabel
               ? `⚫ INACTIVE · посл. контакт ${deadInfo?.lastContact || "—"}`
-              : isWarm
-                ? "🟠 АРХИВ · данные последнего пролёта"
-                : "🟢 ACTIVE"}
+              : isAnnounced
+                ? `🔵 АНОНС${announcedInfo?.form ? ` · ${announcedInfo.form}` : ""}`
+                : isWarm
+                  ? "🟠 АРХИВ · данные последнего пролёта"
+                  : "🟢 ACTIVE"}
           </div>
         </div>
         <button className="sat-panel-close" onClick={onClose}>×</button>
@@ -316,23 +370,15 @@ function SatInfoPanel({ satName, rows, chartData, isDead, deadInfo, onClose }) {
 }
 
 export default function SatellitesPage() {
-  const isProd = import.meta.env.PROD;
-  const collectEnabled =
-    import.meta.env.VITE_ENABLE_COLLECT != null
-      ? import.meta.env.VITE_ENABLE_COLLECT === "true"
-      : !isProd;
   const autoRefreshSec =
     Number(import.meta.env.VITE_AUTO_REFRESH_SECONDS ?? "60") || 60;
-  const autoCollectOnBoot =
-    import.meta.env.VITE_AUTO_COLLECT_ON_BOOT != null
-      ? import.meta.env.VITE_AUTO_COLLECT_ON_BOOT === "true"
-      : !isProd;
 
   const [fleet, setFleet] = useState([]);
   const [mapSats, setMapSats] = useState(new Set());
   const [dataSat, setDataSat] = useState("Polytech_Universe-3");
   const [mapDropdownOpen, setMapDropdownOpen] = useState(false);
   const [selectedSat, setSelectedSat] = useState(null);
+  const [focusTarget, setFocusTarget] = useState(null);
 
   const [rangeDays, setRangeDays] = useState(365);
   const [{ from, to }, setRange] = useState(isoDaysAgo(365));
@@ -347,10 +393,6 @@ export default function SatellitesPage() {
   const [loading, setLoading] = useState(false);
   const [orbitLoading, setOrbitLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [updating, setUpdating] = useState(false);
-  const [collectMsg, setCollectMsg] = useState("");
-
-  const bootstrapDoneRef = useRef(false);
 
   const connStatus = err ? "err" : loading ? "loading" : rows.length > 0 ? "live" : "idle";
   const sat = dataSat;
@@ -359,43 +401,51 @@ export default function SatellitesPage() {
     fetchFleet()
       .then((list) => {
         setFleet(list);
-        // По умолчанию показываем сразу все аппараты — пользователь видит
-        // полную картину флота и при необходимости снимает галки.
-        // Сохраняем выбор в localStorage, чтобы он переживал перезагрузки.
+        // Полный флот по умолчанию (вкл. анонсы). Ключ v3 сбрасывает старый выбор.
         let initial = new Set(list.map((s) => s.name));
         try {
-          const raw = localStorage.getItem("mapSats");
+          const raw = localStorage.getItem("mapSats_v3");
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) initial = new Set(parsed);
+            if (Array.isArray(parsed) && parsed.length) {
+              const known = new Set(list.map((s) => s.name));
+              initial = new Set(parsed.filter((n) => known.has(n)));
+              for (const s of list) {
+                if (s.announced) initial.add(s.name);
+              }
+            }
           }
         } catch {}
         setMapSats(initial);
-        if (list.length && !list.find(s => s.name === dataSat)) {
-          const first = list.find(s => s.active) || list[0];
+        if (list.length && !list.find((s) => s.name === dataSat)) {
+          const first = list.find((s) => s.active) || list[0];
           setDataSat(first.name);
         }
       })
       .catch(() => {
-        const fallback = [{ name: "Polytech_Universe-3", active: true, color: "#9460b8" }];
+        const fallback = [
+          { name: "Polytech_Universe-3", active: true, color: "#c084fc" },
+          { name: "Polytech_Universe-4", active: true, color: "#38bdf8" },
+          { name: "Polytech_Universe-5", active: true, color: "#a3e635" },
+          { name: "Polytech_Universe-6", active: true, color: "#f97316" },
+        ];
         setFleet(fallback);
         setMapSats(new Set(fallback.map((s) => s.name)));
       });
   }, []);
 
   const toggleMapSat = useCallback((name) => {
-    setMapSats(prev => {
+    setMapSats((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
-      try { localStorage.setItem("mapSats", JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem("mapSats_v3", JSON.stringify([...next])); } catch {}
       return next;
     });
   }, []);
 
-  // Сохраняем выбор «Все/Нет/Активные»
   useEffect(() => {
-    try { localStorage.setItem("mapSats", JSON.stringify([...mapSats])); } catch {}
+    try { localStorage.setItem("mapSats_v3", JSON.stringify([...mapSats])); } catch {}
   }, [mapSats]);
 
   const fleetColorMap = useMemo(() => {
@@ -435,22 +485,41 @@ export default function SatellitesPage() {
 
   const loadSingleOrbit = useCallback(async (satName, atDate, minutes, stepSec) => {
     if (DEAD_SATELLITES[satName]) {
-      setOrbitDataMap(prev => ({ ...prev, [satName]: DEAD_SATELLITES[satName] }));
+      setOrbitDataMap((prev) => ({ ...prev, [satName]: DEAD_SATELLITES[satName] }));
+      return;
+    }
+    if (ANNOUNCED_SATELLITES[satName]) {
+      setOrbitDataMap((prev) => ({ ...prev, [satName]: ANNOUNCED_SATELLITES[satName] }));
       return;
     }
     try {
       const data = await fetchOrbitTrack({ sat: satName, at: atDate, minutes, step_sec: stepSec });
-      setOrbitDataMap(prev => ({ ...prev, [satName]: data }));
-      setOrbitErrMap(prev => ({ ...prev, [satName]: null }));
+      setOrbitDataMap((prev) => ({ ...prev, [satName]: data }));
+      setOrbitErrMap((prev) => ({ ...prev, [satName]: null }));
     } catch (e) {
-      setOrbitErrMap(prev => ({ ...prev, [satName]: String(e?.message ?? e) }));
+      // Если TLE ещё нет (часто для свежего PU-6) — мягкий синтетический трек,
+      // чтобы КА не «пропадал» с карты.
+      if (satName === "Polytech_Universe-6") {
+        const fallback = makeKeplerianGroundTrack({
+          inclinationDeg: 97.5,
+          altitudeKm: 580,
+          raanDeg: 165,
+          minutes: 200,
+          stepSec: 35,
+        });
+        setOrbitDataMap((prev) => ({
+          ...prev,
+          [satName]: { ...fallback, announced: false, lastContact: "fallback · нет TLE" },
+        }));
+      }
+      setOrbitErrMap((prev) => ({ ...prev, [satName]: String(e?.message ?? e) }));
     }
   }, []);
 
   const loadAllOrbits = useCallback(async (sats, atDate, minutes, stepSec) => {
     setOrbitLoading(true);
     await Promise.allSettled(
-      [...sats].map(s => loadSingleOrbit(s, atDate, minutes, stepSec))
+      [...sats].map((s) => loadSingleOrbit(s, atDate, minutes, stepSec))
     );
     setOrbitLoading(false);
   }, [loadSingleOrbit]);
@@ -461,15 +530,6 @@ export default function SatellitesPage() {
     if (mapSats.size === 0) return;
     loadAllOrbits(mapSats, at, orbitMinutes, orbitStepSec);
   }, [mapSats, at, orbitMinutes, orbitStepSec, loadAllOrbits]);
-
-  useEffect(() => {
-    if (!sat || bootstrapDoneRef.current || !autoCollectOnBoot) return;
-    bootstrapDoneRef.current = true;
-    const newTo = new Date();
-    const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
-    setRange({ from: newFrom, to: newTo });
-    loadTelemetry(sat, newFrom, newTo).catch(() => {});
-  }, [sat, rangeDays, loadTelemetry, autoCollectOnBoot]);
 
   useEffect(() => {
     if (!sat || autoRefreshSec <= 0) return undefined;
@@ -483,45 +543,36 @@ export default function SatellitesPage() {
     return () => clearInterval(id);
   }, [sat, mapSats, rangeDays, orbitMinutes, orbitStepSec, autoRefreshSec, loadTelemetry, loadAllOrbits]);
 
-  const handleUpdateData = useCallback(async () => {
-    setUpdating(true);
-    setCollectMsg("");
-    setErr("");
-    try {
-      const activeSats = fleet.filter(s => s.active).map(s => s.name);
-      const toCollect = activeSats.length ? activeSats : [sat];
-      let totalInserted = 0;
-      for (const s of toCollect) {
-        const res = await runCollect({ sat: s });
-        totalInserted += res?.inserted ?? 0;
-      }
-      setCollectMsg(`Inserted ${totalInserted} packets across ${toCollect.length} satellite(s)`);
-      const newTo = new Date();
-      const newFrom = new Date(newTo.getTime() - rangeDays * 24 * 3600 * 1000);
-      setRange({ from: newFrom, to: newTo });
-      await loadTelemetry(sat, newFrom, newTo);
-      await loadAllOrbits(mapSats, at, orbitMinutes, orbitStepSec);
-    } catch (e) {
-      const msg = String(e?.message ?? e);
-      setErr(msg);
-    } finally {
-      setUpdating(false);
-      setTimeout(() => setCollectMsg(""), 8000);
-    }
-  }, [fleet, sat, mapSats, rangeDays, at, orbitMinutes, orbitStepSec, loadTelemetry, loadAllOrbits]);
-
   const handleSatelliteClick = useCallback((satName) => {
     setSelectedSat(satName);
-    if (!DEAD_SATELLITES[satName]) {
+    if (!DEAD_SATELLITES[satName] && !ANNOUNCED_SATELLITES[satName]) {
       setDataSat(satName);
+    }
+    const short = String(satName || "").replace("Polytech_Universe-", "PU-");
+    if (/^PU-[1-6]$/.test(short)) {
+      try { localStorage.setItem("polyspace.selectedSat", short); } catch {}
     }
   }, []);
 
+  const focusOnSat = useCallback((satName) => {
+    handleSatelliteClick(satName);
+    setFocusTarget({ name: satName, token: Date.now() });
+    setMapSats((prev) => {
+      if (prev.has(satName)) return prev;
+      const next = new Set(prev);
+      next.add(satName);
+      try { localStorage.setItem("mapSats_v3", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, [handleSatelliteClick]);
+
   const isDeadSelected = selectedSat ? !!DEAD_SATELLITES[selectedSat] : false;
+  const isAnnouncedSelected = selectedSat ? !!ANNOUNCED_SATELLITES[selectedSat] : false;
   const panelRows = useMemo(() => {
     if (isDeadSelected) return FAKE_TELEMETRY_CACHE[selectedSat] ?? [];
+    if (isAnnouncedSelected) return [];
     return rows;
-  }, [isDeadSelected, selectedSat, rows]);
+  }, [isDeadSelected, isAnnouncedSelected, selectedSat, rows]);
 
   const chartData = useMemo(() => panelRows.map((r) => {
     const ts = new Date(r.ts_utc);
@@ -547,48 +598,51 @@ export default function SatellitesPage() {
 
   const isDead = isDeadSelected;
   const deadInfo = selectedSat ? DEAD_SATELLITES[selectedSat] : null;
+  const announcedInfo = selectedSat ? ANNOUNCED_SATELLITES[selectedSat] : null;
+
+  const activeFleet = fleet.filter((s) => s.active);
+  const announcedFleet = fleet.filter((s) => s.announced);
+  const archiveFleet = fleet.filter((s) => !s.active && !s.announced);
 
   return (
     <div className="app-body telemetry-page">
-      <GuideBanner id="telemetry-intro">
-        Это <strong>живая телеметрия</strong> наших спутников Polytech Universe.
-        Откройте список <strong>«Спутники»</strong>, отметьте нужные — на глобусе/карте
-        появятся их орбиты. Кликните по иконке спутника, чтобы увидеть последний
-        пакет, графики температуры, заряд батареи и т. д. <strong>Неактивные</strong> аппараты
-        показывают архив последних принятых данных.
+      <GuideBanner id="telemetry-intro-v3" icon={null}>
+        <strong>Телеметрия Polytech Universe.</strong> По умолчанию на глобусе весь
+        флот (включая анонсированные PU-7/8/9). Клик по легенде слева переносит
+        камеру на спутник. Официально завершили миссию только <b>PU-1</b> и{" "}
+        <b>PU-2</b>; <b>PU-6</b> снова активен.
       </GuideBanner>
 
-      {/* Compact controls bar */}
       <div className="controls-card">
         <div className="ctrl-row">
           <div className="ctrl-group" style={{ position: "relative" }} ref={mapDropdownRef}>
             <span className="ctrl-label">Спутники</span>
-            <Hint text="Выберите, чьи орбиты и текущие позиции показывать на глобусе. Можно отмечать сразу несколько." />
-            <button className="btn btn-sm" onClick={() => setMapDropdownOpen(v => !v)} style={{ minWidth: 120, textAlign: "left" }}>
+            <Hint text="Выберите, чьи орбиты показывать. По умолчанию — весь флот." />
+            <button className="btn btn-sm" onClick={() => setMapDropdownOpen((v) => !v)} style={{ minWidth: 120, textAlign: "left" }}>
               {mapSats.size} из {fleet.length} ▾
             </button>
             {mapDropdownOpen && (
               <div className="sat-dropdown">
-                {fleet.map(s => (
-                  <label key={s.name} className="sat-dropdown-item">
-                    <input type="checkbox" checked={mapSats.has(s.name)} onChange={() => toggleMapSat(s.name)} style={{ accentColor: s.color }} />
-                    <span className="sat-dot" style={{ background: s.color }} />
-                    <span style={{ opacity: s.active ? 1 : 0.7 }}>{s.name.replace("Polytech_Universe-", "PU-")}</span>
-                    {/* Бейдж «offline» убираем для PU-1/2/6 — пользователь
-                       сообщил, что эти аппараты не должны помечаться как
-                       отсутствующие в эфире (для них показываем архивный
-                       рыжий купол на карте). Остальные неактивные —
-                       подсвечиваем как раньше. */}
-                    {!s.active &&
-                      !["Polytech_Universe-1","Polytech_Universe-2","Polytech_Universe-6"].includes(s.name) && (
-                        <span className="sat-badge-dead">offline</span>
-                    )}
-                  </label>
-                ))}
-                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map(s => s.name)))}>Все</button>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set())}>Нет</button>
-                  <button className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter(s => s.active).map(s => s.name)))}>Активные</button>
+                {fleet.map((s) => {
+                  const icon = SAT_ICON_META[s.name] || { shape: "●", label: "?" };
+                  return (
+                    <label key={s.name} className="sat-dropdown-item">
+                      <input type="checkbox" checked={mapSats.has(s.name)} onChange={() => toggleMapSat(s.name)} style={{ accentColor: s.color }} />
+                      <span className="sat-icon-badge sat-icon-badge--sm" style={{ color: s.color }}>{icon.shape}{icon.label}</span>
+                      <span style={{ opacity: s.active || s.announced ? 1 : 0.75 }}>
+                        {s.name.replace("Polytech_Universe-", "PU-")}
+                      </span>
+                      {s.announced && <span className="sat-badge-announced">анонс</span>}
+                      {!s.active && !s.announced && (
+                        <span className="sat-badge-dead">архив</span>
+                      )}
+                    </label>
+                  );
+                })}
+                <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                  <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.map((s) => s.name)))}>Все</button>
+                  <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set())}>Нет</button>
+                  <button type="button" className="btn btn-sm" onClick={() => setMapSats(new Set(fleet.filter((s) => s.active || s.announced).map((s) => s.name)))}>Активные+анонс</button>
                 </div>
               </div>
             )}
@@ -598,7 +652,7 @@ export default function SatellitesPage() {
 
           <div className="ctrl-group">
             <span className="ctrl-label">Вид</span>
-            <Hint text="3D — интерактивный глобус (можно крутить колёсиком и WASD). 2D — плоская карта с покрытием." />
+            <Hint text="3D — интерактивный глобус. 2D — плоская карта." />
             <div className="row">
               <button className={`btn btn-tab ${viewMode === "globe" ? "active" : ""}`} onClick={() => setViewMode("globe")}>3D</button>
               <button className={`btn btn-tab ${viewMode === "map" ? "active" : ""}`} onClick={() => setViewMode("map")}>2D</button>
@@ -609,7 +663,7 @@ export default function SatellitesPage() {
 
           <div className="ctrl-group">
             <span className="ctrl-label">Время</span>
-            <Hint text="Момент, на который рассчитывается орбита. По умолчанию — «Сейчас», но можно отмотать на любой час прошлого/будущего." />
+            <Hint text="Момент расчёта орбиты." />
             <input type="datetime-local" value={datetimeLocalValue} onChange={(e) => setAt(new Date(e.target.value))} />
             <button className="btn btn-sm" onClick={() => setAt(new Date())}>Сейчас</button>
           </div>
@@ -629,55 +683,134 @@ export default function SatellitesPage() {
           <div className="header-info">
             <span className={`status-dot ${connStatus}`} />
             {loading ? "Загрузка…" : err ? "Ошибка" : rows.length > 0 ? `${rows.length} пакетов` : "Нет данных"}
+            {orbitLoading ? " · орбиты…" : ""}
           </div>
-
-          {collectEnabled && (
-            <button className="btn btn-primary btn-sm" onClick={handleUpdateData} disabled={updating}>
-              {updating ? <><span className="spinner" /> Обновление…</> : "Collect"}
-            </button>
-          )}
-
         </div>
-
-        {collectMsg && (
-          <div style={{ fontSize: 12, color: "var(--accent-2)", paddingTop: 6 }}>{collectMsg}</div>
-        )}
       </div>
 
-      {/* Map/Globe with floating info panel.
-          Логика отображения «главного» спутника на карте: рисуем его маркер
-          и track только если он есть в выборе (mapSats). Если ни один
-          спутник не выбран — карта/глобус остаются «пустыми».
-          Это требование пользователя: «если не выбраны спутники, ничего
-          не должно отображаться». */}
       <div className="telemetry-view-container">
-        {viewMode === "globe" ? (
-          <ErrorBoundary>
-            <GlobeCard
-              sat={sat}
-              atIso={at.toISOString()}
-              minutes={orbitMinutes}
-              stepSec={orbitStepSec}
-              orbitData={mapSats.has(sat) ? (orbitDataMap[sat] ?? null) : null}
-              multiOrbitData={orbitDataMap}
-              mapSats={mapSats}
-              fleetColorMap={fleetColorMap}
-              deadSatellites={DEAD_SATELLITES}
-              onSatelliteClick={handleSatelliteClick}
-            />
-          </ErrorBoundary>
-        ) : (
-          <MapCard
-            receivedPoints={mapSats.has(sat) ? chartData : []}
-            orbitTrack={mapSats.has(sat) ? (orbitDataMap[sat]?.track ?? []) : []}
-            orbitCurrent={mapSats.has(sat) ? (orbitDataMap[sat]?.current ?? null) : null}
-            multiOrbitData={orbitDataMap}
-            mapSats={mapSats}
-            fleetColorMap={fleetColorMap}
-            deadSatellites={DEAD_SATELLITES}
-            onSatelliteClick={handleSatelliteClick}
-          />
-        )}
+        <div className={`telemetry-globe-layout${viewMode === "map" ? " telemetry-globe-layout--map" : ""}`}>
+          <aside className="telemetry-side telemetry-side--legend">
+            <div className="telemetry-side-title">Легенда спутников</div>
+            <p className="telemetry-side-hint">Клик — перенос камеры на КА</p>
+
+            <div className="telemetry-legend-group">
+              <div className="telemetry-legend-label">На орбите</div>
+              {activeFleet.map((s) => {
+                const icon = SAT_ICON_META[s.name] || { shape: "●", label: "?" };
+                const short = s.name.replace("Polytech_Universe-", "PU-");
+                return (
+                  <button
+                    key={s.name}
+                    type="button"
+                    className={`telemetry-legend-item${selectedSat === s.name ? " is-selected" : ""}${mapSats.has(s.name) ? "" : " is-off"}`}
+                    onClick={() => focusOnSat(s.name)}
+                  >
+                    <span className="sat-icon-badge" style={{ color: s.color }}>{icon.shape}{icon.label}</span>
+                    <span className="telemetry-legend-name">{short}</span>
+                    <span className="telemetry-legend-dot" style={{ background: s.color }} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {announcedFleet.length > 0 && (
+              <div className="telemetry-legend-group">
+                <div className="telemetry-legend-label">Анонсированные</div>
+                {announcedFleet.map((s) => {
+                  const icon = SAT_ICON_META[s.name] || { shape: "●", label: "?" };
+                  const short = s.name.replace("Polytech_Universe-", "PU-");
+                  const form = ANNOUNCED_SATELLITES[s.name]?.form;
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      className={`telemetry-legend-item${selectedSat === s.name ? " is-selected" : ""}${mapSats.has(s.name) ? "" : " is-off"}`}
+                      onClick={() => focusOnSat(s.name)}
+                    >
+                      <span className="sat-icon-badge" style={{ color: s.color }}>{icon.shape}{icon.label}</span>
+                      <span className="telemetry-legend-name">{short}{form ? ` · ${form}` : ""}</span>
+                      <span className="telemetry-legend-dot" style={{ background: s.color }} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {archiveFleet.length > 0 && (
+              <div className="telemetry-legend-group">
+                <div className="telemetry-legend-label">Архив</div>
+                {archiveFleet.map((s) => {
+                  const icon = SAT_ICON_META[s.name] || { shape: "●", label: "?" };
+                  const short = s.name.replace("Polytech_Universe-", "PU-");
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      className={`telemetry-legend-item${selectedSat === s.name ? " is-selected" : ""}${mapSats.has(s.name) ? "" : " is-off"}`}
+                      onClick={() => focusOnSat(s.name)}
+                    >
+                      <span className="sat-icon-badge" style={{ color: s.color }}>{icon.shape}{icon.label}</span>
+                      <span className="telemetry-legend-name">{short}</span>
+                      <span className="telemetry-legend-dot" style={{ background: s.color }} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </aside>
+
+          <div className="telemetry-globe-main">
+            {viewMode === "globe" ? (
+              <ErrorBoundary>
+                <GlobeCard
+                  sat={sat}
+                  atIso={at.toISOString()}
+                  minutes={orbitMinutes}
+                  stepSec={orbitStepSec}
+                  orbitData={mapSats.has(sat) ? (orbitDataMap[sat] ?? null) : null}
+                  multiOrbitData={orbitDataMap}
+                  mapSats={mapSats}
+                  fleetColorMap={fleetColorMap}
+                  deadSatellites={DEAD_SATELLITES}
+                  announcedSatellites={ANNOUNCED_SATELLITES}
+                  onSatelliteClick={handleSatelliteClick}
+                  focusTarget={focusTarget}
+                />
+              </ErrorBoundary>
+            ) : (
+              <MapCard
+                receivedPoints={mapSats.has(sat) ? chartData : []}
+                orbitTrack={mapSats.has(sat) ? (orbitDataMap[sat]?.track ?? []) : []}
+                orbitCurrent={mapSats.has(sat) ? (orbitDataMap[sat]?.current ?? null) : null}
+                multiOrbitData={orbitDataMap}
+                mapSats={mapSats}
+                fleetColorMap={fleetColorMap}
+                deadSatellites={DEAD_SATELLITES}
+                onSatelliteClick={handleSatelliteClick}
+              />
+            )}
+          </div>
+
+          <aside className="telemetry-side telemetry-side--help">
+            <div className="telemetry-side-title">О карте</div>
+            <p>
+              Орбиты считаются по TLE/SGP4. Конус — зона радиовидимости относительно
+              высоты орбиты. WASD / стрелки — поворот, колёсико — зум.
+            </p>
+            <div className="telemetry-side-title" style={{ marginTop: 14 }}>Проект</div>
+            <p>
+              Серия <b>Polytech Universe</b> (Space-π / ИЭиТ СПбПУ): мониторинг ЭМИ,
+              AIS и образовательные смены. Анонсы PU-7…9 на карте до публикации TLE.
+            </p>
+            <ul className="telemetry-side-list">
+              <li><span style={{ color: "#f97316" }}>◆6</span> PU-6 — активный 16U</li>
+              <li><span style={{ color: "#22d3ee" }}>⬡7</span> PU-7 — анонс</li>
+              <li><span style={{ color: "#fbbf24" }}>■8</span> PU-8 — анонс 3U</li>
+              <li><span style={{ color: "#4ade80" }}>●9</span> PU-9 — анонс 3U</li>
+            </ul>
+          </aside>
+        </div>
 
         {selectedSat && (
           <SatInfoPanel
@@ -686,6 +819,8 @@ export default function SatellitesPage() {
             chartData={chartData}
             isDead={isDead}
             deadInfo={deadInfo}
+            isAnnounced={isAnnouncedSelected}
+            announcedInfo={announcedInfo}
             onClose={() => setSelectedSat(null)}
           />
         )}

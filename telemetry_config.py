@@ -83,18 +83,18 @@ AUTO_COLLECT_INTERVAL_MINUTES = _getenv("AUTO_COLLECT_INTERVAL_MINUTES", 30, int
 # Satellite fleet registry
 # ----------------------------
 SATELLITE_FLEET = [
-    # Архив / inactive — приглушённые серо-фиолетовые тона, чтобы карта
-    # сразу читалась: фиолетовые яркие = живые, тусклые = архив.
-    {"name": "Polytech_Universe-1", "active": False, "color": "#6a5a82"},
-    {"name": "Polytech_Universe-2", "active": False, "color": "#574469"},
-    # PU-3, PU-4, PU-5 — действующие аппараты, активная LoRa-телеметрия через
-    # TinyGS. Все три раскрашиваем фиолетовой палитрой проекта (без рыжего).
-    {"name": "Polytech_Universe-3", "active": True,  "color": "#9460b8"},
-    {"name": "Polytech_Universe-4", "active": True,  "color": "#724796"},
-    {"name": "Polytech_Universe-5", "active": True,  "color": "#a87cc6"},
-    # PU-6 — недавно потерял связь, но карточку оставляем заметной
-    # тёплым акцентом «архив, но свежий».
-    {"name": "Polytech_Universe-6", "active": False, "color": "#8a5ab0"},
+    # Архив / inactive — только официально завершившие миссию PU-1 и PU-2.
+    {"name": "Polytech_Universe-1", "active": False, "color": "#7c6b9a"},
+    {"name": "Polytech_Universe-2", "active": False, "color": "#5c4d72"},
+    # Действующие — максимально разные оттенки, чтобы треки не сливались
+    {"name": "Polytech_Universe-3", "active": True,  "color": "#c084fc"},
+    {"name": "Polytech_Universe-4", "active": True,  "color": "#38bdf8"},
+    {"name": "Polytech_Universe-5", "active": True,  "color": "#a3e635"},
+    {"name": "Polytech_Universe-6", "active": True,  "color": "#f97316"},
+    # Анонсированные
+    {"name": "Polytech_Universe-7", "active": False, "announced": True, "color": "#22d3ee", "form": "CubeSat"},
+    {"name": "Polytech_Universe-8", "active": False, "announced": True, "color": "#fbbf24", "form": "3U"},
+    {"name": "Polytech_Universe-9", "active": False, "announced": True, "color": "#4ade80", "form": "3U"},
 ]
 
 # ----------------------------

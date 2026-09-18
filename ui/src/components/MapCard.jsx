@@ -86,6 +86,60 @@ function splitDateline(pts) {
   return segs;
 }
 
+function hexToRgb(hex) {
+  const h = String(hex || "#9460b8").replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h.padEnd(6, "0").slice(0, 6);
+  return {
+    r: parseInt(full.slice(0, 2), 16) || 0,
+    g: parseInt(full.slice(2, 4), 16) || 0,
+    b: parseInt(full.slice(4, 6), 16) || 0,
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  const c = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+function mixRgb(a, b, t) {
+  return {
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+  };
+}
+
+/**
+ * Разбивает трек на короткие сегменты с градиентом вдоль пути:
+ * начало (прошлое) — темнее/прозрачнее, конец (сейчас) — ярче.
+ * Так траектории разных КА читаются и по цвету флота, и по «направлению» градиента.
+ */
+function gradientTrackPolylines(latlngs, baseColor, { chunks = 28 } = {}) {
+  const segs = splitDateline(latlngs);
+  const base = hexToRgb(baseColor);
+  const dark = mixRgb(base, { r: 12, g: 8, b: 24 }, 0.55);
+  const bright = mixRgb(base, { r: 255, g: 255, b: 255 }, 0.28);
+  const out = [];
+  for (const seg of segs) {
+    if (seg.length < 2) continue;
+    const nChunks = Math.min(chunks, seg.length - 1);
+    const step = Math.max(1, Math.floor((seg.length - 1) / nChunks));
+    for (let i = 0; i < seg.length - 1; i += step) {
+      const j = Math.min(seg.length - 1, i + step);
+      const t0 = i / (seg.length - 1);
+      const t1 = j / (seg.length - 1);
+      const t = (t0 + t1) / 2;
+      out.push({
+        positions: seg.slice(i, j + 1),
+        color: rgbToHex(mixRgb(dark, bright, t)),
+        opacity: 0.28 + 0.72 * t,
+        weight: 1.4 + 2.2 * t,
+      });
+    }
+  }
+  return out;
+}
+
 // ─── Coverage radius (depends on orbital altitude) ─────────────
 const ORBIT_ALT_KM = {
   "Polytech_Universe-1": 530,
@@ -254,17 +308,16 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           />
 
 
-          {/* ── Past orbit — solid orange ────────────────────── */}
-          {pastSegs.map((seg, i) => (
+          {/* Past/future только если нет флота — иначе все треки
+              рисуются градиентом из multiOrbitData (включая выбранный КА). */}
+          {Object.keys(multiOrbitData).length === 0 && pastSegs.map((seg, i) => (
             <Polyline
               key={`past-${i}`}
               positions={seg}
               pathOptions={{ color: "#da4927", weight: 2.4, opacity: 0.9 }}
             />
           ))}
-
-          {/* ── Future orbit — dashed light orange ───────────── */}
-          {futureSegs.map((seg, i) => (
+          {Object.keys(multiOrbitData).length === 0 && futureSegs.map((seg, i) => (
             <Polyline
               key={`fut-${i}`}
               positions={seg}
@@ -353,18 +406,16 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             const cur = oData?.current;
             if (!cur || !validLL(cur.lat, cur.lon)) return null;
             const isDead = !!deadSatellites?.[satName];
-            // PU-1, PU-2, PU-6 — особая «архивная» категория: им рисуем
-            // мягкое рыжее свечение полупрозрачным кружком. Остальные —
-            // обычный фиолетовый купол покрытия как у живых аппаратов.
+            // Только официальный архив PU-1/2 — тёплое свечение.
             const isWarm =
               satName === "Polytech_Universe-1" ||
-              satName === "Polytech_Universe-2" ||
-              satName === "Polytech_Universe-6";
-            const baseColor = fleetColorMap[satName] || "#724796";
-            const color = isWarm ? "#f39768" : baseColor;
+              satName === "Polytech_Universe-2";
+            const color = fleetColorMap[satName] || (isWarm ? "#f39768" : "#724796");
             const satTrack = (oData?.track ?? []).filter(p => validLL(p.lat, p.lon));
             const trackLL = satTrack.map(p => [Number(p.lat), Number(p.lon)]);
-            const trackSegs = isDead && !isWarm ? [] : splitDateline(trackLL);
+            const gradientSegs = (isDead && !isWarm)
+              ? []
+              : gradientTrackPolylines(trackLL, color);
             const shortName = satName.replace("Polytech_Universe-", "PU-");
             const deadInfo = deadSatellites?.[satName];
             const icon = makeCubesatIcon({
@@ -375,16 +426,19 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
             });
             return (
               <React.Fragment key={satName}>
-                {trackSegs.map((seg, i) => (
+                {gradientSegs.map((seg, i) => (
                   <Polyline
                     key={`multi-trk-${satName}-${i}`}
-                    positions={seg}
-                    pathOptions={{ color, weight: 1.8, opacity: 0.7 }}
+                    positions={seg.positions}
+                    pathOptions={{
+                      color: seg.color,
+                      weight: seg.weight,
+                      opacity: seg.opacity,
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
                   />
                 ))}
-                {/* Зона покрытия:
-                   - warm-категория (PU-1/2/6) — полупрозрачное рыжее кольцо;
-                   - остальные — фиолетовый купол. */}
                 {showCoverage && (
                   <Circle
                     center={[Number(cur.lat), Number(cur.lon)]}
