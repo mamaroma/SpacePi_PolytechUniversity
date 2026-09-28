@@ -1,4 +1,4 @@
-"""Automatic IQ recording service with timeline support."""
+"""Server-side recordings of real station IQ passes."""
 import os
 import asyncio
 import logging
@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 import numpy as np
 from pathlib import Path
+from .config import MAX_RECORDING_SIZE_GB
+from .recording_metadata import read_metadata, recording_start_time, sidecar_path, write_metadata
 
 logger = logging.getLogger(__name__)
 UTC_FILENAME_FORMAT = "%Y%m%d_%H%M%S"
@@ -23,6 +25,8 @@ class AutoRecorder:
         self.is_recording = False
         self.last_data_time = 0
         self.recording_start_time: Optional[datetime] = None
+        self._size_limit_reached = False
+        self._max_size_bytes = max(1, int(MAX_RECORDING_SIZE_GB * 1024 * 1024 * 1024))
         
         # Timeout для определения окончания потока (секунды)
         self.stream_timeout = 5.0
@@ -53,6 +57,8 @@ class AutoRecorder:
         """Process incoming IQ samples and handle recording."""
         current_time = asyncio.get_event_loop().time()  # Use asyncio time consistently
         self.last_data_time = current_time
+        if self._size_limit_reached:
+            return
         
         # Начинаем запись если еще не записываем
         if not self.is_recording:
@@ -64,9 +70,15 @@ class AutoRecorder:
                 # Записываем как complex64 (совместимо с GNU Radio)
                 samples_bytes = samples.astype(np.complex64).tobytes()
                 self.current_handle.write(samples_bytes)
-                await asyncio.get_event_loop().run_in_executor(None, self.current_handle.flush)
+                # Buffered writes keep the receiver loop responsive at IQ sample rates.
+                if self.current_handle.tell() >= self._max_size_bytes:
+                    self._size_limit_reached = True
+                    logger.warning("Automatic IQ recording reached the %.2f GB limit", MAX_RECORDING_SIZE_GB)
+                    await self._stop_recording()
             except Exception as e:
                 logger.error(f"Error writing samples: {e}")
+                self._size_limit_reached = True
+                await self._stop_recording()
     
     async def _monitor_stream(self):
         """Monitor data stream and stop recording when stream ends."""
@@ -74,7 +86,7 @@ class AutoRecorder:
             try:
                 await asyncio.sleep(1.0)  # Проверяем каждую секунду
                 
-                if self.is_recording and self.last_data_time > 0:
+                if (self.is_recording or self._size_limit_reached) and self.last_data_time > 0:
                     current_time = asyncio.get_event_loop().time()  # Use same time source
                     time_since_data = current_time - self.last_data_time
                     
@@ -82,6 +94,7 @@ class AutoRecorder:
                     if time_since_data > self.stream_timeout:
                         logger.info(f"No data for {time_since_data:.1f}s, stopping recording")
                         await self._stop_recording()
+                        self._size_limit_reached = False
                         
             except asyncio.CancelledError:
                 break
@@ -96,11 +109,16 @@ class AutoRecorder:
         try:
             # Генерируем имя файла с временной меткой
             now = datetime.now(timezone.utc)
-            filename = now.strftime(f"{UTC_FILENAME_FORMAT}.iq")
+            filename = now.strftime(UTC_FILENAME_FORMAT + "_%f") + "_auto.iq"
             filepath = self.recordings_dir / filename
             
             # Открываем файл для записи
-            self.current_handle = open(filepath, 'wb')
+            self.current_handle = open(filepath, 'xb')
+            try:
+                from .fft_service import fft_service
+                write_metadata(filepath, fft_service.sample_rate, fft_service.center_frequency)
+            except OSError as exc:
+                logger.warning("Could not save automatic IQ metadata: %s", exc)
             self.current_file = str(filepath)
             self.is_recording = True
             self.recording_start_time = now
@@ -122,26 +140,24 @@ class AutoRecorder:
                 self.current_handle = None
             
             if self.current_file:
+                try:
+                    os.utime(self.current_file, None)  # Retention begins when the pass ends.
+                except OSError as exc:
+                    logger.warning("Could not update pass completion time: %s", exc)
                 file_size = os.path.getsize(self.current_file)
                 duration = (datetime.now(timezone.utc) - self.recording_start_time).total_seconds()
                 filename = os.path.basename(self.current_file)
                 logger.info(f"Stopped auto-recording: {filename}, "
                            f"size: {file_size/1024/1024:.1f} MB, duration: {duration:.1f}s")
                 
-                # Send WebSocket notification for auto-download
-                from .fft_service import fft_service
-                await fft_service.broadcast_notification("auto_recording_stopped", {
-                    "filename": filename,
-                    "file_size": file_size,
-                    "duration": duration
-                })
-            
-            self.is_recording = False
-            self.current_file = None
-            self.recording_start_time = None
             
         except Exception as e:
             logger.error(f"Error stopping recording: {e}")
+        finally:
+            self.is_recording = False
+            self.current_handle = None
+            self.current_file = None
+            self.recording_start_time = None
     
     def get_recording_info(self) -> Dict:
         """Get current recording information."""
@@ -149,7 +165,8 @@ class AutoRecorder:
             "is_recording": self.is_recording,
             "filename": os.path.basename(self.current_file) if self.current_file else None,
             "start_time": self.recording_start_time.isoformat() if self.recording_start_time else None,
-            "file_size_bytes": os.path.getsize(self.current_file) if self.current_file and os.path.exists(self.current_file) else 0
+            "file_size_bytes": os.path.getsize(self.current_file) if self.current_file and os.path.exists(self.current_file) else 0,
+            "limit_reached": self._size_limit_reached,
         }
     
     async def cleanup_old_recordings(self, max_age_hours: int = 48):
@@ -158,18 +175,28 @@ class AutoRecorder:
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
             removed_count = 0
             
-            for file_path in self.recordings_dir.glob("*.iq"):
+            for file_path in self.recordings_dir.glob("*_auto.iq"):
                 try:
-                    # Получаем время создания файла
-                    file_time = self._get_recording_start_time(file_path)
+                    # The file mtime is set to pass completion in _stop_recording.
+                    file_time = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc)
                     
-                    if file_time < cutoff_time:
+                    if file_time < cutoff_time and file_path != Path(self.current_file or ""):
                         file_path.unlink()
+                        sidecar_path(file_path).unlink(missing_ok=True)
                         removed_count += 1
                         logger.info(f"Removed old recording: {file_path.name}")
                         
                 except Exception as e:
                     logger.error(f"Error removing file {file_path}: {e}")
+
+            for metadata_file in self.recordings_dir.glob("*_auto.iq.json"):
+                try:
+                    if not metadata_file.with_suffix("").exists() and datetime.fromtimestamp(
+                        metadata_file.stat().st_mtime, tz=timezone.utc
+                    ) < cutoff_time:
+                        metadata_file.unlink()
+                except OSError as e:
+                    logger.error("Error removing orphan metadata %s: %s", metadata_file, e)
             
             if removed_count > 0:
                 logger.info(f"Cleaned up {removed_count} old recordings")
@@ -177,23 +204,26 @@ class AutoRecorder:
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
     
-    def get_recordings_timeline(self, hours_back: int = 48) -> List[Dict]:
+    def get_recordings_timeline(self, hours_back: int = 24) -> List[Dict]:
         """Get timeline of recordings for the last N hours."""
         try:
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
             recordings = []
             
-            for file_path in self.recordings_dir.glob("*.iq"):
+            for file_path in self.recordings_dir.glob("*_auto.iq"):
                 try:
+                    if file_path == Path(self.current_file or ""):
+                        continue
                     stat = file_path.stat()
                     start_time = self._get_recording_start_time(file_path)
                     
-                    if start_time >= cutoff_time:
+                    if datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc) >= cutoff_time:
                         # Примерная длительность на основе размера файла
                         # Предполагаем complex64 (8 байт на сэмпл) и sample_rate 625000
                         file_size = stat.st_size
                         samples_count = file_size // 8  # complex64 = 8 bytes
-                        duration_seconds = samples_count / 625000  # sample_rate
+                        metadata = read_metadata(file_path)
+                        duration_seconds = samples_count / metadata["sample_rate"]
                         
                         end_time = start_time + timedelta(seconds=duration_seconds)
                         
@@ -202,7 +232,8 @@ class AutoRecorder:
                             "start_time": self._iso_z(start_time),
                             "end_time": self._iso_z(end_time),
                             "duration_seconds": duration_seconds,
-                            "file_size_bytes": file_size
+                            "file_size_bytes": file_size,
+                            **metadata,
                         })
                         
                 except Exception as e:
@@ -219,8 +250,7 @@ class AutoRecorder:
     def _get_recording_start_time(self, file_path: Path) -> datetime:
         """Return recording start as a timezone-aware UTC datetime."""
         try:
-            filename_time = datetime.strptime(file_path.stem, UTC_FILENAME_FORMAT)
-            return filename_time.replace(tzinfo=timezone.utc)
+            return recording_start_time(file_path)
         except ValueError:
             return datetime.fromtimestamp(file_path.stat().st_ctime, tz=timezone.utc)
 

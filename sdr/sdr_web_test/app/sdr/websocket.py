@@ -1,10 +1,24 @@
 """WebSocket handler for real-time FFT streaming."""
 import logging
+import hmac
+import json
+import uuid
 import numpy as np
 from fastapi import WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field, ValidationError
 from .fft_service import fft_service
+from .state import sdr_state
+from .config import SDR_INGEST_TOKEN, IQ_MAX_FRAME_BYTES
 
 logger = logging.getLogger(__name__)
+
+
+class StationHello(BaseModel):
+    type: str = "station_hello"
+    station_id: str = Field(default="Наземная станция", min_length=1, max_length=64)
+    sample_rate: int | None = Field(default=None, ge=1, le=20_000_000)
+    center_frequency: int | None = Field(default=None, ge=1, le=10_000_000_000)
+    satellite_name: str | None = Field(default=None, max_length=120)
 
 
 async def websocket_endpoint(websocket: WebSocket):
@@ -47,14 +61,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 async def iq_ingest_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for receiving live IQ samples from remote stations."""
-    await websocket.accept()
-    logger.info("IQ ingest client connected")
+    """Receive raw complex64 frames; an optional JSON hello adds station metadata."""
+    supplied_token = websocket.headers.get("x-sdr-token") or websocket.query_params.get("token", "")
+    if SDR_INGEST_TOKEN and not hmac.compare_digest(supplied_token, SDR_INGEST_TOKEN):
+        await websocket.close(code=1008, reason="Invalid station token")
+        return
+
+    connection_id = uuid.uuid4().hex
+    if not await sdr_state.claim_station(connection_id):
+        await websocket.close(code=1008, reason="Another station is connected")
+        return
 
     frames_received = 0
     samples_received = 0
-
     try:
+        await websocket.accept()
+        logger.info("IQ ingest client connected")
         while True:
             message = await websocket.receive()
             message_type = message.get("type")
@@ -70,28 +92,37 @@ async def iq_ingest_endpoint(websocket: WebSocket):
                 elif text == "get_status":
                     await websocket.send_json({
                         "type": "iq_ingest_status",
-                        "frames_received": frames_received,
-                        "samples_received": samples_received,
+                        **(await sdr_state.get_stream_status()),
                     })
                 else:
-                    await websocket.send_json({
-                        "type": "error",
-                        "detail": "Send binary complex64 IQ frames, or text 'ping'/'get_status'.",
-                    })
+                    try:
+                        if text is None or len(text) > 2048:
+                            raise ValueError("Metadata message is too large")
+                        payload = json.loads(text)
+                        if not isinstance(payload, dict) or payload.get("type") != "station_hello":
+                            raise ValueError("Unknown station message")
+                        hello = StationHello.model_validate(payload)
+                        await sdr_state.set_station_metadata(connection_id, hello.model_dump())
+                        fft_service.mark_parameters_dirty()
+                        await websocket.send_json({"type": "station_ack", "station_id": hello.station_id})
+                    except (ValueError, ValidationError) as exc:
+                        await websocket.send_json({"type": "error", "detail": str(exc)})
                 continue
 
-            if len(data) < np.dtype(np.complex64).itemsize:
+            if len(data) > IQ_MAX_FRAME_BYTES:
+                await websocket.close(code=1009, reason="IQ frame exceeds size limit")
+                break
+            if not data:
                 continue
-
-            aligned_size = len(data) - (len(data) % np.dtype(np.complex64).itemsize)
-            if aligned_size != len(data):
-                logger.warning("IQ ingest frame has %s trailing unaligned bytes", len(data) - aligned_size)
-                data = data[:aligned_size]
+            if len(data) % np.dtype(np.complex64).itemsize:
+                await websocket.send_json({"type": "error", "detail": "IQ frame must contain complete complex64 samples"})
+                continue
 
             samples = np.frombuffer(data, dtype=np.complex64)
             if len(samples) == 0:
                 continue
 
+            await sdr_state.note_iq_frame(connection_id, len(samples))
             await fft_service.process_samples(samples)
             frames_received += 1
             samples_received += len(samples)
@@ -111,3 +142,6 @@ async def iq_ingest_endpoint(websocket: WebSocket):
             await websocket.close(code=1011, reason="IQ ingest error")
         except Exception:
             pass
+    finally:
+        await sdr_state.release_station(connection_id)
+        fft_service.mark_parameters_dirty()

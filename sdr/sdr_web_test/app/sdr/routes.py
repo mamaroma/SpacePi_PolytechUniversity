@@ -1,14 +1,14 @@
 """FastAPI routes for SDR streaming application."""
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Dict
 from fastapi import APIRouter, HTTPException, status
-from .models import SignalInfo, PassList, SatellitePass, RecordingState, SystemInfo, SpectrumParams, SatelliteData
+from .models import SignalInfo, PassList, SatellitePass, SystemInfo, SpectrumParams, SatelliteData
 from .state import sdr_state
 from .recorder import iq_recorder
-from .satellite_service import satellite_service
 from .auto_recorder import auto_recorder
-from .playback_service import playback_service
+from .satellite_service import satellite_service
 from .fft_service import fft_service
 from .config import DEFAULT_FFT_SIZE, DEFAULT_FFT_UPDATE_RATE, DEFAULT_SAMPLE_RATE
 
@@ -21,6 +21,12 @@ router = APIRouter(prefix="/api", tags=["sdr"])
 async def get_system_info():
     """Get system information and status."""
     return await sdr_state.get_system_info()
+
+
+@router.get("/stream/status")
+async def get_stream_status():
+    """Describe received IQ frames separately from the demonstration spectrum."""
+    return await sdr_state.get_stream_status()
 
 
 @router.get("/time")
@@ -133,8 +139,7 @@ async def update_satellite_passes(pass_list: PassList):
 @router.get("/passes", response_model=List[SatellitePass])
 async def get_satellite_passes():
     """Get current satellite pass information."""
-    passes = await sdr_state.get_satellite_passes()
-    return passes
+    return satellite_service.get_passes()
 
 
 @router.get("/passes/next", response_model=SatellitePass)
@@ -146,151 +151,77 @@ async def get_next_pass():
     return next_pass
 
 
+@router.get("/recordings")
+async def list_pass_recordings():
+    """Completed station IQ captures, available for 48 hours after a pass."""
+    return {"recordings": auto_recorder.get_recordings_timeline(hours_back=48)}
+
+
+@router.get("/recordings/{filename}")
+async def download_pass_recording(filename: str):
+    """Download a completed pass recording while it is within retention."""
+    if filename != Path(filename).name or not filename.endswith("_auto.iq"):
+        raise HTTPException(status_code=404, detail="Запись пролёта не найдена")
+    available = auto_recorder.get_recordings_timeline(hours_back=48)
+    if not any(recording["filename"] == filename for recording in available):
+        raise HTTPException(status_code=404, detail="Запись пролёта не найдена")
+    path = auto_recorder.recordings_dir / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Запись пролёта не найдена")
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
+
+
+class RecordRequest(BaseModel):
+    recording_id: str
+
+
 @router.post("/record/start")
 async def start_recording():
-    """Start IQ recording."""
-    try:
-        recording_state = await sdr_state.get_recording_state()
-        if recording_state.is_recording:
-            raise HTTPException(status_code=400, detail="Recording already in progress")
-        
-        filename = await iq_recorder.start_recording()
-        logger.info(f"Started recording: {filename}")
-        return {"message": "Recording started", "filename": filename}
-        
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to start recording: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Start a private, temporary recording session."""
+    return await iq_recorder.start_recording()
 
 
 @router.post("/record/stop")
-async def stop_recording():
-    """Stop IQ recording."""
-    try:
-        recording_state = await sdr_state.get_recording_state()
-        if not recording_state.is_recording:
-            raise HTTPException(status_code=400, detail="No recording in progress")
-        
-        filename = await iq_recorder.stop_recording()
-        logger.info("Stopped recording")
-        return {"message": "Recording stopped", "filename": filename}
-        
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to stop recording: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def stop_recording(request: RecordRequest):
+    state = await iq_recorder.stop_recording(request.recording_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    return state
 
 
-@router.get("/record/state", response_model=RecordingState)
-async def get_recording_state():
-    """Get current recording state."""
-    return await sdr_state.get_recording_state()
+@router.get("/record/state/{recording_id}")
+async def get_recording_state(recording_id: str):
+    state = await iq_recorder.get_state(recording_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    return state
 
 
-@router.get("/timeline")
-async def get_recordings_timeline(hours_back: int = 48):
-    """Get timeline of recordings for the last N hours."""
-    try:
-        timeline = auto_recorder.get_recordings_timeline(hours_back)
-        return {"recordings": timeline}
-    except Exception as e:
-        logger.error(f"Failed to get timeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/record/download/{recording_id}")
+async def download_recording(recording_id: str):
+    recording = await iq_recorder.prepare_download(recording_id)
+    if recording is None:
+        raise HTTPException(status_code=404, detail="Запись недоступна")
+    return FileResponse(
+        path=str(recording.path),
+        filename=recording.filename,
+        media_type="application/octet-stream",
+        background=BackgroundTask(iq_recorder.remove_download, recording),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
-@router.get("/auto-record/state")
-async def get_auto_record_state():
-    """Get current auto-recording state."""
-    try:
-        state = auto_recorder.get_recording_info()
-        return state
-    except Exception as e:
-        logger.error(f"Failed to get auto-record state: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/playback/start")
-async def start_playback(request: dict):
-    """Start playback from specified time."""
-    try:
-        start_time = request.get("start_time")
-        if not start_time:
-            raise HTTPException(status_code=400, detail="start_time is required")
-        
-        target_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-        await playback_service.start_playback(target_time)
-        return {"message": "Playback started", "start_time": start_time}
-    except Exception as e:
-        logger.error(f"Failed to start playback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/playback/stop")
-async def stop_playback():
-    """Stop current playback."""
-    try:
-        await playback_service.stop_playback()
-        return {"message": "Playback stopped"}
-    except Exception as e:
-        logger.error(f"Failed to stop playback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/playback/seek")
-async def seek_playback(request: dict):
-    """Seek playback to specified time."""
-    try:
-        target_time = request.get("target_time")
-        if not target_time:
-            raise HTTPException(status_code=400, detail="target_time is required")
-        
-        seek_time = datetime.fromisoformat(target_time.replace('Z', '+00:00'))
-        await playback_service.seek_to_time(seek_time)
-        return {"message": "Seeked to time", "target_time": target_time}
-    except Exception as e:
-        logger.error(f"Failed to seek playback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/playback/state")
-async def get_playback_state():
-    """Get current playback state."""
-    try:
-        state = playback_service.get_playback_state()
-        return state
-    except Exception as e:
-        logger.error(f"Failed to get playback state: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/download/{filename}")
-async def download_recording(filename: str):
-    """Download a recording file."""
-    try:
-        from fastapi.responses import FileResponse
-        import os
-        
-        # Validate filename (security)
-        if not filename.endswith('.iq') or '/' in filename or '\\' in filename:
-            raise HTTPException(status_code=400, detail="Invalid filename")
-        
-        from .config import RECORDINGS_DIR
-        file_path = RECORDINGS_DIR / filename
-
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        return FileResponse(
-            path=str(file_path),
-            filename=filename,
-            media_type='application/octet-stream'
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to download file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/record/cancel")
+async def cancel_recording(request: RecordRequest):
+    await iq_recorder.cancel(request.recording_id)
+    return {"cancelled": True}

@@ -22,6 +22,9 @@ RECORDINGS_DIR = DATA_DIR / "recordings"
 
 # WebSocket
 WS_BUFFER_SIZE = int(os.getenv("WS_BUFFER_SIZE", "10"))
+SDR_INGEST_TOKEN = os.getenv("SDR_INGEST_TOKEN", "")
+IQ_MAX_FRAME_BYTES = int(os.getenv("IQ_MAX_FRAME_BYTES", str(2 * 1024 * 1024)))
+SDR_ENABLE_ZMQ = os.getenv("SDR_ENABLE_ZMQ", "0") == "1"
 
 # Recording
 MAX_RECORDING_SIZE_GB = float(os.getenv("MAX_RECORDING_SIZE_GB", "10.0"))

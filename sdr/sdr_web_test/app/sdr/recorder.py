@@ -1,105 +1,205 @@
-"""IQ recording functionality."""
+"""Short-lived IQ spooling for a browser-initiated download."""
 import asyncio
+import atexit
 import logging
+import os
+import secrets
+import shutil
+import tempfile
+import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import BinaryIO
+
 import numpy as np
-from .config import RECORDINGS_DIR, MAX_RECORDING_SIZE_GB
-from .state import sdr_state
+
+from .config import MAX_RECORDING_SIZE_GB
 
 logger = logging.getLogger(__name__)
+MAX_BYTES = int(MAX_RECORDING_SIZE_GB * 1024**3)
+ACTIVE_TTL = 60 * 60
+DOWNLOAD_TTL = 10 * 60
+
+
+@dataclass
+class Recording:
+    token: str
+    path: Path
+    filename: str
+    handle: BinaryIO | None
+    created_at: float
+    finished_at: float | None = None
+    size: int = 0
+    limit_reached: bool = False
+
+    def state(self) -> dict:
+        return {
+            "recording_id": self.token,
+            "is_recording": self.handle is not None,
+            "file_size_bytes": self.size,
+            "limit_reached": self.limit_reached,
+            "download_url": f"/sdr/api/record/download/{self.token}" if self.handle is None else None,
+        }
 
 
 class IQRecorder:
-    """Handles IQ sample recording to files."""
-    
+    """Independent browser sessions; files exist only until download or expiry."""
+
     def __init__(self):
-        self.recording_file: Optional[Path] = None
-        self.file_handle = None
+        self._directory = Path(tempfile.mkdtemp(prefix="polyspace-sdr-"))
+        lock_path = self._directory / ".owner"
+        self._owner_handle = lock_path.open("w+b")
+        self._owner_handle.write(b"1")
+        self._owner_handle.flush()
+        self._owner_handle.seek(0)
+        self._lock_owner(self._owner_handle)
+        self._sessions: dict[str, Recording] = {}
         self._lock = asyncio.Lock()
-    
-    def generate_filename(self) -> str:
-        """Generate recording filename based on current datetime."""
-        now = datetime.now(timezone.utc)
-        return f"{now.strftime('%Y%m%d_%H%M%S')}.iq"
-    
-    async def start_recording(self) -> str:
-        """Start recording IQ samples."""
-        async with self._lock:
-            if self.file_handle is not None:
-                raise RuntimeError("Recording already in progress")
-            
-            filename = self.generate_filename()
-            self.recording_file = RECORDINGS_DIR / filename
-            
+        atexit.register(self._cleanup_sync)
+
+    @staticmethod
+    def _lock_owner(handle):
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    @staticmethod
+    def _unlock_owner(handle):
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+    def cleanup_orphans(self):
+        """Remove crashed instances' temporary files, never active instances'."""
+        temp_root = Path(tempfile.gettempdir()).resolve()
+        own_directory = self._directory.resolve()
+        for candidate in temp_root.glob("polyspace-sdr-*"):
             try:
-                self.file_handle = open(self.recording_file, 'wb')
-                await sdr_state.start_recording(filename)
-                logger.info(f"Started recording to {filename}")
-                return filename
-            except Exception as e:
-                logger.error(f"Failed to start recording: {e}")
-                self.file_handle = None
-                self.recording_file = None
-                raise
-    
-    async def stop_recording(self):
-        """Stop recording IQ samples."""
+                target = candidate.resolve()
+                if not candidate.is_dir() or target.parent != temp_root or target == own_directory:
+                    continue
+                owner = target / ".owner"
+                if not owner.is_file():
+                    continue
+                with owner.open("r+b") as handle:
+                    self._lock_owner(handle)
+                    self._unlock_owner(handle)
+                shutil.rmtree(target)
+            except OSError:
+                # Another instance may own this directory, or Windows may deny
+                # access to a stale directory. Neither should stop API startup.
+                continue
+
+    async def start_recording(self) -> dict:
         async with self._lock:
-            if self.file_handle is None:
-                raise RuntimeError("No recording in progress")
-            
-            filename = self.recording_file.name if self.recording_file else None
-            
-            try:
-                self.file_handle.close()
-                file_size = self.recording_file.stat().st_size if self.recording_file else 0
-                logger.info(f"Stopped recording. File size: {file_size} bytes")
-                
-                await sdr_state.stop_recording()
-                
-                return filename
-                
-            except Exception as e:
-                logger.error(f"Error stopping recording: {e}")
-                raise
-            finally:
-                self.file_handle = None
-                self.recording_file = None
-    
+            token = secrets.token_urlsafe(32)
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+            path = self._directory / f"{token}.iq"
+            recording = Recording(token, path, f"PolySpace_IQ_{stamp}.iq", path.open("xb"), time.monotonic())
+            self._sessions[token] = recording
+            return recording.state()
+
+    async def stop_recording(self, token: str) -> dict | None:
+        async with self._lock:
+            recording = self._sessions.get(token)
+            if recording is None:
+                return None
+            self._finish(recording)
+            return recording.state()
+
+    async def get_state(self, token: str) -> dict | None:
+        async with self._lock:
+            recording = self._sessions.get(token)
+            return recording.state() if recording else None
+
     async def write_samples(self, samples: np.ndarray):
-        """Write IQ samples to file if recording."""
         async with self._lock:
-            if self.file_handle is None:
+            active = [entry for entry in self._sessions.values() if entry.handle is not None]
+            if not active:
                 return
-            
-            try:
-                # Convert complex64 to bytes
-                samples_bytes = samples.astype(np.complex64).tobytes()
-                self.file_handle.write(samples_bytes)
-                self.file_handle.flush()
-                
-                # Update file size in state
-                if self.recording_file:
-                    current_size = self.recording_file.stat().st_size
-                    await sdr_state.update_recording_size(current_size)
-                    
-                    # Check file size limit
-                    max_size_bytes = MAX_RECORDING_SIZE_GB * 1024 * 1024 * 1024
-                    if current_size > max_size_bytes:
-                        logger.warning(f"Recording file size exceeded {MAX_RECORDING_SIZE_GB}GB, stopping")
-                        await self.stop_recording()
-                        
-            except Exception as e:
-                logger.error(f"Error writing samples: {e}")
-                # Don't raise here to avoid breaking the signal processing pipeline
-    
-    async def is_recording(self) -> bool:
-        """Check if currently recording."""
+            payload = np.asarray(samples, dtype=np.complex64).tobytes()
+            for recording in active:
+                try:
+                    remaining = MAX_BYTES - recording.size
+                    if remaining < len(payload):
+                        recording.limit_reached = True
+                        self._finish(recording)
+                        continue
+                    recording.handle.write(payload)
+                    recording.size += len(payload)
+                    if recording.size >= MAX_BYTES:
+                        recording.limit_reached = True
+                        self._finish(recording)
+                except OSError:
+                    logger.exception("IQ temporary recording failed")
+                    self._delete(recording)
+
+    async def prepare_download(self, token: str) -> Recording | None:
         async with self._lock:
-            return self.file_handle is not None
+            recording = self._sessions.get(token)
+            if recording is None or recording.handle is not None:
+                return None
+            return self._sessions.pop(token)
+
+    async def cancel(self, token: str):
+        async with self._lock:
+            recording = self._sessions.get(token)
+            if recording:
+                self._delete(recording)
+
+    async def sweep(self):
+        now = time.monotonic()
+        async with self._lock:
+            for recording in list(self._sessions.values()):
+                age = now - (recording.finished_at or recording.created_at)
+                if age > (DOWNLOAD_TTL if recording.finished_at else ACTIVE_TTL):
+                    self._delete(recording)
+
+    async def shutdown(self):
+        async with self._lock:
+            self._cleanup_sync()
+
+    def _cleanup_sync(self):
+        # Also runs when startup fails before FastAPI reaches its shutdown hook.
+        for recording in list(self._sessions.values()):
+            try:
+                self._delete(recording)
+            except OSError:
+                logger.exception("Could not remove temporary IQ recording")
+        if self._owner_handle is not None:
+            try:
+                self._unlock_owner(self._owner_handle)
+            finally:
+                self._owner_handle.close()
+                self._owner_handle = None
+        if self._directory.exists():
+            try:
+                shutil.rmtree(self._directory)
+            except OSError:
+                # An in-progress download can still hold a file open on Windows.
+                # The next instance removes this directory in cleanup_orphans().
+                logger.warning("Temporary IQ directory remains: %s", self._directory)
+
+    def remove_download(self, recording: Recording):
+        recording.path.unlink(missing_ok=True)
+
+    def _finish(self, recording: Recording):
+        if recording.handle is not None:
+            recording.handle.close()
+            recording.handle = None
+            recording.finished_at = time.monotonic()
+
+    def _delete(self, recording: Recording):
+        self._finish(recording)
+        recording.path.unlink(missing_ok=True)
+        self._sessions.pop(recording.token, None)
 
 
-# Global recorder instance
 iq_recorder = IQRecorder()

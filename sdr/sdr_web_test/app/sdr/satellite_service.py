@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .config import CENTER_FREQUENCY_OFFSET_HZ, DEFAULT_CENTER_FREQUENCY
+from .config import CENTER_FREQUENCY_OFFSET_HZ, DEFAULT_CENTER_FREQUENCY, DATA_DIR
 from .models import SatelliteData, SatellitePass
 
 
@@ -18,6 +18,13 @@ class SatelliteService:
         )
         self._satellites_cache: Optional[Dict[str, SatelliteData]] = None
         self._passes_cache: List[SatellitePass] = []
+        self._passes_file = DATA_DIR / "passes.json"
+        if self._passes_file.exists():
+            try:
+                data = json.loads(self._passes_file.read_text(encoding="utf-8"))
+                self._passes_cache = [SatellitePass.model_validate(item) for item in data]
+            except (OSError, ValueError) as exc:
+                print(f"Warning: Could not load satellite passes: {exc}")
 
     def load_satellites(self) -> Dict[str, SatelliteData]:
         """Load satellite data from JSON file."""
@@ -59,8 +66,20 @@ class SatelliteService:
         return self.load_satellites()
 
     def set_passes(self, passes: List[SatellitePass]):
-        """Set current passes list."""
-        self._passes_cache = passes
+        """Persist a refreshed pass schedule for service restarts."""
+        normalized = [item.model_copy(update={
+            "aos_time": self._to_utc(item.aos_time),
+            "los_time": self._to_utc(item.los_time),
+        }) for item in passes]
+        payload = json.dumps([item.model_dump(mode="json") for item in normalized], ensure_ascii=False)
+        self._passes_file.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._passes_file.with_suffix(".json.tmp")
+        temporary.write_text(payload, encoding="utf-8")
+        temporary.replace(self._passes_file)
+        self._passes_cache = normalized
+
+    def get_passes(self) -> List[SatellitePass]:
+        return self._passes_cache.copy()
 
     def get_next_pass(self) -> Optional[SatellitePass]:
         """Get the next upcoming satellite pass."""

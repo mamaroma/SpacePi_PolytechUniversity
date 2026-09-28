@@ -119,38 +119,44 @@ async def sdr_startup() -> dict:
 
     try:
         from sdr.sdr_web_test.app.sdr.zmq_receiver import zmq_receiver
+        from sdr.sdr_web_test.app.sdr.config import SDR_ENABLE_ZMQ, SDR_INGEST_TOKEN
         from sdr.sdr_web_test.app.sdr.fft_service import fft_service
+        from sdr.sdr_web_test.app.sdr.recorder import iq_recorder
         from sdr.sdr_web_test.app.sdr.auto_recorder import auto_recorder
         from sdr.sdr_web_test.app.sdr.playback_service import playback_service
+        from sdr.sdr_web_test.app.sdr.state import sdr_state
     except Exception as exc:
         logger.error("SDR startup skipped: %s", exc)
         return {}
 
     handles: dict = {}
+    iq_recorder.cleanup_orphans()
+    await auto_recorder.cleanup_old_recordings(max_age_hours=48)
+    await auto_recorder.start_monitoring()
 
     async def _zmq_callback(samples):
+        from sdr.sdr_web_test.app.sdr.state import sdr_state
+        if sdr_state.station_connection_id is not None:
+            return
+        await sdr_state.note_local_iq_frame(len(samples))
         await fft_service.process_samples(samples)
 
-    try:
-        await zmq_receiver.connect()
-        zmq_receiver.set_sample_callback(_zmq_callback)
-        handles["zmq_task"] = asyncio.create_task(zmq_receiver.start_receiving())
-        logger.info("SDR: ZMQ receiver started")
-    except Exception as exc:
-        logger.warning("SDR: ZMQ unavailable (%s) — silence mode only", exc)
+    if SDR_ENABLE_ZMQ:
+        try:
+            await zmq_receiver.connect()
+            zmq_receiver.set_sample_callback(_zmq_callback)
+            handles["zmq_task"] = asyncio.create_task(zmq_receiver.start_receiving())
+            logger.info("SDR: legacy local ZMQ receiver started")
+        except Exception as exc:
+            logger.warning("SDR: ZMQ unavailable (%s)", exc)
 
-    await auto_recorder.start_monitoring()
-    logger.info("SDR: auto-recorder started")
-
-    async def _playback_callback(samples, playback_params=None):
-        return await fft_service.process_samples(samples, playback_params)
-
-    playback_service.set_sample_callback(_playback_callback)
+    if not SDR_INGEST_TOKEN:
+        logger.warning("SDR_INGEST_TOKEN is unset; IQ ingest accepts unauthenticated station connections")
 
     handles["silence_task"] = asyncio.create_task(
-        _inject_silence(fft_service, auto_recorder, playback_service)
+        _inject_silence(fft_service, sdr_state, playback_service)
     )
-    handles["cleanup_task"] = asyncio.create_task(_periodic_cleanup(auto_recorder))
+    handles["cleanup_task"] = asyncio.create_task(_periodic_cleanup(iq_recorder, auto_recorder))
 
     return handles
 
@@ -160,13 +166,10 @@ async def sdr_shutdown(handles: dict) -> None:
         return
     try:
         from sdr.sdr_web_test.app.sdr.zmq_receiver import zmq_receiver
+        from sdr.sdr_web_test.app.sdr.recorder import iq_recorder
         from sdr.sdr_web_test.app.sdr.auto_recorder import auto_recorder
-        from sdr.sdr_web_test.app.sdr.playback_service import playback_service
     except Exception:
         return
-
-    await auto_recorder.stop_monitoring()
-    await playback_service.stop_playback()
 
     zmq_task = handles.get("zmq_task")
     if zmq_task:
@@ -187,13 +190,17 @@ async def sdr_shutdown(handles: dict) -> None:
             except asyncio.CancelledError:
                 pass
 
+    await auto_recorder.stop_monitoring()
+    await iq_recorder.shutdown()
+
     logger.info("SDR sub-service stopped")
 
 
-async def _periodic_cleanup(auto_recorder) -> None:
+async def _periodic_cleanup(iq_recorder, auto_recorder) -> None:
     while True:
         try:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(60)
+            await iq_recorder.sweep()
             await auto_recorder.cleanup_old_recordings(max_age_hours=48)
         except asyncio.CancelledError:
             break
@@ -201,65 +208,29 @@ async def _periodic_cleanup(auto_recorder) -> None:
             logger.error("SDR cleanup error: %s", exc)
 
 
-async def _inject_silence(fft_service, auto_recorder, playback_service) -> None:
-    import numpy as np
-
-    silence_data = playback_service.silence_data
-    if silence_data is None or len(silence_data) == 0:
-        logger.error("SDR: no silence data")
-        return
-
-    silence_timeout = 0.5
+async def _inject_silence(fft_service, sdr_state, playback_service) -> None:
     samples_per_chunk = 4096
-    silence_offset = 0
     silence_active = False
-    last_log = 0.0
 
     while True:
         try:
-            now = asyncio.get_event_loop().time()
-            if now - last_log > 5.0:
-                logger.debug("SDR silence: active=%s", silence_active)
-                last_log = now
+            if not (await sdr_state.get_stream_status())["streaming"]:
+                if not silence_active:
+                    logger.info("SDR: background spectrum started")
+                    silence_active = True
 
-            if not auto_recorder.is_recording and not playback_service.is_playing:
-                should = (
-                    auto_recorder.last_data_time == 0
-                    or (now - auto_recorder.last_data_time > silence_timeout)
+                chunk = playback_service.get_background_samples(samples_per_chunk)
+
+                await fft_service.process_samples(
+                    chunk,
+                    {"center_frequency": playback_service.last_pass_center_frequency, "sample_rate": playback_service.sample_rate},
                 )
-                if should:
-                    if not silence_active:
-                        logger.info("SDR: silence injection started")
-                        silence_active = True
-
-                    end = silence_offset + samples_per_chunk
-                    if end <= len(silence_data):
-                        chunk = silence_data[silence_offset:end]
-                    else:
-                        first = silence_data[silence_offset:]
-                        rem = samples_per_chunk - len(first)
-                        chunk = np.concatenate([first, silence_data[:rem]])
-                        silence_offset = rem
-                    silence_offset = (silence_offset + samples_per_chunk) % len(silence_data)
-
-                    await fft_service.process_samples(
-                        chunk,
-                        {
-                            "center_frequency": playback_service.last_pass_center_frequency,
-                            "sample_rate": 625000,
-                        },
-                    )
-                    await asyncio.sleep(samples_per_chunk / 625000)
-                else:
-                    if silence_active:
-                        logger.info("SDR: silence stopped (real signal)")
-                        silence_active = False
-                    await asyncio.sleep(0.1)
+                await asyncio.sleep(samples_per_chunk / playback_service.sample_rate)
             else:
                 if silence_active:
+                    logger.info("SDR: background spectrum stopped (real signal)")
                     silence_active = False
-                silence_offset = 0
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.1)
 
         except asyncio.CancelledError:
             break

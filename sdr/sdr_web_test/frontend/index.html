@@ -1,514 +1,149 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDR Трансляция</title>
-    <link rel="stylesheet" href="/sdr/static/style.css">
-    <style>
-/* ── Fallback styles (inlined so the page looks correct even if /sdr/static/style.css doesn't load) ── */
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#0a0a0a;color:#e0e0e0;line-height:1.5}
-.container{max-width:1200px;margin:0 auto;padding:20px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;padding-bottom:15px;border-bottom:1px solid #333;flex-wrap:wrap;gap:14px}
-.header-left{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.back-btn{display:inline-flex;align-items:center;padding:8px 16px;background:linear-gradient(135deg,rgba(243,151,104,.15),rgba(114,71,150,.15));border:1px solid rgba(243,151,104,.55);border-radius:8px;color:#f39768;font-size:13px;font-weight:600;text-decoration:none;transition:background .18s,border-color .18s,transform .18s;letter-spacing:.3px}
-.back-btn:hover{background:linear-gradient(135deg,rgba(243,151,104,.30),rgba(114,71,150,.25));border-color:#f39768;transform:translateX(-3px)}
-h1{color:#f39768;font-size:1.6em;font-weight:300;letter-spacing:1px}
-.msk-clock{font-family:'Courier New',monospace;font-size:13px;color:#9460b8;padding:6px 14px;border:1px solid rgba(114,71,150,.45);border-radius:8px;background:rgba(114,71,150,.08);letter-spacing:.5px;white-space:nowrap}
-.sdr-info-card{margin-bottom:22px;padding:0;background:linear-gradient(135deg,rgba(114,71,150,.07),rgba(243,151,104,.05));border:1px solid rgba(114,71,150,.35);border-radius:10px;overflow:hidden}
-.sdr-info-card details{padding:0}
-.sdr-info-card summary{padding:14px 18px;cursor:pointer;color:#9460b8;font-size:14px;font-weight:600;letter-spacing:.4px;user-select:none;background:rgba(13,10,24,.4)}
-.sdr-info-card summary::marker{color:#f39768}
-.sdr-info-card summary:hover{color:#f39768}
-.sdr-info-body{padding:8px 22px 18px;color:#cbb98c;font-size:13px;line-height:1.65}
-.sdr-info-body p{margin-bottom:10px}
-.sdr-info-body ol{margin-left:22px;margin-bottom:10px}
-.sdr-info-body ol li{margin-bottom:6px;color:#e0e0e0}
-.sdr-info-body code{background:#130e22;color:#f3cb68;padding:1px 7px;border-radius:4px;font-family:'Space Mono','Courier New',monospace;font-size:12px}
-.sdr-info-tip{color:#9460b8;font-style:italic;border-left:2px solid #9460b8;padding-left:10px;margin-top:12px}
-.status{display:flex;gap:15px}
-.status-item{padding:6px 12px;border-radius:4px;background-color:#1a1a1a;color:#888;font-size:.85em;border:1px solid #333}
-.status-item.connected{background-color:#00ff88;color:#000;border-color:#00ff88}
-.status-item.recording{background-color:#ff4444;color:#fff;border-color:#ff4444}
-main{display:flex;flex-direction:column;gap:20px}
-.spectrum-section{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222;position:relative}
-.spectrum-line-wrap{margin-bottom:14px;padding:12px 14px 14px;background-color:#0d0a18;border:1px solid rgba(114,71,150,.30);border-radius:6px}
-.spectrum-line-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#9460b8;margin-bottom:8px}
-#spectrum-line-canvas{display:block;width:100%;height:160px;border-radius:4px}
-.pass-status{position:absolute;top:10px;right:20px;background-color:#00ff88;color:#000;padding:8px 16px;border-radius:4px;font-weight:bold;font-size:.9em;display:none;z-index:10}
-.spectrum-container{margin-bottom:15px}
-#waterfall-canvas{width:100%;height:300px;border:1px solid #333;border-radius:4px;background-color:#000}
-.frequency-scale{margin-top:8px;height:20px;position:relative;font-size:11px;color:#666}
-.spectrum-controls{display:flex;gap:30px;align-items:center}
-.spectrum-controls label{display:flex;align-items:center;gap:10px;color:#aaa;font-size:.9em}
-.panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
-.panel{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222}
-.panel h2{color:#00ff88;margin-bottom:15px;font-size:1.1em;font-weight:400}
-.info-content{background-color:#0a0a0a;padding:15px;border-radius:4px;border:1px solid #1a1a1a;font-size:.9em}
-.param-group{margin-bottom:15px}
-.param-group:last-child{margin-bottom:0}
-.param-group h3{color:#00ff88;font-size:.95em;margin-bottom:8px;font-weight:500}
-.param{margin-bottom:4px;color:#ccc;font-family:'Courier New',monospace;font-size:.85em}
-.param.satellite-name{font-size:1.1em;color:#00ff88;font-weight:bold;font-family:inherit;text-align:center;padding:8px;background-color:#1a1a1a;border-radius:4px;border:1px solid #00ff88}
-.pass-item{margin-bottom:12px;padding:12px;background-color:#1a1a1a;border-radius:4px;border-left:3px solid #00ff88}
-.pass-item:last-child{margin-bottom:0}
-.pass-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.pass-header strong{color:#00ff88;font-size:1em}
-.elevation{background-color:#00ff88;color:#000;padding:2px 6px;border-radius:3px;font-size:.8em;font-weight:bold}
-.pass-times{font-size:.85em;color:#aaa;margin-bottom:4px}
-.pass-freq{font-size:.85em;color:#00ff88;font-family:'Courier New',monospace}
-.pass-notes{font-size:.8em;color:#888;font-style:italic;margin-top:4px}
-.controls{margin-bottom:15px}
-.btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:.9em;font-weight:500;margin-right:10px;transition:all .2s ease}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn-start{background-color:#00ff88;color:#000}
-.btn-start:hover:not(:disabled){background-color:#00cc6a}
-.btn-stop{background-color:#ff4444;color:#fff}
-.btn-stop:hover:not(:disabled){background-color:#cc3333}
-input[type="range"]{-webkit-appearance:none;appearance:none;width:100px;height:4px;background:#333;border-radius:2px;outline:none}
-input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:#00ff88;border-radius:50%;cursor:pointer}
-.timeline-section{background-color:#111;border-radius:6px;padding:20px;border:1px solid #222;margin-top:20px}
-.timeline-section h3{color:#00ff88;margin-bottom:15px;font-size:1.1em;font-weight:400}
-.timeline-canvas{width:100%;height:60px;border:1px solid #333;border-radius:4px;background-color:#000;cursor:pointer;display:block}
-.timeline-controls-container{margin-top:15px}
-.timeline-controls{display:flex;align-items:center;gap:15px;flex-wrap:wrap;justify-content:center}
-.timeline-controls .btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:.9em;font-weight:500;background-color:#333;color:#fff;transition:all .2s ease}
-.timeline-controls .btn:hover{background-color:#444}
-.timeline-controls .btn-live{background-color:#ff4444;color:#fff;font-weight:bold}
-.timeline-controls .btn-live:hover{background-color:#cc3333}
-#current-time-display{font-family:'Courier New',monospace;color:#00ff88;font-size:.9em;font-weight:bold;padding:6px 12px;background-color:#1a1a1a;border-radius:4px;border:1px solid #333;min-width:220px;text-align:center}
-@media(max-width:900px){.timeline-controls{flex-direction:column;align-items:stretch;gap:10px}.panels{grid-template-columns:1fr}.spectrum-controls{flex-direction:column;align-items:stretch;gap:15px}.spectrum-controls label{justify-content:space-between}}
-@media(max-width:600px){.container{padding:15px}header{flex-direction:column;gap:15px;text-align:center}.status{justify-content:center}h1{font-size:1.5em}}
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>SDR · Радионаблюдение</title>
+  <link rel="stylesheet" href="/sdr/static/style.css?v=13">
+  <script src="/sdr/static/waterfall.js?v=10" defer></script>
+  <script src="/sdr/static/app.js?v=9" defer></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-left">
-                <a href="#" id="sdr-back-btn" class="back-btn" title="Вернуться в основной сервис">← Назад в сервис</a>
-                <h1>SDR Трансляция</h1>
-            </div>
-            <script>
-              (function () {
-                document.addEventListener("DOMContentLoaded", function () {
-                  var btn = document.getElementById("sdr-back-btn");
-                  if (!btn) return;
-                  btn.addEventListener("click", function (ev) {
-                    ev.preventDefault();
-                    try {
-                      var ref = document.referrer || "";
-                      var sameOrigin = ref && ref.indexOf(window.location.origin) === 0;
-                      var refPath = sameOrigin ? new URL(ref).pathname : "";
-                      if (sameOrigin && refPath && refPath.indexOf("/sdr") !== 0 && refPath !== "/api" && refPath !== "/api/") {
-                        window.location.href = ref;
-                        return;
-                      }
-                      if (window.history.length > 1) {
-                        window.history.back();
-                        setTimeout(function () {
-                          if (window.location.pathname.indexOf("/sdr") === 0) {
-                            window.location.href = "/";
-                          }
-                        }, 600);
-                        return;
-                      }
-                    } catch (_) {}
-                    window.location.href = "/";
-                  });
-                });
-              })();
-            </script>
-            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                <span id="msk-clock" class="msk-clock">——.——.———— ——:——:—— МСК</span>
-                <div class="status">
-                    <span id="connection-status" class="status-item">Отключено</span>
-                    <span id="recording-status" class="status-item">Не записывается</span>
-                </div>
-            </div>
-        </header>
+  <header class="site-header">
+    <a class="identity" href="/" aria-label="На главную страницу">
+      <span class="identity-mark" aria-hidden="true"><span class="identity-core"></span></span>
+      <span class="identity-name">Poly<span>Space</span></span>
+    </a>
+    <span class="header-label">ЦЕНТР РАДИОНАБЛЮДЕНИЯ <b>/</b> SDR</span>
+    <div class="header-actions"><time id="local-clock">—</time><a href="/">Вернуться назад <span aria-hidden="true">↗</span></a></div>
+  </header>
 
-        <!-- Описание модуля и инструкция -->
-        <section class="sdr-info-card">
-            <details open>
-                <summary>Что это за модуль и как им пользоваться</summary>
-                <div class="sdr-info-body">
-                    <p>
-                        <strong>SDR (Software-Defined Radio)</strong> — модуль приёма
-                        радиосигналов со спутников Polytech Universe.
-                        Подключённый USB-приёмник (RTL-SDR / HackRF) непрерывно
-                        слушает диапазон <code>437 МГц</code> и стримит
-                        IQ-сэмплы в браузер по WebSocket.
-                    </p>
-                    <ol>
-                        <li>Дождитесь статуса <em>«Подключено»</em> в правом верхнем углу.</li>
-                        <li>Внизу — таблица предстоящих <em>пролётов спутников</em>: красные подсвечивают текущий проход.</li>
-                        <li>Когда нужный спутник появляется в зоне приёма — нажмите <em>«Начать запись»</em>. Файл <code>.iq</code> (complex float32) автоматически скачается после остановки.</li>
-                        <li>График <em>«АЧХ»</em> сверху показывает амплитудно-частотную характеристику принимаемого сигнала в реальном времени.</li>
-                        <li>Снизу — водопад (waterfall) и временная шкала за последние 48 часов.</li>
-                        <li>Записанные <code>.iq</code>-файлы можно загрузить в раздел
-                            <em>Challenge → Демодуляция сырой записи</em> для дальнейшей обработки.</li>
-                    </ol>
-                    <p class="sdr-info-tip">
-                        Регуляторы <em>Яркость</em> и <em>Контраст</em> подстраивают
-                        отображение водопада, не меняя сами данные.
-                    </p>
-                </div>
-            </details>
-        </section>
+  <main class="observatory">
+    <section class="orbit-hero" aria-labelledby="page-title">
+      <div class="hero-stars" aria-hidden="true"></div>
+      <div class="hero-content">
+        <p class="section-code"><span class="code-line"></span> НАЗЕМНЫЙ СЕГМЕНТ <span class="code-divider">/</span> ПРЯМОЕ НАБЛЮДЕНИЕ</p>
+        <h1 id="page-title">Слушаем<br><em>орбиту.</em></h1>
+        <div class="orbit-state" data-state="waiting">
+          <span class="state-pulse" aria-hidden="true"></span>
+          <div><span class="state-label">ТЕКУЩЕЕ СОСТОЯНИЕ</span><strong id="stream-title" aria-live="polite">Ожидание пролёта</strong></div>
+        </div>
+        <p id="stream-detail" class="hero-detail">Следующее окно связи появится в расписании.</p>
+      </div>
+      <div class="orbit-art" aria-hidden="true">
+        <svg viewBox="0 0 650 500" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <radialGradient id="planet" cx="28%" cy="16%" r="90%">
+              <stop offset="0" stop-color="#6377a1"/>
+              <stop offset=".36" stop-color="#3a4f77"/>
+              <stop offset=".73" stop-color="#1e2d55"/>
+              <stop offset="1" stop-color="#101632"/>
+            </radialGradient>
+            <linearGradient id="atmosphere" x1="0" x2="1">
+              <stop stop-color="#85d59f" stop-opacity=".45"/>
+              <stop offset=".5" stop-color="#9c77d4" stop-opacity=".75"/>
+              <stop offset="1" stop-color="#9c77d4" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="trail" x1="0" x2="1">
+              <stop stop-color="#a47bcb" stop-opacity="0"/>
+              <stop offset=".55" stop-color="#a47bcb" stop-opacity=".8"/>
+              <stop offset="1" stop-color="#7ad87c" stop-opacity=".95"/>
+            </linearGradient>
+            <clipPath id="planet-clip"><circle cx="385" cy="314" r="175"/></clipPath>
+            <filter id="orbital-glow"><feGaussianBlur stdDeviation="7"/></filter>
+          </defs>
+          <g class="space-points" fill="#c3d4e8">
+            <circle cx="72" cy="51" r="1.3"/><circle cx="151" cy="155" r="1"/><circle cx="275" cy="46" r="1.1"/>
+            <circle cx="311" cy="103" r=".8"/><circle cx="590" cy="48" r="1.3"/><circle cx="568" cy="214" r=".8"/>
+            <circle cx="83" cy="302" r=".8"/><circle cx="471" cy="27" r=".9"/><circle cx="626" cy="309" r="1.1"/>
+          </g>
+          <circle cx="385" cy="314" r="183" fill="none" stroke="#72509d" stroke-opacity=".18" stroke-width="20" filter="url(#orbital-glow)"/>
+          <circle cx="385" cy="314" r="175" fill="url(#planet)"/>
+          <g clip-path="url(#planet-clip)" fill="none" stroke="#a3b6d4" stroke-opacity=".18">
+            <ellipse cx="385" cy="314" rx="174" ry="57" stroke-width="1.2"/>
+            <ellipse cx="385" cy="314" rx="174" ry="122" stroke-width="1.2"/>
+            <ellipse cx="385" cy="314" rx="71" ry="174" stroke-width="1.1"/>
+            <ellipse cx="385" cy="314" rx="132" ry="174" stroke-width="1.1"/>
+            <path d="M185 248 C299 296 397 364 610 366" stroke="#77b9ba" stroke-opacity=".18" stroke-width="23"/>
+            <path d="M213 326 C316 294 373 360 503 316" stroke="#a9badd" stroke-opacity=".11" stroke-width="17"/>
+            <path d="M344 172 Q309 299 501 468" stroke="#070e27" stroke-opacity=".5" stroke-width="126"/>
+          </g>
+          <circle cx="385" cy="314" r="175" fill="none" stroke="url(#atmosphere)" stroke-width="2"/>
+          <ellipse cx="325" cy="201" rx="295" ry="105" transform="rotate(-27 325 201)" fill="none" stroke="#9870bf" stroke-opacity=".29" stroke-width="1.2" stroke-dasharray="2 7"/>
+          <path d="M80 326 C144 241 252 164 366 112 C468 65 552 64 619 109" fill="none" stroke="url(#trail)" stroke-width="2"/>
+          <path d="M523 119 L419 200" fill="none" stroke="#79d580" stroke-opacity=".6" stroke-dasharray="3 6"/>
+          <circle cx="420" cy="199" r="4" fill="#91dfa0"/>
+          <circle cx="420" cy="199" r="16" fill="none" stroke="#91dfa0" stroke-opacity=".45"/>
+          <g transform="translate(525 116) rotate(-28)" fill="none" stroke="#cdd7eb" stroke-width="2">
+            <rect x="-13" y="-11" width="26" height="22" rx="3" fill="#a178c1" stroke="#d7caed"/>
+            <rect x="-55" y="-15" width="32" height="30" fill="#3c427a" stroke="#89abc2"/>
+            <rect x="23" y="-15" width="32" height="30" fill="#3c427a" stroke="#89abc2"/>
+            <path d="M-23 0H-13M13 0H23M-45-15v30M-34-15v30M34-15v30M45-15v30"/>
+            <path d="M0-11v-18M-6-29h12"/>
+          </g>
+        </svg>
+      </div>
+      <span class="orbit-coordinate"><small>НАЗЕМНАЯ СТАНЦИЯ</small>60.0066° N · 30.3795° E</span>
+    </section>
 
-        <main>
-            <!-- Спектрограмма -->
-            <section class="spectrum-section">
-                <div id="pass-status" class="pass-status">ИДЁТ ПРОЛЁТ!</div>
+    <div id="connection-alert" class="connection-alert" role="status" hidden>Нет связи с сервисом наблюдения. Повторяем подключение…</div>
 
-                <!-- АЧХ — горизонтальный спектр (live) -->
-                <div class="spectrum-line-wrap">
-                    <div class="spectrum-line-title">АЧХ — амплитудно-частотная характеристика</div>
-                    <canvas id="spectrum-line-canvas" width="1024" height="160"></canvas>
-                </div>
+    <section class="radio-section" aria-labelledby="spectrum-heading">
+      <div class="section-heading">
+        <div class="heading-copy"><span class="heading-kicker">РАДИОЧАСТОТНЫЙ МОНИТОР</span><h2 id="spectrum-heading">Спектр сигнала</h2></div>
+        <div class="heading-measures">
+          <div><small>ЦЕНТРАЛЬНАЯ ЧАСТОТА</small><strong id="center-frequency">— МГц</strong></div>
+          <div><small>ШИРИНА СПЕКТРА</small><strong id="sample-rate">— кГц</strong></div>
+        </div>
+      </div>
+      <div class="radio-layout">
+        <div class="scope">
+          <div class="scope-top"><span class="scope-cross" aria-hidden="true">✳</span><span>АМПЛИТУДНО-ЧАСТОТНАЯ ХАРАКТЕРИСТИКА</span><span class="scope-code">FFT / 1024</span></div>
+          <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
+          <div class="waterfall-top"><span>ВОДОПАД</span><span>ВРЕМЯ ↓</span></div>
+          <canvas id="waterfall-canvas" width="1024" height="262" role="img" aria-label="Водопад радиосигнала"></canvas>
+          <div id="frequency-scale" class="frequency-scale" aria-hidden="true"></div>
+        </div>
+        <div class="control-rail">
+          <div class="rail-heading"><span>НАСТРОЙКА ВИДА</span><b aria-hidden="true">⌘</b></div>
+          <label>Яркость<input id="intensity" type="range" min="0" max="100" value="50" aria-label="Яркость водопада"></label>
+          <label>Контраст<input id="contrast" type="range" min="0" max="100" value="50" aria-label="Контраст водопада"></label>
+        </div>
+      </div>
+    </section>
 
-                <div class="spectrum-container">
-                    <canvas id="waterfall-canvas" width="1024" height="300"></canvas>
-                    <div class="frequency-scale" id="frequency-scale"></div>
-                </div>
-                <div class="spectrum-controls">
-                    <label>Яркость: <input type="range" id="intensity-slider" min="0" max="100" value="50"></label>
-                    <label>Контраст: <input type="range" id="contrast-slider" min="0" max="100" value="50"></label>
-                </div>
-            </section>
+    <div class="dashboard-grid">
+      <section class="operation-block recording-block" aria-labelledby="recording-heading">
+        <div class="block-heading"><div><span class="heading-kicker">СОХРАНЕНИЕ СИГНАЛА</span><h2 id="recording-heading">Запись IQ</h2></div></div>
+        <div class="record-main">
+          <div class="record-info">
+            <p class="record-subtitle">Текущий IQ-поток</p>
+            <p id="manual-record-detail" class="record-detail">После остановки IQ-файл скачается на ваш компьютер.</p>
+          </div>
+          <button id="record-button" class="record-button" type="button"><span id="record-button-icon" aria-hidden="true">●</span><span id="record-button-label">Начать запись</span></button>
+        </div>
+        <p id="record-error" class="inline-error" role="alert" hidden></p>
+      </section>
 
-            <!-- Временная шкала -->
-            <section class="timeline-section">
-                <h3>Временная шкала (-48 часов)</h3>
-                <canvas id="timeline-canvas" class="timeline-canvas"></canvas>
-                <div id="timeline-controls" class="timeline-controls-container"></div>
-            </section>
-
-            <div class="panels">
-                <!-- Информация о сигнале -->
-                <section class="panel">
-                    <h2>Параметры сигнала</h2>
-                    <div id="signal-info" class="info-content">
-                        <p>Нет данных о сигнале</p>
-                    </div>
-                </section>
-
-                <!-- Прогнозы пролетов -->
-                <section class="panel">
-                    <h2>Прогнозы пролетов</h2>
-                    <div id="satellite-passes" class="info-content">
-                        <p>Нет данных о пролетах</p>
-                    </div>
-                </section>
-
-                <!-- Управление записью -->
-                <section class="panel">
-                    <h2>Запись</h2>
-                    <div class="controls">
-                        <button id="start-recording-btn" class="btn btn-start">Начать запись</button>
-                        <button id="stop-recording-btn" class="btn btn-stop" disabled>Остановить запись</button>
-                    </div>
-                    <div id="recording-info" class="info-content">
-                        <p>Готов к записи</p>
-                    </div>
-                </section>
-            </div>
-        </main>
+      <section class="operation-block pass-block" aria-labelledby="pass-heading">
+        <div class="block-heading"><div><span class="heading-kicker">ОРБИТАЛЬНОЕ РАСПИСАНИЕ</span><h2 id="pass-heading">Следующее окно связи</h2></div></div>
+        <div id="next-pass" class="next-pass"><p class="empty-state">Загружаем расписание…</p></div>
+        <a class="inline-link" href="#schedule">Все пролёты <span aria-hidden="true">↗</span></a>
+      </section>
+      <section class="data-section archive-section" aria-labelledby="archive-heading">
+        <div class="data-heading"><div><span class="heading-kicker">АРХИВ ПРИЁМА</span><h2 id="archive-heading">IQ пролётов</h2></div><span id="archive-count" class="pass-count">0</span></div>
+        <p class="data-description">Записи принятых пролётов доступны для скачивания 48 часов.</p>
+        <div id="archive-list" class="pass-list"><p class="empty-state">Загружаем записи…</p></div>
+      </section>
+      <section id="schedule" class="data-section schedule-section" aria-labelledby="schedule-heading">
+        <div class="data-heading"><div><span class="heading-kicker">ОКНА СВЯЗИ</span><h2 id="schedule-heading">Пролёты</h2></div><span id="pass-count" class="pass-count">0</span></div>
+        <p class="data-description">Время указано по Москве.</p>
+        <div id="pass-list" class="pass-list"><p class="empty-state">Загружаем пролёты…</p></div>
+      </section>
     </div>
-
-    <script src="/sdr/static/waterfall.js"></script>
-    <script src="/sdr/static/timeline.js?v=20260521-2"></script>
-    <script>
-        let websocket = null;
-        let waterfallRenderer = null;
-        let timelinePlayer = null;
-
-        // ── Московские часы ──────────────────────────────────────────────────────
-        var mskClockOffsetMs = 0;
-
-        async function syncMskClock() {
-            try {
-                var response = await fetch('/sdr/api/time', { cache: 'no-store' });
-                if (!response.ok) return;
-                var data = await response.json();
-                if (typeof data.server_timestamp_ms === 'number') {
-                    mskClockOffsetMs = data.server_timestamp_ms - Date.now();
-                } else if (data.server_time_utc) {
-                    mskClockOffsetMs = new Date(data.server_time_utc).getTime() - Date.now();
-                }
-            } catch (_) {}
-        }
-
-        function updateMskClock() {
-            var el = document.getElementById('msk-clock');
-            if (!el) return;
-            var serverNow = new Date(Date.now() + mskClockOffsetMs);
-            el.textContent = new Intl.DateTimeFormat('ru-RU', {
-                timeZone: 'Europe/Moscow',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).format(serverNow).replace(',', '') + ' МСК';
-            return;
-            var now = new Date();
-            var msk = new Date(now.getTime() + 3 * 3600 * 1000);
-            var pad = function(n) { return String(n).padStart(2, '0'); };
-            el.textContent =
-                pad(msk.getUTCDate()) + '.' +
-                pad(msk.getUTCMonth() + 1) + '.' +
-                msk.getUTCFullYear() + '  ' +
-                pad(msk.getUTCHours()) + ':' +
-                pad(msk.getUTCMinutes()) + ':' +
-                pad(msk.getUTCSeconds()) + ' МСК';
-        }
-        syncMskClock();
-        updateMskClock();
-        setInterval(updateMskClock, 1000);
-        setInterval(syncMskClock, 60000);
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-        });
-
-        async function initializeApp() {
-            waterfallRenderer = new WaterfallRenderer('waterfall-canvas', 'spectrum-line-canvas');
-            timelinePlayer = new TimelinePlayer('timeline-canvas', 'timeline-controls');
-            connectWebSocket();
-            
-            await loadSystemInfo();
-            await loadSignalInfo();
-            await loadSatellitePasses();
-            await loadRecordingState();
-            
-            setupEventListeners();
-            setInterval(updateStatus, 5000);
-        }
-
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/sdr/ws/sdr`;
-            
-            websocket = new WebSocket(wsUrl);
-            
-            websocket.onopen = function() {
-                document.getElementById('connection-status').textContent = 'Подключено';
-                document.getElementById('connection-status').className = 'status-item connected';
-                loadSignalInfo();
-                loadSatellitePasses();
-            };
-            
-            websocket.onclose = function() {
-                document.getElementById('connection-status').textContent = 'Отключено';
-                document.getElementById('connection-status').className = 'status-item disconnected';
-                setTimeout(connectWebSocket, 3000);
-            };
-            
-            websocket.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'fft_frame') {
-                    waterfallRenderer.addFFTFrame(data.fft_data, data.center_frequency, data.sample_rate);
-                } else if (data.type === 'auto_recording_stopped') {
-                    const link = document.createElement('a');
-                    link.href = `/sdr/api/download/${data.filename}`;
-                    link.download = data.filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                }
-            };
-            
-            websocket.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
-        }
-
-        async function loadSystemInfo() {
-            try {
-                const response = await fetch('/sdr/api/info');
-                await response.json();
-            } catch (error) {
-                console.error('Failed to load system info:', error);
-            }
-        }
-
-        async function loadSignalInfo() {
-            try {
-                const response = await fetch('/sdr/api/signal/info');
-                if (response.ok) {
-                    const signalInfo = await response.json();
-                    displaySignalInfo(signalInfo);
-                } else {
-                    document.getElementById('signal-info').innerHTML = '<p>Нет данных о сигнале.</p>';
-                }
-            } catch (error) {
-                document.getElementById('signal-info').innerHTML = '<p>Ошибка загрузки данных о сигнале</p>';
-            }
-        }
-
-        async function loadSatellitePasses() {
-            try {
-                const response = await fetch('/sdr/api/passes');
-                const passes = await response.json();
-                displaySatellitePasses(passes);
-            } catch (error) {
-                console.error('Failed to load satellite passes:', error);
-            }
-        }
-
-        async function loadRecordingState() {
-            try {
-                const response = await fetch('/sdr/api/record/state');
-                const state = await response.json();
-                updateRecordingUI(state);
-            } catch (error) {
-                console.error('Failed to load recording state:', error);
-            }
-        }
-
-        function displaySignalInfo(info) {
-            const container = document.getElementById('signal-info');
-            container.innerHTML = `
-                <div class="param-group">
-                    <h3>Ближайший спутник</h3>
-                    <div class="param satellite-name">${info.satellite_name}</div>
-                </div>
-                <div class="param-group">
-                    <h3>Частоты</h3>
-                    <div class="param">Спутник: ${(info.frequency / 1e6).toFixed(3)} МГц</div>
-                    <div class="param">Центральная: ${(info.center_frequency / 1e6).toFixed(3)} МГц</div>
-                    <div class="param">Дискретизация: ${(info.sample_rate / 1000).toFixed(1)} кГц</div>
-                </div>
-                <div class="param-group">
-                    <h3>Параметры сигнала</h3>
-                    <div class="param">Полоса: ${info.bandwidth} кГц</div>
-                    <div class="param">Spreading Factor: ${info.spreading_factor}</div>
-                    <div class="param">Coding Rate: ${info.coding_rate}</div>
-                    <div class="param">Sync Word: ${info.sync_word}</div>
-                    <div class="param">Preamble: ${info.preamble_length} символов</div>
-                    <div class="param">CRC: ${info.crc_enabled ? 'Включен' : 'Отключен'}</div>
-                </div>
-                <div class="param-group">
-                    <h3>Спектр</h3>
-                    <div class="param">FFT размер: ${info.fft_size}</div>
-                    <div class="param">FPS: ${info.fps}</div>
-                </div>
-            `;
-        }
-
-        function displaySatellitePasses(passes) {
-            const container = document.getElementById('satellite-passes');
-            
-            if (passes.length === 0) {
-                container.innerHTML = '<p>Нет данных о пролетах</p>';
-                return;
-            }
-            
-            const passesHtml = passes.map(pass => `
-                <div class="pass-item">
-                    <div class="pass-header">
-                        <strong>${pass.satellite_name}</strong>
-                        <span class="elevation">${pass.max_elevation.toFixed(1)}°</span>
-                    </div>
-                    <div class="pass-times">
-                        Начало: ${new Date(pass.aos_time).toLocaleString('ru')}<br>
-                        Конец: ${new Date(pass.los_time).toLocaleString('ru')}
-                    </div>
-                    ${pass.frequency ? `<div class="pass-freq">${(pass.frequency / 1e6).toFixed(3)} МГц</div>` : ''}
-                    ${pass.notes ? `<div class="pass-notes">${pass.notes}</div>` : ''}
-                </div>
-            `).join('');
-            
-            container.innerHTML = passesHtml;
-        }
-
-        function updateRecordingUI(state) {
-            const startBtn = document.getElementById('start-recording-btn');
-            const stopBtn = document.getElementById('stop-recording-btn');
-            const recordingInfo = document.getElementById('recording-info');
-            const recordingStatus = document.getElementById('recording-status');
-            
-            if (state.is_recording) {
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                recordingStatus.textContent = 'Записывается';
-                recordingStatus.className = 'status-item recording';
-                
-                const sizeKB = (state.file_size_bytes / 1024).toFixed(1);
-                const duration = state.start_time ? 
-                    Math.floor((new Date() - new Date(state.start_time)) / 1000) : 0;
-                
-                recordingInfo.innerHTML = `
-                    <div class="param">Файл: ${state.filename}</div>
-                    <div class="param">Размер: ${sizeKB} КБ</div>
-                    <div class="param">Длительность: ${duration}с</div>
-                `;
-            } else {
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                recordingStatus.textContent = 'Не записывается';
-                recordingStatus.className = 'status-item';
-                recordingInfo.innerHTML = '<p>Готов к записи</p>';
-            }
-        }
-
-        function setupEventListeners() {
-            document.getElementById('start-recording-btn').addEventListener('click', startRecording);
-            document.getElementById('stop-recording-btn').addEventListener('click', stopRecording);
-            
-            document.getElementById('intensity-slider').addEventListener('input', function(e) {
-                waterfallRenderer.setIntensity(e.target.value / 100);
-            });
-            
-            document.getElementById('contrast-slider').addEventListener('input', function(e) {
-                waterfallRenderer.setContrast(e.target.value / 100);
-            });
-        }
-
-        async function startRecording() {
-            try {
-                const response = await fetch('/sdr/api/record/start', { method: 'POST' });
-                const result = await response.json();
-                if (response.ok) {
-                    await loadRecordingState();
-                } else {
-                    alert('Ошибка начала записи: ' + result.detail);
-                }
-            } catch (error) {
-                alert('Ошибка начала записи');
-            }
-        }
-
-        async function stopRecording() {
-            try {
-                const response = await fetch('/sdr/api/record/stop', { method: 'POST' });
-                const result = await response.json();
-                if (response.ok) {
-                    await loadRecordingState();
-                    if (result.filename) {
-                        const link = document.createElement('a');
-                        link.href = `/sdr/api/download/${result.filename}`;
-                        link.download = result.filename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    }
-                } else {
-                    alert('Ошибка остановки записи: ' + result.detail);
-                }
-            } catch (error) {
-                alert('Ошибка остановки записи');
-            }
-        }
-
-        async function updateStatus() {
-            await loadRecordingState();
-            await loadSignalInfo();
-        }
-    </script>
+    <footer class="page-footer"><span>PolySpace</span><span>НАЗЕМНЫЙ СЕГМЕНТ · МСК (UTC+3)</span></footer>
+  </main>
+  <noscript>Для отображения спектра нужен JavaScript.</noscript>
 </body>
 </html>

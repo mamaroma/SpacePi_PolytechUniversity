@@ -3,10 +3,12 @@ import os
 import asyncio
 import logging
 import random
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 import numpy as np
 from pathlib import Path
+from .recording_metadata import read_metadata, recording_start_time
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +31,17 @@ class PlaybackService:
         self.silence_duration = 300  # 5 minutes in seconds
         
         # Last pass parameters for silence playback
-        self.last_pass_center_frequency = 433060000  # 433 MHz + 60 kHz
+        self.last_pass_center_frequency = 436610000
         self.last_pass_sample_rate = 625000
         
         # Playback state
         self._playback_task: Optional[asyncio.Task] = None
         self._sample_callback = None
         self._silence_sample_offset = 0
+        self._background_sample_offset = 0
         self._silence_anchor_time: Optional[datetime] = None
+        self._recording_index: List[Dict] = []
+        self._recording_index_at = 0.0
         
         # Load silence data
         self._load_silence_data()
@@ -111,8 +116,12 @@ class PlaybackService:
     
     def _get_recording_params_for_time(self, target_time: datetime) -> Dict:
         """Get recording parameters (frequency, sample_rate) for specific time."""
-        # TODO: В будущем можно сохранять метаданные записей с параметрами
-        # Пока используем параметры последнего пролета для всех записей
+        recording = self._find_recording_for_time(target_time) if target_time else None
+        if recording:
+            return {
+                "center_frequency": recording["center_frequency"],
+                "sample_rate": recording["sample_rate"],
+            }
         return {
             "center_frequency": self.last_pass_center_frequency,
             "sample_rate": self.sample_rate
@@ -136,6 +145,7 @@ class PlaybackService:
         if self.is_playing:
             await self.stop_playback()
         
+        self._recording_index_at = 0.0
         self.current_time = start_time
         if self._find_recording_for_time(start_time):
             self._silence_anchor_time = None
@@ -197,11 +207,14 @@ class PlaybackService:
     
     async def _playback_loop(self):
         """Main playback loop - send samples at real-time rate."""
-        samples_per_chunk = 1024  # Send 1024 samples at a time
+        samples_per_chunk = 4096
         chunk_duration = samples_per_chunk / self.sample_rate  # Time for this chunk
         
         try:
             while self.is_playing and self.current_time:
+                recording = self._find_recording_for_time(self.current_time)
+                sample_rate = recording["sample_rate"] if recording else self.sample_rate
+                chunk_duration = samples_per_chunk / sample_rate
                 # Get samples for current time
                 samples, is_silence = await self._get_samples_for_timerange(
                     self.current_time, 
@@ -271,38 +284,41 @@ class PlaybackService:
             # Filenames are UTC timestamps. Compare as naive UTC internally.
             if target_time.tzinfo is not None:
                 target_time = target_time.astimezone(timezone.utc).replace(tzinfo=None)
-            
-            for file_path in self.recordings_dir.glob("*.iq"):
-                try:
-                    # Parse filename to get start time
-                    filename = file_path.stem  # Remove .iq extension
-                    if len(filename) == 15 and filename[8] == '_':  # YYYYMMDD_HHMMSS format
-                        file_start_time = datetime.strptime(filename, "%Y%m%d_%H%M%S")
-                        
-                        # Calculate file duration based on size
-                        file_size = file_path.stat().st_size
-                        samples_count = file_size // 8  # complex64 = 8 bytes
-                        duration_seconds = samples_count / self.sample_rate
-                        file_end_time = file_start_time + timedelta(seconds=duration_seconds)
-                        
-                        # Check if target time is within this recording
-                        if file_start_time <= target_time <= file_end_time:
-                            return {
-                                "filepath": file_path,
-                                "start_time": file_start_time,
-                                "end_time": file_end_time,
-                                "duration_seconds": duration_seconds
-                            }
-                            
-                except Exception as e:
-                    logger.error(f"Error processing file {file_path}: {e}")
-                    continue
-            
+            self._refresh_recording_index()
+            for recording in self._recording_index:
+                if recording["start_time"] <= target_time <= recording["end_time"]:
+                    return recording
             return None
             
         except Exception as e:
             logger.error(f"Error finding recording: {e}")
             return None
+
+    def _refresh_recording_index(self):
+        """Avoid scanning the recording directory for every playback chunk."""
+        if time.monotonic() - self._recording_index_at < 3:
+            return
+        index = []
+        for file_path in self.recordings_dir.glob("*.iq"):
+            try:
+                name = file_path.stem
+                if len(name) < 15 or name[8] != "_":
+                    continue
+                started = recording_start_time(file_path).replace(tzinfo=None)
+                metadata = read_metadata(file_path)
+                duration = (file_path.stat().st_size // 8) / metadata["sample_rate"]
+                index.append({
+                    "filepath": file_path,
+                    "start_time": started,
+                    "end_time": started + timedelta(seconds=duration),
+                    "duration_seconds": duration,
+                    **metadata,
+                })
+            except (OSError, ValueError) as exc:
+                logger.warning("Could not index IQ recording %s: %s", file_path, exc)
+        index.sort(key=lambda item: ("_manual" in item["filepath"].name, item["start_time"]))
+        self._recording_index = index
+        self._recording_index_at = time.monotonic()
     
     async def _load_samples_from_recording(self, recording: Dict, start_time: datetime, end_time: datetime) -> np.ndarray:
         """Load samples from recording file for specified time range."""
@@ -320,8 +336,8 @@ class PlaybackService:
             time_offset = (start_time - recording_start).total_seconds()
             time_length = (end_time - start_time).total_seconds()
             
-            sample_offset = int(time_offset * self.sample_rate)
-            sample_length = int(time_length * self.sample_rate)
+            sample_offset = int(time_offset * recording["sample_rate"])
+            sample_length = int(time_length * recording["sample_rate"])
             
             byte_offset = sample_offset * 8  # complex64 = 8 bytes
             byte_length = sample_length * 8
@@ -341,6 +357,36 @@ class PlaybackService:
             logger.error(f"Error loading samples from recording: {e}")
             return self._get_silence_samples(start_time, end_time)
     
+    def get_background_samples(self, sample_count: int) -> np.ndarray:
+        """Loop a recorded IQ interval whose two weak side carriers are present.
+
+        The station's live IQ and historical playback are unaffected. Shorter
+        or generated silence files are played from their full length.
+        """
+        if sample_count <= 0:
+            return np.empty(0, dtype=np.complex64)
+        if self.silence_data is None or len(self.silence_data) == 0:
+            return self._generate_noise(sample_count)
+
+        length = len(self.silence_data)
+        if length >= 200 * self.sample_rate:
+            region_start, region_end = 120 * self.sample_rate, 200 * self.sample_rate
+        else:
+            region_start, region_end = 0, length
+
+        offset = self._background_sample_offset
+        if not region_start <= offset < region_end:
+            offset = region_start
+        remaining = sample_count
+        chunks = []
+        while remaining:
+            take = min(remaining, region_end - offset)
+            chunks.append(np.asarray(self.silence_data[offset:offset + take], dtype=np.complex64))
+            remaining -= take
+            offset = region_start if offset + take == region_end else offset + take
+        self._background_sample_offset = offset
+        return np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
+
     def _get_silence_samples(self, start_time: datetime, end_time: datetime) -> np.ndarray:
         """Get silence samples for specified time range."""
         try:

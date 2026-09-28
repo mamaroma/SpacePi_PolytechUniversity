@@ -72,3 +72,5 @@ AIS_sim/decoder.py
 AIS_sim/map.py
 AIS_participant.zip
 AIS_sim_participant.zip
+
+tracking_station/
