@@ -78,7 +78,15 @@ async def _lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Telemetry Aggregator (TinyGS Telegram)", lifespan=_lifespan)
+# Swagger/ReDoc живут под /api/*, чтобы не перебивать SPA-маршрут /docs
+# («История проекта»).
+app = FastAPI(
+    title="Telemetry Aggregator (TinyGS Telegram)",
+    lifespan=_lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,7 +115,7 @@ def root(request: Request):
     return {
         "service": "PolySpace API",
         "status": "ok",
-        "docs": "/docs",
+        "docs": "/api/docs",
     }
 
 
