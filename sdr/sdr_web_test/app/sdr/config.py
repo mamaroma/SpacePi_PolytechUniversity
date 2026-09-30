@@ -4,7 +4,7 @@ from pathlib import Path
 
 # FFT Configuration (defaults, can be overridden via API)
 DEFAULT_FFT_SIZE = int(os.getenv("DEFAULT_FFT_SIZE", "1024"))
-DEFAULT_FFT_UPDATE_RATE = int(os.getenv("DEFAULT_FFT_UPDATE_RATE", "60"))  # FPS
+DEFAULT_FFT_UPDATE_RATE = int(os.getenv("DEFAULT_FFT_UPDATE_RATE", "15"))  # FPS
 
 # ZeroMQ Configuration
 ZMQ_ADDRESS = os.getenv("ZMQ_ADDRESS", "tcp://localhost:5555")
@@ -26,8 +26,12 @@ SDR_INGEST_TOKEN = os.getenv("SDR_INGEST_TOKEN", "")
 IQ_MAX_FRAME_BYTES = int(os.getenv("IQ_MAX_FRAME_BYTES", str(2 * 1024 * 1024)))
 SDR_ENABLE_ZMQ = os.getenv("SDR_ENABLE_ZMQ", "0") == "1"
 
-# Recording
-MAX_RECORDING_SIZE_GB = float(os.getenv("MAX_RECORDING_SIZE_GB", "10.0"))
+# Recording — keep small on the 30 GB VPS (auto IQ can fill the disk overnight)
+MAX_RECORDING_SIZE_GB = float(os.getenv("MAX_RECORDING_SIZE_GB", "1.0"))
+
+# Idle waterfall spectrum (nothing.iq / noise). Off by default: on a single
+# uvicorn worker it starves /api/* and makes the whole site freeze.
+SDR_IDLE_SPECTRUM = os.getenv("SDR_IDLE_SPECTRUM", "0") == "1"
 
 # Ensure directories exist
 RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)

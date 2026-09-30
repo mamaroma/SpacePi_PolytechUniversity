@@ -119,7 +119,11 @@ async def sdr_startup() -> dict:
 
     try:
         from sdr.sdr_web_test.app.sdr.zmq_receiver import zmq_receiver
-        from sdr.sdr_web_test.app.sdr.config import SDR_ENABLE_ZMQ, SDR_INGEST_TOKEN
+        from sdr.sdr_web_test.app.sdr.config import (
+            SDR_ENABLE_ZMQ,
+            SDR_IDLE_SPECTRUM,
+            SDR_INGEST_TOKEN,
+        )
         from sdr.sdr_web_test.app.sdr.fft_service import fft_service
         from sdr.sdr_web_test.app.sdr.recorder import iq_recorder
         from sdr.sdr_web_test.app.sdr.auto_recorder import auto_recorder
@@ -153,9 +157,14 @@ async def sdr_startup() -> dict:
     if not SDR_INGEST_TOKEN:
         logger.warning("SDR_INGEST_TOKEN is unset; IQ ingest accepts unauthenticated station connections")
 
-    handles["silence_task"] = asyncio.create_task(
-        _inject_silence(fft_service, sdr_state, playback_service)
-    )
+    if SDR_IDLE_SPECTRUM:
+        handles["silence_task"] = asyncio.create_task(
+            _inject_silence(fft_service, sdr_state, playback_service)
+        )
+        logger.info("SDR: idle spectrum enabled (SDR_IDLE_SPECTRUM=1)")
+    else:
+        logger.info("SDR: idle spectrum disabled (set SDR_IDLE_SPECTRUM=1 to enable)")
+
     handles["cleanup_task"] = asyncio.create_task(_periodic_cleanup(iq_recorder, auto_recorder))
 
     return handles
