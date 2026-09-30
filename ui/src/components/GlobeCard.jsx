@@ -630,17 +630,18 @@ export default function GlobeCard({
         }
       } catch {}
 
-      // -------------------------
-      // IMPORTANT: Raise planet in viewport
-      // -------------------------
-      // 1) move controls target upward (this is what actually changes framing)
-      //    increase 0.22 -> 0.30 if you want even higher
-      controls.target.set(0, 0.22, 0);
+      // Центрируем планету в кадре (раньше target.y=0.22 «поднимал» Землю
+      // и в широкой панели она уезжала вбок).
+      controls.target.set(0, 0, 0);
+      if (Number.isFinite(camera.position.length()) && camera.position.length() > 0) {
+        // Не трогаем дистанцию — только смотрим в центр сферы.
+        camera.lookAt(0, 0, 0);
+      }
       controls.update();
-
-      // 2) optionally lift camera slightly too (small)
-      camera.position.y += 0.08;
-      controls.update();
+      try {
+        // Стартовый ракурс: чуть сбоку и сверху, Земля по центру.
+        g.pointOfView({ lat: 25, lng: 30, altitude: 2.35 }, 0);
+      } catch {}
 
       // keyboard controls — use THREE.Spherical directly because
       // rotateLeft/rotateUp/dollyIn are private in bundled OrbitControls
