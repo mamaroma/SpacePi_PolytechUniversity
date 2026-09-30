@@ -209,23 +209,43 @@ async def _periodic_cleanup(iq_recorder, auto_recorder) -> None:
 
 
 async def _inject_silence(fft_service, sdr_state, playback_service) -> None:
+    """Фоновый спектр для водопада, когда нет живого IQ.
+
+    Важно: не дёргать event loop чаще, чем FPS водопада. Раньше sleep был
+    ``chunk/sample_rate`` (~6.5 мс → ~150 Гц), и на одном uvicorn-воркере
+    зависали все `/api/*` (новости, телеметрия, орбиты).
+    """
     samples_per_chunk = 4096
     silence_active = False
 
     while True:
         try:
             if not (await sdr_state.get_stream_status())["streaming"]:
+                clients = len(getattr(fft_service, "websocket_clients", None) or ())
+                # Пока SDR никто не смотрит — не жжём CPU/event loop.
+                if clients == 0:
+                    if silence_active:
+                        logger.info("SDR: background spectrum paused (no clients)")
+                        silence_active = False
+                    await asyncio.sleep(0.5)
+                    continue
+
                 if not silence_active:
-                    logger.info("SDR: background spectrum started")
+                    logger.info("SDR: background spectrum started (%s client(s))", clients)
                     silence_active = True
 
                 chunk = playback_service.get_background_samples(samples_per_chunk)
 
                 await fft_service.process_samples(
                     chunk,
-                    {"center_frequency": playback_service.last_pass_center_frequency, "sample_rate": playback_service.sample_rate},
+                    {
+                        "center_frequency": playback_service.last_pass_center_frequency,
+                        "sample_rate": playback_service.sample_rate,
+                    },
                 )
-                await asyncio.sleep(samples_per_chunk / playback_service.sample_rate)
+                fps = int(getattr(fft_service, "fps", 15) or 15)
+                fps = max(5, min(fps, 20))
+                await asyncio.sleep(1.0 / fps)
             else:
                 if silence_active:
                     logger.info("SDR: background spectrum stopped (real signal)")
