@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, AttributionControl, CircleMarker } from "react-leaflet";
+import { DARK_TILE_PROPS } from "../mapTiles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Hint, { GuideBanner } from "../components/Hint";
@@ -708,12 +709,7 @@ function DemoMapTab() {
           `}</style>
           <MapContainer center={[58, 70]} zoom={3} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas={true}>
             <AttributionControl position="bottomright" prefix={false} />
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
-              maxZoom={19}
-            />
+            <TileLayer {...DARK_TILE_PROPS} />
             {ships.map((s) => (
               <Marker
                 key={s.id}
@@ -1106,12 +1102,7 @@ function SatDataMapTab() {
               preferCanvas
             >
               <AttributionControl position="bottomright" prefix={false} />
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                subdomains="abcd"
-                maxZoom={19}
-                attribution='&copy; <a href="https://carto.com/">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              />
+              <TileLayer {...DARK_TILE_PROPS} />
 
               {visiblePoints.map((p, i) => {
                 const color = SAT_COLORS[p.sat] || "#9460b8";

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, CircleMarker, Popup, Circle } from "react-leaflet";
+import { DARK_TILE_PROPS } from "../mapTiles";
 import "leaflet/dist/leaflet.css";
 import { fetchDemoEmiPackets, generateEmiDataset } from "../api";
 import { GuideBanner } from "../components/Hint";
@@ -313,12 +314,7 @@ export default function EmiPage() {
                 .leaflet-container { background: #0d0a18 !important; }
               `}</style>
               <MapContainer center={[30, 30]} zoom={2} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas={true}>
-                <TileLayer
-                  attribution=""
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  subdomains="abcd"
-                  maxZoom={19}
-                />
+                <TileLayer {...DARK_TILE_PROPS} attribution="" />
                 {!loading && genZones.map((z) => (
                   <Circle
                     key={`zone-${z.id}`}

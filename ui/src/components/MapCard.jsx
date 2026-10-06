@@ -10,6 +10,7 @@ import {
   CircleMarker,
   AttributionControl,
 } from "react-leaflet";
+import { DARK_TILE_PROPS } from "../mapTiles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -293,12 +294,7 @@ export default function MapCard({ receivedPoints, orbitTrack, orbitCurrent, mult
           <AttributionControl position="bottomright" prefix={false} />
 
           {/* ── Dark base tiles ─────────────────────────────── */}
-          <TileLayer
-            attribution='&copy; <a href="https://carto.com/" target="_blank">CARTO</a> &amp; <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            subdomains="abcd"
-            maxZoom={19}
-          />
+          <TileLayer {...DARK_TILE_PROPS} />
 
           {/* ── НИК СПбПУ — клик открывает модальный оверлей (рендерится в body) ── */}
           <Marker

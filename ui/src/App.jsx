@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom"
 import { AuthProvider, useAuth } from "./AuthContext";
 import NewsPage from "./pages/NewsPage";
 import Footer from "./components/Footer";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { API_BASE } from "./api";
 
 /* Code-splitting: тяжёлые страницы (Leaflet/three/recharts/zip) грузим
@@ -312,6 +313,8 @@ function AppInner() {
         )}
       </header>
 
+      {/* key по пути — чтобы ошибка одного раздела сбрасывалась при переходе в другой */}
+      <ErrorBoundary page key={location.pathname}>
       <Suspense fallback={
         <div style={{
           minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center",
@@ -340,6 +343,7 @@ function AppInner() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
 
       <Footer />
     </>

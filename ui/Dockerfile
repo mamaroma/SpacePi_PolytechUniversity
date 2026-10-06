@@ -2,8 +2,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+# Ставим строго по package-lock.json: иначе каждая сборка тянет свежие версии
+# библиотек с npm, и деплой превращается в лотерею (так сломался three/глобус).
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 

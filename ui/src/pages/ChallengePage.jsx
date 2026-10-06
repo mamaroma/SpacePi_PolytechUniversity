@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, BarChart, Bar,
 } from "recharts";
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Circle } from "react-leaflet";
+import { DARK_TILE_PROPS } from "../mapTiles";
 import "leaflet/dist/leaflet.css";
 import {
   fetchTelemetry, isoDaysAgo,
@@ -276,10 +277,7 @@ function GraphActivity() {
             zoom={4}
             style={{ height: "100%", width: "100%" }}
           >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-              attribution="&copy; CARTO"
-            />
+            <TileLayer {...DARK_TILE_PROPS} />
             {uploadAis.map(p => (
               <CircleMarker
                 key={p.id}
@@ -691,10 +689,7 @@ function AisDecodeSubTab() {
               </div>
               <div style={{ height: 380 }}>
                 <MapContainer center={center} zoom={4} style={{ height: "100%", width: "100%" }} preferCanvas>
-                  <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-                    attribution="&copy; CARTO"
-                  />
+                  <TileLayer {...DARK_TILE_PROPS} />
                   {tracksByMmsi.map(([mmsi, pts]) => (
                     <Polyline
                       key={`trk-${mmsi}`}
@@ -2158,7 +2153,7 @@ function EmiGeneratorActivity() {
         </div>
         <div style={{ height: 480 }}>
           <MapContainer center={[20, 40]} zoom={2} style={{ width: "100%", height: "100%" }} attributionControl={false} preferCanvas>
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" subdomains="abcd" />
+            <TileLayer {...DARK_TILE_PROPS} />
             {(data?.coverage_zones || []).map((z) => (
               <Circle
                 key={z.id}
