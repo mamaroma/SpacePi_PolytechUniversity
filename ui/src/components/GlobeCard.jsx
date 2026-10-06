@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
@@ -459,6 +459,31 @@ export default function GlobeCard({
   const globeRef = useRef(null);
   const overlayRef = useRef(new THREE.Group());
   const lightsRef = useRef({ ambient: null, sun: null });
+
+  // Размер холста. react-globe.gl без явных width/height рисует canvas
+  // размером с окно браузера; контейнер его обрезает, и центр Земли уезжает
+  // в правый нижний угол. Поэтому меряем .globe-inner и передаём размеры явно.
+  const innerRef = useRef(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const w = Math.round(el.clientWidth);
+      const h = Math.round(el.clientHeight);
+      if (w > 0 && h > 0) {
+        setCanvasSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const beamRef = useRef({
     spot: null,
@@ -985,12 +1010,15 @@ export default function GlobeCard({
       </div>
 
       <div
+        ref={innerRef}
         className="globe-inner"
         style={{ height: INNER_HEIGHT, minHeight: INNER_MIN_H }}
       >
+        {canvasSize.w > 0 && canvasSize.h > 0 && (
         <Globe
           ref={globeRef}
-          style={{ width: "100%", height: "100%" }}
+          width={canvasSize.w}
+          height={canvasSize.h}
           backgroundColor="rgba(0,0,0,1)"
           globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
           bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
@@ -1016,6 +1044,7 @@ export default function GlobeCard({
             el.style.pointerEvents = isVisible ? "auto" : "none";
           }}
         />
+        )}
       </div>
 
       {/* Модальный оверлей карточки приёмной станции НИК СПбПУ —
