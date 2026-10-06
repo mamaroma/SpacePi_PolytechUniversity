@@ -46,7 +46,7 @@ export const TEAM_MEMBERS = [
   {
     id: "melnikov",
     name: "Мельников Сергей Олегович",
-    photo: null,
+    photo: "/team/Melnikov.png",
     roles: ["TeamLead"],
     accent: "#6cc77b",
   },
@@ -60,14 +60,14 @@ export const TEAM_MEMBERS = [
   {
     id: "alexandr",
     name: "Александр",
-    photo: null,
+    photo: "/team/Alexandr.png",
     roles: ["инженер"],
     accent: "#8aa090",
   },
   {
     id: "timofey",
     name: "Тимофей",
-    photo: null,
+    photo: "/team/Timofey.png",
     roles: ["инженер"],
     accent: "#8aa090",
   },
