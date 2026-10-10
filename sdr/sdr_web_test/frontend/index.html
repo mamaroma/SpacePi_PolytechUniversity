@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1020">
+  <meta name="theme-color" content="#0d0a18">
   <title>SDR · Радионаблюдение</title>
-  <link rel="stylesheet" href="/sdr/static/style.css?v=13">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/sdr/static/style.css?v=14">
   <script src="/sdr/static/waterfall.js?v=10" defer></script>
   <script src="/sdr/static/app.js?v=9" defer></script>
 </head>
@@ -15,134 +18,142 @@
       <span class="identity-mark" aria-hidden="true"><span class="identity-core"></span></span>
       <span class="identity-name">Poly<span>Space</span></span>
     </a>
-    <span class="header-label">ЦЕНТР РАДИОНАБЛЮДЕНИЯ <b>/</b> SDR</span>
-    <div class="header-actions"><time id="local-clock">—</time><a href="/">Вернуться назад <span aria-hidden="true">↗</span></a></div>
+    <nav class="header-nav" aria-label="Раздел">
+      <span class="header-chip">SDR</span>
+      <span class="header-label">Центр радионаблюдения</span>
+    </nav>
+    <div class="header-actions">
+      <time id="local-clock">—</time>
+      <a class="back-link" href="/">На портал <span aria-hidden="true">↗</span></a>
+    </div>
   </header>
 
   <main class="observatory">
-    <section class="orbit-hero" aria-labelledby="page-title">
-      <div class="hero-stars" aria-hidden="true"></div>
-      <div class="hero-content">
-        <p class="section-code"><span class="code-line"></span> НАЗЕМНЫЙ СЕГМЕНТ <span class="code-divider">/</span> ПРЯМОЕ НАБЛЮДЕНИЕ</p>
-        <h1 id="page-title">Слушаем<br><em>орбиту.</em></h1>
-        <div class="orbit-state" data-state="waiting">
-          <span class="state-pulse" aria-hidden="true"></span>
-          <div><span class="state-label">ТЕКУЩЕЕ СОСТОЯНИЕ</span><strong id="stream-title" aria-live="polite">Ожидание пролёта</strong></div>
+    <section class="status-bar" aria-labelledby="page-title">
+      <div class="status-copy">
+        <p class="section-code">Наземный сегмент · прямое наблюдение</p>
+        <h1 id="page-title">Радионаблюдение</h1>
+      </div>
+      <div class="orbit-state" data-state="waiting">
+        <span class="state-pulse" aria-hidden="true"></span>
+        <div>
+          <span class="state-label">Состояние</span>
+          <strong id="stream-title" aria-live="polite">Ожидание пролёта</strong>
+          <p id="stream-detail" class="hero-detail">Следующее окно связи появится в расписании.</p>
         </div>
-        <p id="stream-detail" class="hero-detail">Следующее окно связи появится в расписании.</p>
       </div>
-      <div class="orbit-art" aria-hidden="true">
-        <svg viewBox="0 0 650 500" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <radialGradient id="planet" cx="28%" cy="16%" r="90%">
-              <stop offset="0" stop-color="#6377a1"/>
-              <stop offset=".36" stop-color="#3a4f77"/>
-              <stop offset=".73" stop-color="#1e2d55"/>
-              <stop offset="1" stop-color="#101632"/>
-            </radialGradient>
-            <linearGradient id="atmosphere" x1="0" x2="1">
-              <stop stop-color="#85d59f" stop-opacity=".45"/>
-              <stop offset=".5" stop-color="#9c77d4" stop-opacity=".75"/>
-              <stop offset="1" stop-color="#9c77d4" stop-opacity="0"/>
-            </linearGradient>
-            <linearGradient id="trail" x1="0" x2="1">
-              <stop stop-color="#a47bcb" stop-opacity="0"/>
-              <stop offset=".55" stop-color="#a47bcb" stop-opacity=".8"/>
-              <stop offset="1" stop-color="#7ad87c" stop-opacity=".95"/>
-            </linearGradient>
-            <clipPath id="planet-clip"><circle cx="385" cy="314" r="175"/></clipPath>
-            <filter id="orbital-glow"><feGaussianBlur stdDeviation="7"/></filter>
-          </defs>
-          <g class="space-points" fill="#c3d4e8">
-            <circle cx="72" cy="51" r="1.3"/><circle cx="151" cy="155" r="1"/><circle cx="275" cy="46" r="1.1"/>
-            <circle cx="311" cy="103" r=".8"/><circle cx="590" cy="48" r="1.3"/><circle cx="568" cy="214" r=".8"/>
-            <circle cx="83" cy="302" r=".8"/><circle cx="471" cy="27" r=".9"/><circle cx="626" cy="309" r="1.1"/>
-          </g>
-          <circle cx="385" cy="314" r="183" fill="none" stroke="#72509d" stroke-opacity=".18" stroke-width="20" filter="url(#orbital-glow)"/>
-          <circle cx="385" cy="314" r="175" fill="url(#planet)"/>
-          <g clip-path="url(#planet-clip)" fill="none" stroke="#a3b6d4" stroke-opacity=".18">
-            <ellipse cx="385" cy="314" rx="174" ry="57" stroke-width="1.2"/>
-            <ellipse cx="385" cy="314" rx="174" ry="122" stroke-width="1.2"/>
-            <ellipse cx="385" cy="314" rx="71" ry="174" stroke-width="1.1"/>
-            <ellipse cx="385" cy="314" rx="132" ry="174" stroke-width="1.1"/>
-            <path d="M185 248 C299 296 397 364 610 366" stroke="#77b9ba" stroke-opacity=".18" stroke-width="23"/>
-            <path d="M213 326 C316 294 373 360 503 316" stroke="#a9badd" stroke-opacity=".11" stroke-width="17"/>
-            <path d="M344 172 Q309 299 501 468" stroke="#070e27" stroke-opacity=".5" stroke-width="126"/>
-          </g>
-          <circle cx="385" cy="314" r="175" fill="none" stroke="url(#atmosphere)" stroke-width="2"/>
-          <ellipse cx="325" cy="201" rx="295" ry="105" transform="rotate(-27 325 201)" fill="none" stroke="#9870bf" stroke-opacity=".29" stroke-width="1.2" stroke-dasharray="2 7"/>
-          <path d="M80 326 C144 241 252 164 366 112 C468 65 552 64 619 109" fill="none" stroke="url(#trail)" stroke-width="2"/>
-          <path d="M523 119 L419 200" fill="none" stroke="#79d580" stroke-opacity=".6" stroke-dasharray="3 6"/>
-          <circle cx="420" cy="199" r="4" fill="#91dfa0"/>
-          <circle cx="420" cy="199" r="16" fill="none" stroke="#91dfa0" stroke-opacity=".45"/>
-          <g transform="translate(525 116) rotate(-28)" fill="none" stroke="#cdd7eb" stroke-width="2">
-            <rect x="-13" y="-11" width="26" height="22" rx="3" fill="#a178c1" stroke="#d7caed"/>
-            <rect x="-55" y="-15" width="32" height="30" fill="#3c427a" stroke="#89abc2"/>
-            <rect x="23" y="-15" width="32" height="30" fill="#3c427a" stroke="#89abc2"/>
-            <path d="M-23 0H-13M13 0H23M-45-15v30M-34-15v30M34-15v30M45-15v30"/>
-            <path d="M0-11v-18M-6-29h12"/>
-          </g>
-        </svg>
+      <div class="status-metrics" aria-label="Параметры приёма">
+        <div>
+          <small>Центр</small>
+          <strong id="center-frequency">— МГц</strong>
+        </div>
+        <div>
+          <small>Ширина</small>
+          <strong id="sample-rate">— кГц</strong>
+        </div>
+        <div>
+          <small>Станция</small>
+          <strong>60.01°N · 30.38°E</strong>
+        </div>
       </div>
-      <span class="orbit-coordinate"><small>НАЗЕМНАЯ СТАНЦИЯ</small>60.0066° N · 30.3795° E</span>
     </section>
 
-    <div id="connection-alert" class="connection-alert" role="status" hidden>Нет связи с сервисом наблюдения. Повторяем подключение…</div>
+    <div id="connection-alert" class="connection-alert" role="status" hidden>
+      Нет связи с сервисом наблюдения. Повторяем подключение…
+    </div>
 
     <section class="radio-section" aria-labelledby="spectrum-heading">
       <div class="section-heading">
-        <div class="heading-copy"><span class="heading-kicker">РАДИОЧАСТОТНЫЙ МОНИТОР</span><h2 id="spectrum-heading">Спектр сигнала</h2></div>
+        <div class="heading-copy">
+          <span class="heading-kicker">Радиочастотный монитор</span>
+          <h2 id="spectrum-heading">Спектр сигнала</h2>
+        </div>
         <div class="heading-measures">
-          <div><small>ЦЕНТРАЛЬНАЯ ЧАСТОТА</small><strong id="center-frequency">— МГц</strong></div>
-          <div><small>ШИРИНА СПЕКТРА</small><strong id="sample-rate">— кГц</strong></div>
+          <span class="measure-pill">FFT / 1024</span>
+          <span class="measure-pill">Live waterfall</span>
         </div>
       </div>
       <div class="radio-layout">
         <div class="scope">
-          <div class="scope-top"><span class="scope-cross" aria-hidden="true">✳</span><span>АМПЛИТУДНО-ЧАСТОТНАЯ ХАРАКТЕРИСТИКА</span><span class="scope-code">FFT / 1024</span></div>
+          <div class="scope-top">
+            <span class="scope-cross" aria-hidden="true"></span>
+            <span>Амплитудно-частотная характеристика</span>
+            <span class="scope-code">real-time</span>
+          </div>
           <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
-          <div class="waterfall-top"><span>ВОДОПАД</span><span>ВРЕМЯ ↓</span></div>
+          <div class="waterfall-top"><span>Водопад</span><span>Время ↓</span></div>
           <canvas id="waterfall-canvas" width="1024" height="262" role="img" aria-label="Водопад радиосигнала"></canvas>
           <div id="frequency-scale" class="frequency-scale" aria-hidden="true"></div>
         </div>
-        <div class="control-rail">
-          <div class="rail-heading"><span>НАСТРОЙКА ВИДА</span><b aria-hidden="true">⌘</b></div>
+        <aside class="control-rail" aria-label="Настройка вида">
+          <div class="rail-heading"><span>Вид</span></div>
           <label>Яркость<input id="intensity" type="range" min="0" max="100" value="50" aria-label="Яркость водопада"></label>
           <label>Контраст<input id="contrast" type="range" min="0" max="100" value="50" aria-label="Контраст водопада"></label>
-        </div>
+        </aside>
       </div>
     </section>
 
     <div class="dashboard-grid">
       <section class="operation-block recording-block" aria-labelledby="recording-heading">
-        <div class="block-heading"><div><span class="heading-kicker">СОХРАНЕНИЕ СИГНАЛА</span><h2 id="recording-heading">Запись IQ</h2></div></div>
+        <div class="block-heading">
+          <div>
+            <span class="heading-kicker">Сохранение сигнала</span>
+            <h2 id="recording-heading">Запись IQ</h2>
+          </div>
+        </div>
         <div class="record-main">
           <div class="record-info">
             <p class="record-subtitle">Текущий IQ-поток</p>
             <p id="manual-record-detail" class="record-detail">После остановки IQ-файл скачается на ваш компьютер.</p>
           </div>
-          <button id="record-button" class="record-button" type="button"><span id="record-button-icon" aria-hidden="true">●</span><span id="record-button-label">Начать запись</span></button>
+          <button id="record-button" class="record-button" type="button">
+            <span id="record-button-icon" aria-hidden="true">●</span>
+            <span id="record-button-label">Начать запись</span>
+          </button>
         </div>
         <p id="record-error" class="inline-error" role="alert" hidden></p>
       </section>
 
       <section class="operation-block pass-block" aria-labelledby="pass-heading">
-        <div class="block-heading"><div><span class="heading-kicker">ОРБИТАЛЬНОЕ РАСПИСАНИЕ</span><h2 id="pass-heading">Следующее окно связи</h2></div></div>
+        <div class="block-heading">
+          <div>
+            <span class="heading-kicker">Орбитальное расписание</span>
+            <h2 id="pass-heading">Следующее окно связи</h2>
+          </div>
+        </div>
         <div id="next-pass" class="next-pass"><p class="empty-state">Загружаем расписание…</p></div>
-        <a class="inline-link" href="#schedule">Все пролёты <span aria-hidden="true">↗</span></a>
+        <a class="inline-link" href="#schedule">Все пролёты <span aria-hidden="true">→</span></a>
       </section>
+
       <section class="data-section archive-section" aria-labelledby="archive-heading">
-        <div class="data-heading"><div><span class="heading-kicker">АРХИВ ПРИЁМА</span><h2 id="archive-heading">IQ пролётов</h2></div><span id="archive-count" class="pass-count">0</span></div>
+        <div class="data-heading">
+          <div>
+            <span class="heading-kicker">Архив приёма</span>
+            <h2 id="archive-heading">IQ пролётов</h2>
+          </div>
+          <span id="archive-count" class="pass-count">0</span>
+        </div>
         <p class="data-description">Записи принятых пролётов доступны для скачивания 48 часов.</p>
         <div id="archive-list" class="pass-list"><p class="empty-state">Загружаем записи…</p></div>
       </section>
+
       <section id="schedule" class="data-section schedule-section" aria-labelledby="schedule-heading">
-        <div class="data-heading"><div><span class="heading-kicker">ОКНА СВЯЗИ</span><h2 id="schedule-heading">Пролёты</h2></div><span id="pass-count" class="pass-count">0</span></div>
+        <div class="data-heading">
+          <div>
+            <span class="heading-kicker">Окна связи</span>
+            <h2 id="schedule-heading">Пролёты</h2>
+          </div>
+          <span id="pass-count" class="pass-count">0</span>
+        </div>
         <p class="data-description">Время указано по Москве.</p>
         <div id="pass-list" class="pass-list"><p class="empty-state">Загружаем пролёты…</p></div>
       </section>
     </div>
-    <footer class="page-footer"><span>PolySpace</span><span>НАЗЕМНЫЙ СЕГМЕНТ · МСК (UTC+3)</span></footer>
+
+    <footer class="page-footer">
+      <span>PolySpace</span>
+      <span>Наземный сегмент · МСК (UTC+3)</span>
+    </footer>
   </main>
   <noscript>Для отображения спектра нужен JavaScript.</noscript>
 </body>
