@@ -7,14 +7,13 @@
   <title>SDR · Радионаблюдение</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/sdr/static/style.css?v=16">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@700&family=Unbounded:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/sdr/static/style.css?v=17">
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
-  <script src="/sdr/static/waterfall.js?v=10" defer></script>
-  <script src="/sdr/static/fx.js?v=2" defer></script>
+  <script src="/sdr/static/waterfall.js?v=11" defer></script>
+  <script src="/sdr/static/fx.js?v=3" defer></script>
   <script src="/sdr/static/app.js?v=9" defer></script>
 </head>
 <body>
@@ -31,13 +30,9 @@
   <div class="page">
     <header class="site-header">
       <a class="identity" href="/" aria-label="На главную страницу">
-        <span class="identity-mark" aria-hidden="true"><span class="identity-core"></span></span>
+        <img class="identity-logo" src="/sdr/static/logo-main.jpg" alt="" width="44" height="44">
         <span class="identity-name">Poly<span>Space</span></span>
       </a>
-      <nav class="header-nav" aria-label="Раздел">
-        <span class="header-chip mono">SDR // 01</span>
-        <span class="header-label">Центр радионаблюдения</span>
-      </nav>
       <div class="header-actions">
         <time id="local-clock" class="mono">—</time>
         <a class="back-link" href="/">На портал <span aria-hidden="true">↗</span></a>
@@ -48,12 +43,12 @@
       <section class="hero" aria-labelledby="page-title">
         <div class="hero__grid scrim">
           <p class="eyebrow mono" data-hero-eyebrow>
-            Наземный сегмент // прямое наблюдение
+            Приёмная станция
           </p>
 
           <h1 id="page-title" class="hero__title">
             <span class="hero__title-row" data-hero-line>Слушаем</span>
-            <span class="hero__title-row hero__title-row--indent gradient-text" data-hero-line>орбиту</span>
+            <span class="hero__title-row hero__title-row--indent hero__title-accent" data-hero-line>орбиту</span>
           </h1>
 
           <div class="orbit-state" data-state="waiting" data-hero-state>
@@ -80,10 +75,6 @@
               <span class="hero__meta-label">Станция</span>
               <span class="hero__meta-value">60.01°N · 30.38°E</span>
             </div>
-            <div class="hero__meta-item">
-              <span class="hero__meta-label">Полоса</span>
-              <span class="hero__meta-value">UHF / FFT</span>
-            </div>
           </div>
         </div>
       </section>
@@ -95,12 +86,8 @@
       <section class="radio-section" aria-labelledby="spectrum-heading" data-reveal>
         <div class="section-heading">
           <div class="heading-copy">
-            <span class="heading-kicker mono">Радиочастотный монитор</span>
+            <span class="heading-kicker mono">Прямой эфир</span>
             <h2 id="spectrum-heading">Спектр сигнала</h2>
-          </div>
-          <div class="heading-measures">
-            <span class="measure-pill mono">FFT / 1024</span>
-            <span class="measure-pill mono">Live waterfall</span>
           </div>
         </div>
 
@@ -109,9 +96,11 @@
             <div class="scope-top mono">
               <span class="scope-cross" aria-hidden="true"></span>
               <span>Амплитудно-частотная характеристика</span>
-              <span class="scope-code">real-time</span>
             </div>
-            <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
+            <div class="spectrum-wrap">
+              <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
+              <div id="amplitude-scale" class="amplitude-scale mono" aria-hidden="true"></div>
+            </div>
             <div class="waterfall-top mono"><span>Водопад</span><span>Время ↓</span></div>
             <canvas id="waterfall-canvas" width="1024" height="262" role="img" aria-label="Водопад радиосигнала"></canvas>
             <div id="frequency-scale" class="frequency-scale mono" aria-hidden="true"></div>
@@ -183,7 +172,7 @@
 
       <footer class="page-footer mono">
         <span>PolySpace</span>
-        <span>Наземный сегмент · МСК (UTC+3)</span>
+        <span>МСК (UTC+3)</span>
       </footer>
     </main>
   </div>

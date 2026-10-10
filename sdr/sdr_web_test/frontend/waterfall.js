@@ -27,6 +27,7 @@ class WaterfallRenderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.drawSpectrum();
     this.updateFrequencyScale();
+    this.updateAmplitudeScale();
   }
 
   setIntensity(value) { this.intensity = Math.max(0, Math.min(1, value)); }
@@ -106,8 +107,8 @@ class WaterfallRenderer {
     ctx.fillRect(0, 0, width, height);
     ctx.strokeStyle = 'rgba(150, 129, 181, .13)';
     ctx.lineWidth = 1;
-    for (let i = 1; i < 6; i++) {
-      const y = height * i / 6;
+    for (const db of this.amplitudeTicks()) {
+      const y = Math.round(height * (this.maxDb - db) / (this.maxDb - this.minDb)) + .5;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
     }
     for (let i = 1; i < 10; i++) {
@@ -138,6 +139,25 @@ class WaterfallRenderer {
     ctx.fillStyle = fill;
     ctx.fill();
     drawLine(this.spectrum, '#7bd276', 1.5);
+  }
+
+  amplitudeTicks() {
+    const ticks = [];
+    for (let db = Math.ceil(this.minDb / 10) * 10 + 10; db < this.maxDb; db += 10) ticks.push(db);
+    return ticks;
+  }
+
+  updateAmplitudeScale() {
+    const container = document.getElementById('amplitude-scale');
+    if (!container) return;
+    container.replaceChildren();
+    const span = this.maxDb - this.minDb;
+    for (const db of this.amplitudeTicks()) {
+      const label = document.createElement('div');
+      label.style.top = ((this.maxDb - db) / span) * 100 + '%';
+      label.textContent = db + ' дБ';
+      container.append(label);
+    }
   }
 
   updateFrequencyScale() {

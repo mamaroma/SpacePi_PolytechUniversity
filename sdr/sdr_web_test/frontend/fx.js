@@ -24,9 +24,17 @@
   }
 
   /* ── Three.js starfield (HighTech-style ambient scene) ────── */
-  function initScene() {
+  const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js';
+
+  async function initScene() {
     const canvas = document.getElementById('scene-canvas');
-    if (!canvas || typeof THREE === 'undefined') return;
+    if (!canvas) return;
+    let THREE;
+    try {
+      THREE = await import(THREE_URL);
+    } catch (_) {
+      return;
+    }
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -113,16 +121,6 @@
     const points = new THREE.Points(geometry, material);
     scene.add(points);
 
-    // Soft accent orbs
-    const orbMat = (color, opacity) => new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending,
-    });
-    const orbA = new THREE.Mesh(new THREE.SphereGeometry(2.4, 24, 24), orbMat(0x724796, 0.09));
-    orbA.position.set(-6, 2, -8);
-    const orbB = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 24), orbMat(0x8ad27b, 0.06));
-    orbB.position.set(7, -3, -6);
-    scene.add(orbA, orbB);
-
     const pointer = { x: 0, y: 0 };
     const onPointer = (e) => {
       pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -154,8 +152,6 @@
       material.uniforms.uTime.value = t;
       points.rotation.y = t * 0.018 + pointer.x * 0.08;
       points.rotation.x = pointer.y * 0.05;
-      orbA.position.x = -6 + Math.sin(t * 0.2) * 0.4;
-      orbB.position.y = -3 + Math.cos(t * 0.17) * 0.35;
       camera.position.x += (pointer.x * 0.6 - camera.position.x) * 0.04;
       camera.position.y += (-pointer.y * 0.4 - camera.position.y) * 0.04;
       camera.lookAt(0, 0, 0);
