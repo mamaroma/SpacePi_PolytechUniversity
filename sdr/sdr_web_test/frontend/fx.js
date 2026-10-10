@@ -1,28 +1,6 @@
 (() => {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ── Lenis smooth scroll ──────────────────────────────────── */
-  function initLenis() {
-    if (reduceMotion || typeof Lenis === 'undefined') return null;
-    const lenis = new Lenis({
-      duration: 1.15,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    });
-    if (typeof gsap !== 'undefined') {
-      if (typeof ScrollTrigger !== 'undefined') lenis.on('scroll', ScrollTrigger.update);
-      gsap.ticker.add((time) => lenis.raf(time * 1000));
-      gsap.ticker.lagSmoothing(0);
-    } else {
-      const tick = (time) => {
-        lenis.raf(time);
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }
-    return lenis;
-  }
-
   /* ── Three.js starfield (HighTech-style ambient scene) ────── */
   const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js';
 
@@ -44,14 +22,14 @@
       alpha: true,
       powerPreference: 'low-power',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.setPixelRatio(1);
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 120);
     camera.position.z = 18;
 
-    const count = window.innerWidth < 700 ? 900 : 2200;
+    const count = window.innerWidth < 700 ? 600 : 1400;
     const positions = new Float32Array(count * 3);
     const seeds = new Float32Array(count);
     const scales = new Float32Array(count);
@@ -147,9 +125,11 @@
     });
 
     const clock = new THREE.Clock();
-    const render = () => {
+    let last = 0;
+    const render = (now) => {
       requestAnimationFrame(render);
-      if (!running) return;
+      if (!running || now - last < 33) return;
+      last = now;
       const t = clock.getElapsedTime();
       material.uniforms.uTime.value = t;
       points.rotation.y = t * 0.018 + pointer.x * 0.08;
@@ -159,11 +139,11 @@
       camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
     };
-    render();
+    requestAnimationFrame(render);
   }
 
   /* ── Hero orbit: Earth + satellites ───────────────────────── */
-  const EARTH_TEXTURE = '/sdr/static/earth-dark.jpg';
+  const EARTH_TEXTURE = '/sdr/static/earth-dark.jpg?v=2';
   const STATION = { lat: 60.01, lon: 30.38 };
 
   function glowTexture(THREE) {
@@ -225,13 +205,18 @@
     const host = canvas.parentElement;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-    camera.position.set(0, 0.9, 10);
-    camera.lookAt(0, 0, 0);
+    const FIT_RADIUS = 3.15;
+    const fitCamera = () => {
+      const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const dist = FIT_RADIUS / (half * Math.min(1, camera.aspect)) + FIT_RADIUS * 0.35;
+      camera.position.set(0, dist * 0.08, dist);
+      camera.lookAt(0, 0, 0);
+    };
 
     const C = {
       green: new THREE.Color('#8ad27b'),
@@ -240,7 +225,7 @@
       orange: new THREE.Color('#f39768'),
     };
     const glow = glowTexture(THREE);
-    const R = 1.55;
+    const R = 1.4;
 
     const world = new THREE.Group();
     world.rotation.set(0.12, -0.5, -0.08);
@@ -292,10 +277,10 @@
         }
       `,
     });
-    spin.add(new THREE.Mesh(new THREE.SphereGeometry(R, 64, 48), earthMat));
+    spin.add(new THREE.Mesh(new THREE.SphereGeometry(R, 48, 32), earthMat));
 
     const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(R * 1.13, 64, 48),
+      new THREE.SphereGeometry(R * 1.13, 48, 32),
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         transparent: true,
@@ -330,7 +315,7 @@
       earthMat.uniforms.uMap.value = tex;
       earthMat.uniforms.uHasMap.value = 1;
       const dots = new THREE.Points(
-        landDots(THREE, tex.image, R * 1.004, window.innerWidth < 700 ? 7000 : 14000),
+        landDots(THREE, tex.image, R * 1.004, window.innerWidth < 700 ? 5000 : 9000),
         new THREE.PointsMaterial({
           color: C.green,
           size: 0.13,
@@ -366,9 +351,9 @@
 
     // Orbits + satellites
     const ORBITS = [
-      { r: 2.25, inc: 0.38, node: 0.3, speed: 0.46, color: C.green, sats: [0, Math.PI] },
-      { r: 2.7, inc: -1.0, node: 1.2, speed: -0.32, color: C.lavender, sats: [1.2] },
-      { r: 3.1, inc: 1.32, node: -0.7, speed: 0.24, color: C.purple, sats: [2.4, 4.6] },
+      { r: 2.0, inc: 0.38, node: 0.3, speed: 0.46, color: C.green, sats: [0, Math.PI] },
+      { r: 2.4, inc: -1.0, node: 1.2, speed: -0.32, color: C.lavender, sats: [1.2] },
+      { r: 2.8, inc: 1.32, node: -0.7, speed: 0.24, color: C.purple, sats: [2.4, 4.6] },
     ];
     const TRAIL = 0.85;
     const satellites = [];
@@ -464,6 +449,7 @@
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      fitCamera();
     };
     resize();
     new ResizeObserver(resize).observe(host);
@@ -534,6 +520,8 @@
     if (typeof gsap === 'undefined' || reduceMotion) return;
 
     if (typeof ScrollTrigger !== 'undefined') gsap.registerPlugin(ScrollTrigger);
+    // WebGL shader compilation stalls the first frames; don't let GSAP stretch the intro over them.
+    gsap.ticker.lagSmoothing(0);
 
     const ease = 'expo.out';
     const intro = gsap.timeline({ defaults: { ease } });
@@ -567,10 +555,9 @@
   }
 
   function boot() {
-    initLenis();
+    initMotion();
     initScene();
     initOrbit();
-    initMotion();
   }
 
   if (document.readyState === 'loading') {
