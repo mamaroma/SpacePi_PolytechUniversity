@@ -7,154 +7,187 @@
   <title>SDR · Радионаблюдение</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/sdr/static/style.css?v=14">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/sdr/static/style.css?v=16">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
   <script src="/sdr/static/waterfall.js?v=10" defer></script>
+  <script src="/sdr/static/fx.js?v=2" defer></script>
   <script src="/sdr/static/app.js?v=9" defer></script>
 </head>
 <body>
-  <header class="site-header">
-    <a class="identity" href="/" aria-label="На главную страницу">
-      <span class="identity-mark" aria-hidden="true"><span class="identity-core"></span></span>
-      <span class="identity-name">Poly<span>Space</span></span>
-    </a>
-    <nav class="header-nav" aria-label="Раздел">
-      <span class="header-chip">SDR</span>
-      <span class="header-label">Центр радионаблюдения</span>
-    </nav>
-    <div class="header-actions">
-      <time id="local-clock">—</time>
-      <a class="back-link" href="/">На портал <span aria-hidden="true">↗</span></a>
-    </div>
-  </header>
+  <!-- Ambient WebGL scene (как SceneMount в HighTech) -->
+  <div class="scene" aria-hidden="true">
+    <canvas id="scene-canvas"></canvas>
+  </div>
 
-  <main class="observatory">
-    <section class="status-bar" aria-labelledby="page-title">
-      <div class="status-copy">
-        <p class="section-code">Наземный сегмент · прямое наблюдение</p>
-        <h1 id="page-title">Радионаблюдение</h1>
-      </div>
-      <div class="orbit-state" data-state="waiting">
-        <span class="state-pulse" aria-hidden="true"></span>
-        <div>
-          <span class="state-label">Состояние</span>
-          <strong id="stream-title" aria-live="polite">Ожидание пролёта</strong>
-          <p id="stream-detail" class="hero-detail">Следующее окно связи появится в расписании.</p>
-        </div>
-      </div>
-      <div class="status-metrics" aria-label="Параметры приёма">
-        <div>
-          <small>Центр</small>
-          <strong id="center-frequency">— МГц</strong>
-        </div>
-        <div>
-          <small>Ширина</small>
-          <strong id="sample-rate">— кГц</strong>
-        </div>
-        <div>
-          <small>Станция</small>
-          <strong>60.01°N · 30.38°E</strong>
-        </div>
-      </div>
-    </section>
+  <!-- Film overlays -->
+  <div class="overlay overlay--vignette" aria-hidden="true"></div>
+  <div class="overlay overlay--scan" aria-hidden="true"></div>
+  <div class="overlay overlay--grain" aria-hidden="true"></div>
 
-    <div id="connection-alert" class="connection-alert" role="status" hidden>
-      Нет связи с сервисом наблюдения. Повторяем подключение…
-    </div>
-
-    <section class="radio-section" aria-labelledby="spectrum-heading">
-      <div class="section-heading">
-        <div class="heading-copy">
-          <span class="heading-kicker">Радиочастотный монитор</span>
-          <h2 id="spectrum-heading">Спектр сигнала</h2>
-        </div>
-        <div class="heading-measures">
-          <span class="measure-pill">FFT / 1024</span>
-          <span class="measure-pill">Live waterfall</span>
-        </div>
+  <div class="page">
+    <header class="site-header">
+      <a class="identity" href="/" aria-label="На главную страницу">
+        <span class="identity-mark" aria-hidden="true"><span class="identity-core"></span></span>
+        <span class="identity-name">Poly<span>Space</span></span>
+      </a>
+      <nav class="header-nav" aria-label="Раздел">
+        <span class="header-chip mono">SDR // 01</span>
+        <span class="header-label">Центр радионаблюдения</span>
+      </nav>
+      <div class="header-actions">
+        <time id="local-clock" class="mono">—</time>
+        <a class="back-link" href="/">На портал <span aria-hidden="true">↗</span></a>
       </div>
-      <div class="radio-layout">
-        <div class="scope">
-          <div class="scope-top">
-            <span class="scope-cross" aria-hidden="true"></span>
-            <span>Амплитудно-частотная характеристика</span>
-            <span class="scope-code">real-time</span>
+    </header>
+
+    <main class="observatory">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero__grid scrim">
+          <p class="eyebrow mono" data-hero-eyebrow>
+            Наземный сегмент // прямое наблюдение
+          </p>
+
+          <h1 id="page-title" class="hero__title">
+            <span class="hero__title-row" data-hero-line>Слушаем</span>
+            <span class="hero__title-row hero__title-row--indent gradient-text" data-hero-line>орбиту</span>
+          </h1>
+
+          <div class="orbit-state" data-state="waiting" data-hero-state>
+            <span class="state-pulse" aria-hidden="true"></span>
+            <div>
+              <span class="state-label mono">Текущее состояние</span>
+              <strong id="stream-title" aria-live="polite">Ожидание пролёта</strong>
+              <p id="stream-detail" class="hero-detail">Следующее окно связи появится в расписании.</p>
+            </div>
           </div>
-          <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
-          <div class="waterfall-top"><span>Водопад</span><span>Время ↓</span></div>
-          <canvas id="waterfall-canvas" width="1024" height="262" role="img" aria-label="Водопад радиосигнала"></canvas>
-          <div id="frequency-scale" class="frequency-scale" aria-hidden="true"></div>
-        </div>
-        <aside class="control-rail" aria-label="Настройка вида">
-          <div class="rail-heading"><span>Вид</span></div>
-          <label>Яркость<input id="intensity" type="range" min="0" max="100" value="50" aria-label="Яркость водопада"></label>
-          <label>Контраст<input id="contrast" type="range" min="0" max="100" value="50" aria-label="Контраст водопада"></label>
-        </aside>
-      </div>
-    </section>
 
-    <div class="dashboard-grid">
-      <section class="operation-block recording-block" aria-labelledby="recording-heading">
-        <div class="block-heading">
-          <div>
-            <span class="heading-kicker">Сохранение сигнала</span>
-            <h2 id="recording-heading">Запись IQ</h2>
+          <hr class="rule" data-hero-rule />
+
+          <div class="hero__meta mono" data-hero-meta aria-label="Параметры приёма">
+            <div class="hero__meta-item">
+              <span class="hero__meta-label">Центр</span>
+              <span class="hero__meta-value" id="center-frequency">— МГц</span>
+            </div>
+            <div class="hero__meta-item">
+              <span class="hero__meta-label">Ширина</span>
+              <span class="hero__meta-value" id="sample-rate">— кГц</span>
+            </div>
+            <div class="hero__meta-item">
+              <span class="hero__meta-label">Станция</span>
+              <span class="hero__meta-value">60.01°N · 30.38°E</span>
+            </div>
+            <div class="hero__meta-item">
+              <span class="hero__meta-label">Полоса</span>
+              <span class="hero__meta-value">UHF / FFT</span>
+            </div>
           </div>
         </div>
-        <div class="record-main">
-          <div class="record-info">
-            <p class="record-subtitle">Текущий IQ-поток</p>
-            <p id="manual-record-detail" class="record-detail">После остановки IQ-файл скачается на ваш компьютер.</p>
-          </div>
-          <button id="record-button" class="record-button" type="button">
-            <span id="record-button-icon" aria-hidden="true">●</span>
-            <span id="record-button-label">Начать запись</span>
-          </button>
-        </div>
-        <p id="record-error" class="inline-error" role="alert" hidden></p>
       </section>
 
-      <section class="operation-block pass-block" aria-labelledby="pass-heading">
-        <div class="block-heading">
-          <div>
-            <span class="heading-kicker">Орбитальное расписание</span>
-            <h2 id="pass-heading">Следующее окно связи</h2>
+      <div id="connection-alert" class="connection-alert" role="status" hidden>
+        Нет связи с сервисом наблюдения. Повторяем подключение…
+      </div>
+
+      <section class="radio-section" aria-labelledby="spectrum-heading" data-reveal>
+        <div class="section-heading">
+          <div class="heading-copy">
+            <span class="heading-kicker mono">Радиочастотный монитор</span>
+            <h2 id="spectrum-heading">Спектр сигнала</h2>
+          </div>
+          <div class="heading-measures">
+            <span class="measure-pill mono">FFT / 1024</span>
+            <span class="measure-pill mono">Live waterfall</span>
           </div>
         </div>
-        <div id="next-pass" class="next-pass"><p class="empty-state">Загружаем расписание…</p></div>
-        <a class="inline-link" href="#schedule">Все пролёты <span aria-hidden="true">→</span></a>
-      </section>
 
-      <section class="data-section archive-section" aria-labelledby="archive-heading">
-        <div class="data-heading">
-          <div>
-            <span class="heading-kicker">Архив приёма</span>
-            <h2 id="archive-heading">IQ пролётов</h2>
+        <div class="radio-layout panel brackets">
+          <div class="scope">
+            <div class="scope-top mono">
+              <span class="scope-cross" aria-hidden="true"></span>
+              <span>Амплитудно-частотная характеристика</span>
+              <span class="scope-code">real-time</span>
+            </div>
+            <canvas id="spectrum-line-canvas" width="1024" height="162" role="img" aria-label="Спектр радиосигнала"></canvas>
+            <div class="waterfall-top mono"><span>Водопад</span><span>Время ↓</span></div>
+            <canvas id="waterfall-canvas" width="1024" height="262" role="img" aria-label="Водопад радиосигнала"></canvas>
+            <div id="frequency-scale" class="frequency-scale mono" aria-hidden="true"></div>
           </div>
-          <span id="archive-count" class="pass-count">0</span>
+          <aside class="control-rail" aria-label="Настройка вида">
+            <div class="rail-heading mono">Вид</div>
+            <label>Яркость<input id="intensity" type="range" min="0" max="100" value="50" aria-label="Яркость водопада"></label>
+            <label>Контраст<input id="contrast" type="range" min="0" max="100" value="50" aria-label="Контраст водопада"></label>
+          </aside>
         </div>
-        <p class="data-description">Записи принятых пролётов доступны для скачивания 48 часов.</p>
-        <div id="archive-list" class="pass-list"><p class="empty-state">Загружаем записи…</p></div>
       </section>
 
-      <section id="schedule" class="data-section schedule-section" aria-labelledby="schedule-heading">
-        <div class="data-heading">
-          <div>
-            <span class="heading-kicker">Окна связи</span>
-            <h2 id="schedule-heading">Пролёты</h2>
+      <div class="dashboard-grid">
+        <section class="operation-block recording-block panel brackets" aria-labelledby="recording-heading" data-reveal>
+          <div class="block-heading">
+            <div>
+              <span class="heading-kicker mono">Сохранение сигнала</span>
+              <h2 id="recording-heading">Запись IQ</h2>
+            </div>
           </div>
-          <span id="pass-count" class="pass-count">0</span>
-        </div>
-        <p class="data-description">Время указано по Москве.</p>
-        <div id="pass-list" class="pass-list"><p class="empty-state">Загружаем пролёты…</p></div>
-      </section>
-    </div>
+          <div class="record-main">
+            <div class="record-info">
+              <p class="record-subtitle">Текущий IQ-поток</p>
+              <p id="manual-record-detail" class="record-detail">После остановки IQ-файл скачается на ваш компьютер.</p>
+            </div>
+            <button id="record-button" class="record-button" type="button">
+              <span id="record-button-icon" aria-hidden="true">●</span>
+              <span id="record-button-label">Начать запись</span>
+            </button>
+          </div>
+          <p id="record-error" class="inline-error" role="alert" hidden></p>
+        </section>
 
-    <footer class="page-footer">
-      <span>PolySpace</span>
-      <span>Наземный сегмент · МСК (UTC+3)</span>
-    </footer>
-  </main>
+        <section class="operation-block pass-block panel brackets" aria-labelledby="pass-heading" data-reveal>
+          <div class="block-heading">
+            <div>
+              <span class="heading-kicker mono">Орбитальное расписание</span>
+              <h2 id="pass-heading">Следующее окно связи</h2>
+            </div>
+          </div>
+          <div id="next-pass" class="next-pass"><p class="empty-state">Загружаем расписание…</p></div>
+          <a class="inline-link" href="#schedule">Все пролёты <span aria-hidden="true">→</span></a>
+        </section>
+
+        <section class="data-section archive-section panel brackets" aria-labelledby="archive-heading" data-reveal>
+          <div class="data-heading">
+            <div>
+              <span class="heading-kicker mono">Архив приёма</span>
+              <h2 id="archive-heading">IQ пролётов</h2>
+            </div>
+            <span id="archive-count" class="pass-count">0</span>
+          </div>
+          <p class="data-description">Записи принятых пролётов доступны для скачивания 48 часов.</p>
+          <div id="archive-list" class="pass-list"><p class="empty-state">Загружаем записи…</p></div>
+        </section>
+
+        <section id="schedule" class="data-section schedule-section panel brackets" aria-labelledby="schedule-heading" data-reveal>
+          <div class="data-heading">
+            <div>
+              <span class="heading-kicker mono">Окна связи</span>
+              <h2 id="schedule-heading">Пролёты</h2>
+            </div>
+            <span id="pass-count" class="pass-count">0</span>
+          </div>
+          <p class="data-description">Время указано по Москве.</p>
+          <div id="pass-list" class="pass-list"><p class="empty-state">Загружаем пролёты…</p></div>
+        </section>
+      </div>
+
+      <footer class="page-footer mono">
+        <span>PolySpace</span>
+        <span>Наземный сегмент · МСК (UTC+3)</span>
+      </footer>
+    </main>
+  </div>
+
   <noscript>Для отображения спектра нужен JavaScript.</noscript>
 </body>
 </html>
