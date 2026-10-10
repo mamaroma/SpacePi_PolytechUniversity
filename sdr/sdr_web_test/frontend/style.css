@@ -288,11 +288,55 @@ h1, h2 {
 .hero__title-accent {
   width: fit-content;
   padding-bottom: 0.08em;
-  background: linear-gradient(95deg, #f39768 0%, #da4927 38%, #b0549e 68%, #9460b8 100%);
+  background: linear-gradient(95deg, #8ad27b 0%, #7cc7a4 30%, #a088d8 66%, #9460b8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 6px 30px rgba(218, 73, 39, 0.28));
+  filter: drop-shadow(0 6px 30px rgba(148, 96, 184, 0.3));
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 540px);
+  align-items: center;
+  column-gap: clamp(1.5rem, 4vw, 4rem);
+}
+.hero__copy { min-width: 0; }
+.hero__visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  margin: -1.5rem 0 -2.5rem;
+}
+.hero__visual::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(148, 96, 184, 0.16) 0%, rgba(138, 210, 123, 0.05) 45%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+#orbit-canvas { position: relative; display: block; width: 100%; height: 100%; cursor: grab; touch-action: pan-y; }
+#orbit-canvas:active { cursor: grabbing; }
+.hero__visual-tag {
+  position: absolute;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.hero__visual-tag--top { top: 8%; right: 4%; }
+.hero__visual-tag--bottom {
+  bottom: 9%; left: 4%;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--ink-dim);
+}
+.hero__visual-tag--bottom i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 10px var(--orange);
 }
 .hero__title-row--indent { padding-left: clamp(0.5rem, 4vw, 3.5rem); }
 
@@ -493,9 +537,10 @@ h1, h2 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--green-ink);
-  border: 1px solid var(--green);
-  background: var(--green);
+  color: var(--void);
+  border: 1px solid rgba(138, 210, 123, 0.6);
+  background: linear-gradient(100deg, var(--green) 0%, #7cc7a4 35%, #a088d8 70%, var(--purple) 100%);
+  box-shadow: 0 10px 34px -14px rgba(148, 96, 184, 0.7);
   overflow: hidden;
   isolation: isolate;
   transition: color 0.4s var(--ease-out), border-color 0.4s var(--ease-out), transform 0.35s var(--ease-out);
@@ -505,13 +550,12 @@ h1, h2 {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(100deg, var(--orange), var(--purple));
+  background: linear-gradient(100deg, var(--purple) 0%, #a088d8 35%, #7cc7a4 70%, var(--green) 100%);
   transform: translateY(101%);
   transition: transform 0.5s var(--ease-out);
 }
 .record-button:hover:not(:disabled) {
-  color: var(--ink);
-  border-color: var(--orange);
+  border-color: var(--purple);
   transform: translateY(-1px);
 }
 .record-button:hover:not(:disabled)::before { transform: translateY(0); }
@@ -620,8 +664,11 @@ h1, h2 {
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1050px) {
   .radio-layout { grid-template-columns: minmax(0, 1fr) 148px; }
+  .hero__grid { grid-template-columns: minmax(0, 1fr) minmax(260px, 400px); }
 }
 @media (max-width: 800px) {
+  .hero__grid { grid-template-columns: 1fr; }
+  .hero__visual { max-width: 420px; margin: 0.5rem auto -1rem; }
   .dashboard-grid {
     grid-template-columns: 1fr;
     grid-template-areas: "record" "archive" "next" "schedule";
