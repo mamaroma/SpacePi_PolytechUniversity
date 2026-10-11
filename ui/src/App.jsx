@@ -180,6 +180,7 @@ function AppInner() {
 
   return (
     <>
+      <div className="film" aria-hidden="true" />
       <header className="header">
         <a className="header-logo" href="/">
           <img

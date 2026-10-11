@@ -17,7 +17,7 @@ const PARTNERS = [
   {
     name: "Space-π",
     role: "Научно-образовательный проект",
-    logo: "/logo-main.jpg",
+    logo: "/space-pi-logo.jpg",
     bg: "light",
     href: "https://spacepi.space/",
   },

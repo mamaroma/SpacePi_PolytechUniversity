@@ -45,7 +45,7 @@ export default function SpaceBackground() {
       x: Math.random(),
       y: Math.random(),
       r: 0.18 + Math.random() * 0.22,
-      hue: i % 2 === 0 ? 275 : 22,   // purple / orange
+      hue: i % 2 === 0 ? 278 : 128,   // purple / green
       alpha: 0.04 + Math.random() * 0.06,
       phase: Math.random() * Math.PI * 2,
     }));
@@ -57,11 +57,11 @@ export default function SpaceBackground() {
       x: rand(-1, 1),   // normalised screen coords [-1..1]
       y: rand(-1, 1),
       z: rand(0.1, 1),  // depth: 0 = far, 1 = close
-      color: Math.random() < 0.18
-        ? `hsl(${rand(260, 300)},70%,${rand(72, 90)}%)`  // purple-tinted
-        : Math.random() < 0.12
-          ? `hsl(${rand(18, 38)},88%,${rand(72, 88)}%)`   // orange
-          : `hsl(0,0%,${rand(82, 100)}%)`,                 // white
+      color: Math.random() < 0.22
+        ? `hsl(${rand(268, 292)},70%,${rand(74, 90)}%)`
+        : Math.random() < 0.16
+          ? `hsl(${rand(112, 138)},72%,${rand(68, 82)}%)`
+          : `hsl(0,0%,${rand(86, 100)}%)`,
       twinkle: rand(0, Math.PI * 2),
       twinkleSpeed: rand(0.015, 0.045),
     });
@@ -69,11 +69,12 @@ export default function SpaceBackground() {
     const stars = Array.from({ length: STAR_COUNT }, mkStar);
 
     /* ── Frame ──────────────────────────────────────────────────────── */
-    let frame = 0;
+    let last = 0;
 
-    const draw = () => {
-      frame++;
+    const draw = (now) => {
       rafId = requestAnimationFrame(draw);
+      if (now - last < 33) return;
+      last = now;
 
       ctx.clearRect(0, 0, W, H);
 
@@ -137,15 +138,9 @@ export default function SpaceBackground() {
           : s.color.replace(")", `,${twinkleAlpha * brightness})`).replace("hsl", "hsla");
         ctx.fill();
       });
-
-      /* Subtle scan-line overlay */
-      if (frame % 4 === 0) {
-        ctx.fillStyle = "rgba(0,0,0,0.018)";
-        for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
-      }
     };
 
-    draw();
+    requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(rafId);
