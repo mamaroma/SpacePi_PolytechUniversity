@@ -116,10 +116,12 @@ export default function AuthPage() {
       >
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <img
-            src="/spacepi-logo.svg"
-            alt="PolySpace"
-            style={{ height: 52, marginBottom: 10, display: "inline-block" }}
-            onError={(e) => { e.target.style.display = "none"; }}
+            src="/logo-main.jpg"
+            alt=""
+            width="72"
+            height="72"
+            className="header-logo-img"
+            style={{ width: 72, height: 72, marginBottom: 12 }}
           />
           <h2 style={{ margin: 0, color: "var(--text)", fontSize: 20 }}>PolySpace</h2>
           <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 4 }}>

@@ -135,10 +135,9 @@ function MskClock() {
   const s = `${pad(msk.getUTCDate())}.${pad(msk.getUTCMonth()+1)}.${msk.getUTCFullYear()} ${pad(msk.getUTCHours())}:${pad(msk.getUTCMinutes())}:${pad(msk.getUTCSeconds())} МСК`;
   return (
     <span
-      className="mono"
-      style={{ fontSize: 13, color: "var(--text-dim)", padding: "7px 14px",
-               border: "1px solid var(--border)", borderRadius: 8,
-               background: "rgba(36,65,40,0.55)", letterSpacing: "0.5px" }}
+      className="mono header-clock"
+      style={{ fontSize: 13, color: "var(--text-dim)", letterSpacing: "0.06em",
+               fontVariantNumeric: "tabular-nums" }}
     >
       {s}
     </span>
@@ -184,8 +183,10 @@ function AppInner() {
       <header className="header">
         <a className="header-logo" href="/">
           <img
-            src="/polyspace-logo.png"
-            alt="PolySpace"
+            src="/logo-main.jpg"
+            alt=""
+            width="66"
+            height="66"
             className="header-logo-img"
           />
           <span className="header-logo-text">
@@ -259,7 +260,7 @@ function AppInner() {
               style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
                 background: "var(--surface-2)", border: "1px solid var(--border-hi)",
-                borderRadius: 12, cursor: "pointer", color: "var(--text)", fontSize: 14,
+                borderRadius: 2, cursor: "pointer", color: "var(--text)", fontSize: 14,
                 fontWeight: 500,
               }}
             >
@@ -276,7 +277,7 @@ function AppInner() {
             {userMenuOpen && (
               <div style={{
                 position: "absolute", right: 0, top: "calc(100% + 8px)", background: "var(--surface-1)",
-                border: "1px solid var(--border-hi)", borderRadius: 12, padding: 8,
+                border: "1px solid var(--border-hi)", borderRadius: 2, padding: 8,
                 minWidth: 200, zIndex: 10000, boxShadow: "0 12px 32px rgba(0,0,0,.7)"
               }}>
                 <div style={{ padding: "8px 12px 10px", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
