@@ -47,12 +47,17 @@ from __future__ import annotations
 import os
 import struct
 import logging
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Any
 
 from fastapi import APIRouter, Header, Query, Request, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
+from sqlmodel import Session, select
+
+from .db import engine
+from .models import TelemetryPacket
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +163,66 @@ def _decode_raw(data: bytes, fmt: str) -> list[dict]:
     return packets
 
 
+def persist_decoded_packets(sat: str, packets: list[dict], source: str) -> int:
+    """Записать разобранные пакеты в ту же таблицу, что читает раздел «Телеметрия»."""
+    saved = 0
+    with Session(engine) as session:
+        for index, pkt in enumerate(packets):
+            if pkt.get("error") or "temp_c" not in pkt:
+                continue
+            key = zlib.crc32(f"{source}:{index}:{pkt.get('hex', '')}".encode()) & 0x7FFFFFFF
+            exists = session.exec(
+                select(TelemetryPacket).where(
+                    TelemetryPacket.channel == "ingest",
+                    TelemetryPacket.message_id == key,
+                )
+            ).first()
+            if exists:
+                continue
+            ts = None
+            if pkt.get("ts_iso"):
+                try:
+                    ts = datetime.fromisoformat(pkt["ts_iso"])
+                except ValueError:
+                    ts = None
+            if ts is None:
+                ts = datetime.now(timezone.utc)
+            session.add(TelemetryPacket(
+                channel="ingest",
+                message_id=int(key),
+                satellite=sat,
+                ts_utc=ts,
+                raw_text=f"ingest {source}",
+                temp_c=pkt.get("temp_c"),
+                vbus_mv=pkt.get("vbus_mv"),
+                ibus_ma=pkt.get("ibus_ma"),
+                battery_capacity_pct=pkt.get("battery_pct"),
+                rssi_dbm=pkt.get("rssi_dbm"),
+                snr_db=pkt.get("snr_db"),
+                uptime_sec=pkt.get("uptime_sec"),
+            ))
+            saved += 1
+        if saved:
+            session.commit()
+    return saved
+
+
+def backfill_stored_packets() -> int:
+    """Пакеты, уже лежащие в data/storage/telemetry, тоже показать в телеметрии."""
+    if not _STORAGE.is_dir():
+        return 0
+    total = 0
+    for path in sorted(_STORAGE.glob("*.bin")):
+        stem = path.stem
+        sat = stem.split("_", 1)[1] if "_" in stem else "Polytech_Universe-3"
+        try:
+            packets = _decode_raw(path.read_bytes(), "pu32")
+            total += persist_decoded_packets(sat, packets, path.name)
+        except Exception:
+            logger.exception("ingest backfill failed for %s", path.name)
+    return total
+
+
 # ── POST /api/ingest/binary ────────────────────────────────────────────────────
 
 @router.post("/binary")
@@ -251,6 +316,10 @@ async def ingest_binary(
     packets: list[dict] = []
     if decode:
         packets = _decode_raw(raw, fmt)
+        try:
+            persist_decoded_packets(sat, packets, saved_as or source_name)
+        except Exception:
+            logger.exception("ingest/binary: failed to store packets in telemetry DB")
 
     response: dict[str, Any] = {
         "ok":             True,

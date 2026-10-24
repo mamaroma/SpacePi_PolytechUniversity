@@ -455,6 +455,7 @@ export default function GlobeCard({
   announcedSatellites = {},
   onSatelliteClick,
   focusTarget = null,
+  receivedPoints = [],
 }) {
   const globeRef = useRef(null);
   const overlayRef = useRef(new THREE.Group());
@@ -994,6 +995,16 @@ export default function GlobeCard({
   const CARD_HEIGHT = "82vh";
   const CARD_MIN_H = 760;
 
+  const rxPoints = useMemo(() => {
+    const out = [];
+    for (const p of receivedPoints ?? []) {
+      if (!validLatLon(p.lat, p.lon)) continue;
+      out.push({ lat: Number(p.lat), lon: Number(p.lon) });
+      if (out.length >= 400) break;
+    }
+    return out;
+  }, [receivedPoints]);
+
   // Высота внутреннего контейнера = card - шапка
   const INNER_HEIGHT = "calc(82vh - 60px)";
   const INNER_MIN_H = 680;
@@ -1043,6 +1054,13 @@ export default function GlobeCard({
             el.style.opacity = isVisible ? "1" : "0";
             el.style.pointerEvents = isVisible ? "auto" : "none";
           }}
+          pointsData={rxPoints}
+          pointLat={(d) => d.lat}
+          pointLng={(d) => d.lon}
+          pointColor={() => "#8ad27b"}
+          pointAltitude={0.012}
+          pointRadius={0.22}
+          pointsMerge={true}
         />
         )}
       </div>

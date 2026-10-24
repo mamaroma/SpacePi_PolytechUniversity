@@ -606,6 +606,8 @@ export default function SatellitesPage() {
       snr_db: toNum(r.snr_db),
       uptime_sec: toNum(r.uptime_sec),
       reset_count: toNum(r.reset_count),
+      lat: toNum(r.tle_lat),
+      lon: toNum(r.tle_lon),
     };
   }), [panelRows]);
 
@@ -786,6 +788,7 @@ export default function SatellitesPage() {
                   atIso={at.toISOString()}
                   minutes={orbitMinutes}
                   stepSec={orbitStepSec}
+                  receivedPoints={mapSats.has(sat) ? chartData : []}
                   orbitData={mapSats.has(sat) ? (orbitDataMap[sat] ?? null) : null}
                   multiOrbitData={orbitDataMap}
                   mapSats={mapSats}

@@ -55,6 +55,13 @@ async def _auto_collect_loop():
 async def _lifespan(app: FastAPI):
     # ── startup ──────────────────────────────────────────────────────────────
     init_db()
+    try:
+        from .ingest_api import backfill_stored_packets
+        filled = backfill_stored_packets()
+        if filled:
+            logger.info("Telemetry backfill: %s ingested packet(s) added", filled)
+    except Exception:
+        logger.exception("Telemetry backfill failed")
     if settings.auto_collect_enabled:
         app.state.auto_collect_task = asyncio.create_task(_auto_collect_loop())
         logger.info(

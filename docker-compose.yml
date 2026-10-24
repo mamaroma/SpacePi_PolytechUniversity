@@ -30,6 +30,9 @@ services:
     environment:
       DATABASE_URL: "postgresql+psycopg2://spacepi:spacepi@db:5432/spacepi"
       CORS_ALLOW_ORIGINS: "*"
+      # Заглушка водопада (nothing.iq), пока нет живого IQ. Крутится только
+      # когда страницу SDR кто-то смотрит.
+      SDR_IDLE_SPECTRUM: "1"
       # Архивные CSV (телеметрия PU-1..PU-6 и AIS-сессии), смонтированы ниже
       TELEAIS_DATA_DIR: "/app/tele-ais_data"
     volumes:
